@@ -139,6 +139,7 @@ def _build_demo_object(overrides=None):
         'totalVolume': data['totalVolume'], 'totalFTE': data['totalFTE'],
         'totalCost': data['totalCost'],
         'totalVolumeAnnual': data.get('totalVolumeAnnual', data['totalVolume']),
+        'annualContactsPerFTE': round(data.get('totalVolumeAnnual', data['totalVolume']) / max(data['totalFTE'], 1)),
         'volumeAnnualizationFactor': data.get('volumeAnnualizationFactor', 12),
         'totalMonthlyCost': sum(r['headcount']*r['costPerFTE']/12 for r in roles),
         'avgCSAT': data['avgCSAT'], 'avgAHT': round(data['avgAHT']*60, 0),

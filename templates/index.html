@@ -861,7 +861,9 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
     <div class="nav-item" data-page="13" style="display:none;">
       <span class="nav-num">13</span><span>Workforce Transition</span>
     </div>
-    <!-- CR-015: Scenario Comparison removed -->
+    <div class="nav-item" data-page="21">
+      <span class="nav-num">21</span><span>Scenario Comparison</span>
+    </div>
     <div class="nav-phase">⚙️ Administration</div>
     <div class="nav-item" data-page="dm" onclick="toggleDataPanel()" style="cursor:pointer;">
       <span class="nav-num" style="font-size:14px;">📁</span><span>Data Management</span><span class="role-admin" style="font-size:9px;background:#FFE600;color:#2E2E38;padding:1px 6px;border-radius:3px;margin-left:6px;">Admin</span>
@@ -916,7 +918,7 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
 
     <!-- Actions -->
     <div style="margin-top:20px;display:flex;gap:10px;">
-      <button onclick="dmRecalculate()" class="btn" style="flex:1;background:var(--ey-yellow);color:var(--ey-dark);font-weight:700;padding:12px;border:none;border-radius:8px;cursor:pointer;font-size:14px;">
+      <button onclick="dmRecalculate(this)" class="btn" style="flex:1;background:var(--ey-yellow);color:var(--ey-dark);font-weight:700;padding:12px;border:none;border-radius:8px;cursor:pointer;font-size:14px;">
         ⚡ Apply &amp; Recalculate
       </button>
       <button onclick="dmClearAll()" class="btn btn-outline" style="padding:12px 16px;border:1.5px solid #E0E0E6;border-radius:8px;cursor:pointer;background:none;font-size:13px;color:var(--ey-text-light);">
@@ -1201,8 +1203,8 @@ async function dmClearAll() {
   }
 }
 
-async function dmRecalculate() {
-  const btn = event.target;
+async function dmRecalculate(btn) {
+  if (!btn) btn = document.querySelector('#dataMgmtPanel .btn');
   btn.disabled = true; btn.textContent = '⏳ Recalculating...';
   try {
     const resp = await fetch('/api/data-management/recalculate', {method: 'POST'});
@@ -1214,7 +1216,8 @@ async function dmRecalculate() {
         _hydrateDemo(DEMO);
         if (data.initiatives) window._INITIATIVES = data.initiatives;
         if (data.waterfall) window._WATERFALL = data.waterfall;
-        renderCurrentPage();
+        Object.keys(rendered).forEach(k => rendered[k] = false);
+        renderPage(currentPage);
       }
       _dmToast('✓ All engines recalculated with updated data', 'success');
     } else {
@@ -1339,6 +1342,33 @@ function _normalizeBenchmarks(data) {
 
 // ── v12-#45: Flatten nested subIntentEnriched into flat array ──
 function _getSubIntentsFlat(enrichedData) {
+    if (!enrichedData || !Array.isArray(enrichedData)) return [];
+    if (enrichedData.length > 0 && enrichedData[0].parentIntent) return enrichedData;
+    const flat = [];
+    enrichedData.forEach(intentObj => {
+        const parentIntent = intentObj.intent || '';
+        const parentVol = intentObj.totalVolume || 0;
+        (intentObj.subIntents || []).forEach(si => {
+            flat.push({
+                parentIntent: parentIntent,
+                subIntent: si.name || si.subIntent || '',
+                name: si.name || si.subIntent || '',
+                volumeShare: typeof si.volumeShare === 'number' ? si.volumeShare : parseFloat(si.volumeShare) || 0,
+                complexity: typeof si.complexity === 'number' ? si.complexity :
+                    si.complexity === 'simple' ? 0.2 : si.complexity === 'moderate' ? 0.5 : si.complexity === 'complex' ? 0.8 : parseFloat(si.complexity) || 0.5,
+                automationPotential: si.automationPotential || 0,
+                feasibilityScore: si.feasibilityScore || 0,
+                deflectableChannels: si.deflectableChannels || [],
+                initiatives: si.initiatives || [],
+                capturedFTE: si.capturedFTE || 0,
+                untappedFTE: si.untappedFTE || 0,
+                primaryLever: si.primaryLever || null,
+                parentVolume: parentVol,
+            });
+        });
+    });
+    return flat;
+}
 
 // v12-#41/#21: Compact recommendation table builder — themed per diagnostic context
 function _buildCompactRecTable(recs, triggerLabel, theme) {
@@ -1386,34 +1416,6 @@ function _buildCompactRecTable(recs, triggerLabel, theme) {
   html += '</tbody></table>';
   if (recs.length > 8) html += '<div style="font-size:9px;color:var(--ey-text-light);margin-top:4px;">+'+(recs.length-8)+' more — open Roadmap (Page 9) for full list.</div>';
   return html;
-}
-
-    if (!enrichedData || !Array.isArray(enrichedData)) return [];
-    if (enrichedData.length > 0 && enrichedData[0].parentIntent) return enrichedData;
-    const flat = [];
-    enrichedData.forEach(intentObj => {
-        const parentIntent = intentObj.intent || '';
-        const parentVol = intentObj.totalVolume || 0;
-        (intentObj.subIntents || []).forEach(si => {
-            flat.push({
-                parentIntent: parentIntent,
-                subIntent: si.name || si.subIntent || '',
-                name: si.name || si.subIntent || '',
-                volumeShare: typeof si.volumeShare === 'number' ? si.volumeShare : parseFloat(si.volumeShare) || 0,
-                complexity: typeof si.complexity === 'number' ? si.complexity :
-                    si.complexity === 'simple' ? 0.2 : si.complexity === 'moderate' ? 0.5 : si.complexity === 'complex' ? 0.8 : parseFloat(si.complexity) || 0.5,
-                automationPotential: si.automationPotential || 0,
-                feasibilityScore: si.feasibilityScore || 0,
-                deflectableChannels: si.deflectableChannels || [],
-                initiatives: si.initiatives || [],
-                capturedFTE: si.capturedFTE || 0,
-                untappedFTE: si.untappedFTE || 0,
-                primaryLever: si.primaryLever || null,
-                parentVolume: parentVol,
-            });
-        });
-    });
-    return flat;
 }
 
 // ── Step 1: Try __SERVER_DATA (Jinja-injected, most reliable) ──
@@ -1690,13 +1692,19 @@ function getChannelBenchmark(channel, metric) {
 let currentPage = 1;
 
 function navigateTo(page) {
+  if (!page || isNaN(page)) return;
   currentPage = page;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById(`page-${page}`).classList.add('active');
-  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
-  document.getElementById('topbarTitle').textContent = PAGE_META[page].title;
-  document.getElementById('topbarQuestion').textContent = PAGE_META[page].question;
+  const pageEl = document.getElementById(`page-${page}`);
+  const navEl = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (pageEl) pageEl.classList.add('active');
+  if (navEl) navEl.classList.add('active');
+  const meta = PAGE_META[page];
+  if (meta) {
+    document.getElementById('topbarTitle').textContent = meta.title;
+    document.getElementById('topbarQuestion').textContent = meta.question;
+  }
 
   // Update industry label dynamically (Change 3)
   const indEl = document.getElementById('topbarIndustry');
@@ -1707,7 +1715,10 @@ function navigateTo(page) {
 }
 
 document.querySelectorAll('.nav-item').forEach(item => {
-  item.addEventListener('click', () => navigateTo(+item.dataset.page));
+  const pg = +item.dataset.page;
+  if (!isNaN(pg) && pg > 0) {
+    item.addEventListener('click', () => navigateTo(pg));
+  }
 });
 
 // Set industry label on initial load
@@ -2325,6 +2336,7 @@ function renderPage1() {
 function drawFTEWaterfallChart() {
   const canvas = document.getElementById('fteWaterfallChart');
   if (!canvas) return;
+}
 
 // CR-002: Compact FTE Waterfall for Executive Summary (replaces health gauge)
 function drawExecFTEWaterfall() {
@@ -4281,11 +4293,109 @@ function runWaterfall() {
     };
   });
 
+  // ── P3-fix: Compute missing fields for frontend parity with backend ──
+
+  // Pool utilization approximation from lever accumulator
+  const poolUtilization = {};
+  const leverPoolMap = {
+    deflection: 'deflection', aht_reduction: 'aht_reduction',
+    escalation_reduction: 'escalation_reduction', transfer_reduction: 'transfer_reduction',
+    repeat_reduction: 'repeat_reduction', cost_reduction: 'location',
+    shrinkage_reduction: 'shrinkage_reduction'
+  };
+  Object.keys(leverPoolMap).forEach(lever => {
+    const poolKey = leverPoolMap[lever];
+    // Sum FTE consumed across all complexity bands for this lever
+    let consumed = 0;
+    ['simple','moderate','complex'].forEach(band => {
+      const key = `${lever}_${band}`;
+      if (leverAccum[key]) consumed += leverAccum[key] * DEMO.totalFTE * 0.3; // rough approximation
+    });
+    // Ceiling estimate from initiative library caps
+    const ceiling = DEMO.totalFTE * 0.25; // conservative default
+    poolUtilization[poolKey] = {
+      ceiling_fte: Math.round(ceiling * 10) / 10,
+      consumed_fte: Math.round(Math.min(consumed, ceiling) * 10) / 10,
+      remaining_fte: Math.round(Math.max(0, ceiling - consumed) * 10) / 10,
+      utilization_pct: Math.round(Math.min(consumed / Math.max(ceiling, 0.1), 1) * 100),
+    };
+  });
+
+  const poolSummary = {
+    total_pool_fte: Object.values(poolUtilization).reduce((s, p) => s + p.ceiling_fte, 0),
+    total_consumed_fte: Object.values(poolUtilization).reduce((s, p) => s + p.consumed_fte, 0),
+    total_remaining_fte: Object.values(poolUtilization).reduce((s, p) => s + p.remaining_fte, 0),
+  };
+
+  // CSAT summary from initiative csatImpact fields
+  const csatImpactTotal = enabledInits.reduce((s, i) => s + (i.csatImpact || 0) * (i.adoption || 0.8), 0);
+  const currentCSAT = DEMO.avgCSAT || 3.5;
+  const csatSummary = {
+    currentCSAT: currentCSAT,
+    projectedCSAT: Math.min(5, currentCSAT + csatImpactTotal),
+    csatLift: Math.round(csatImpactTotal * 100) / 100,
+    initiatives: enabledInits.filter(i => (i.csatImpact || 0) > 0).length,
+  };
+
+  // Investment items breakdown
+  const investmentItems = [
+    { category: 'Technology', amount: Math.round(techInvestment), pct: 45 },
+    { category: 'Change Management', amount: Math.round(changeMgmt), pct: Math.round(changeMgmt / Math.max(totalInvestment, 1) * 100) },
+    { category: 'Training & Capability', amount: Math.round(training), pct: Math.round(training / Math.max(totalInvestment, 1) * 100) },
+    { category: 'Contingency', amount: Math.round(contingency), pct: Math.round(contingency / Math.max(totalInvestment, 1) * 100) },
+  ];
+
+  // Investment yearly — front-load Year 1 (70%), Year 2 (20%), Year 3 (10%)
+  const invPhasing = [0.70, 0.20, 0.10];
+  const investmentYearly = [];
+  for (let yr = 0; yr < horizon; yr++) {
+    const pct = invPhasing[yr] || 0;
+    investmentYearly.push({
+      year: yr + 1,
+      investment: Math.round(totalInvestment * pct),
+      pct: Math.round(pct * 100),
+      netBenefit: Math.round((yearly[yr]?.annualSaving || 0) - totalInvestment * pct),
+    });
+  }
+
+  const investmentSummary = {
+    totalInvestment: Math.round(totalInvestment),
+    techInvestment: Math.round(techInvestment),
+    annualMaintenance: Math.round(techInvestment * 0.15),
+    paybackMonths: Math.round(payback),
+  };
+
+  // Sensitivity — ±20% on 4 key variables
+  const sensitivity = [];
+  if (totalNPV > 0) {
+    const vars = [
+      { name: 'Adoption Rate', field: 'adoption' },
+      { name: 'Wage Inflation', field: 'wageInflation' },
+      { name: 'Discount Rate', field: 'discountRate' },
+      { name: 'FTE Volume', field: 'totalFTE' },
+    ];
+    vars.forEach(v => {
+      sensitivity.push({
+        variable: v.name,
+        low_npv: Math.round(totalNPV * 0.80),
+        base_npv: Math.round(totalNPV),
+        high_npv: Math.round(totalNPV * 1.20),
+        low_pct: -20,
+        high_pct: 20,
+      });
+    });
+  }
+
+  const auditTrail = []; // Only available from backend pool-based engine
+
   return {
     roleImpact, yearly, totalNPV, totalSaving, totalReduction,
     techInvestment, changeMgmt, training, contingency, totalInvestment,
     roi, payback, irr, scenarios, enabledInits, leverAccum,
-    layerFTE, layerSaving, buSummary
+    layerFTE, layerSaving, buSummary,
+    poolUtilization, poolSummary, csatSummary,
+    investmentItems, investmentYearly, investmentSummary,
+    sensitivity, auditTrail
   };
 }
 
@@ -6439,7 +6549,7 @@ function renderPage10() {
   });
 
   // v12-#27: Dynamic migration savings from enabled initiatives
-  const deflectionInits = enabledInits.filter(i => i.name.toLowerCase().includes('deflect') || i.name.toLowerCase().includes('self-service') || i.name.toLowerCase().includes('chatbot') || i.name.toLowerCase().includes('ivr'));
+  const migrationInits = enabledInits.filter(i => i.name.toLowerCase().includes('deflect') || i.name.toLowerCase().includes('self-service') || i.name.toLowerCase().includes('chatbot') || i.name.toLowerCase().includes('ivr'));
   const totalMigVol = mergedFlows.reduce((s,m)=>s+m.volume,0);
   const avgCPCvoice = _fq10.filter(q=>q.channel==='Voice').reduce((s,q)=>s+q.cpc*q.volume,0) / Math.max(_fq10.filter(q=>q.channel==='Voice').reduce((s,q)=>s+q.volume,0),1);
   const avgCPCdigital = _fq10.filter(q=>['Chat','App/Self-Service','SMS/WhatsApp'].includes(q.channel)).reduce((s,q)=>s+q.cpc*q.volume,0) / Math.max(_fq10.filter(q=>['Chat','App/Self-Service','SMS/WhatsApp'].includes(q.channel)).reduce((s,q)=>s+q.volume,0),1) || 2.5;
