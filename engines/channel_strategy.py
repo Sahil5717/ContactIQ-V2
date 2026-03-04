@@ -1,5 +1,5 @@
 """
-EY ServiceEdge — Channel Strategy Engine (EY Methodology)
+ContactIQ — Channel Strategy Engine
 
 Core Logic: Optimal Channel = f(Intent Complexity, Customer Preference, Cost to Serve, Resolution Risk)
 Channel strategy is intent-led, not technology-led.

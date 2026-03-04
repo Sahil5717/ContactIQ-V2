@@ -1,5 +1,5 @@
 """
-EY ServiceEdge — File Manager
+ContactIQ — File Manager
 Handles file uploads, validation, template generation, and data source switching.
 Maps the 8 data files (5 raw + 3 config) to upload categories.
 """
@@ -342,7 +342,7 @@ def generate_template(category):
 
         # Add instructions sheet
         ws2 = wb.create_sheet('Instructions')
-        ws2['A1'] = f"EY ServiceEdge — {info['label']} Template"
+        ws2['A1'] = f"ContactIQ — {info['label']} Template"
         ws2['A1'].font = Font(bold=True, size=14)
         ws2['A3'] = info['description']
         ws2['A5'] = 'Required Columns:'

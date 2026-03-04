@@ -1,5 +1,5 @@
 """
-EY Contact Navigator — Initiative Library + Pool-Based Waterfall Engine
+ContactIQ — Initiative Library + Pool-Based Waterfall Engine
 58 initiatives across 3 layers with relevance scoring,
 pool-based netting (no double-counting), and validated financial projections.
 
@@ -84,12 +84,12 @@ INITIATIVE_LIBRARY = [
     {'id':'LS12','name':'Vendor Rationalisation','layer':'Location Strategy','lever':'cost_reduction','impact':0.10,'channels':['Voice','Chat','Email'],'complexity':'any','effort':'medium','ahtImpact':0,'fcrImpact':0,'csatImpact':0,'roles':['Agent L1'],'ramp':6,'adoption':0.85},
 ]
 
-# CR-014v2: Industry-benchmarked caps (McKinsey 2025: 40-50% agent reduction achievable;
-# Gartner 2025: 80% common issues resolved by AI by 2029; PwC: 30-40% cost reduction)
+# CR-014v2: Industry-benchmarked caps (40-50% agent reduction achievable;
+# 80% common issues resolved by AI by 2029; 30-40% cost reduction achievable)
 # Architecture: 3 cap layers only — Pool Ceiling (data-driven) → Single Init Cap → Per-Role Max
 # Per-lever initiative caps REMOVED — redundant with pool netting, was double-counting conservatism
-ABSOLUTE_SINGLE_INIT_CAP = 0.30  # McKinsey: 40-50% achievable; 30% per single initiative is conservative
-PER_ROLE_MAX_REDUCTION = 0.50    # McKinsey 2025: 40-50% fewer agents; 50% is the defensible ceiling
+ABSOLUTE_SINGLE_INIT_CAP = 0.30  # 40-50% achievable; 30% per single initiative is conservative
+PER_ROLE_MAX_REDUCTION = 0.50    # Industry benchmark: 40-50% fewer agents; 50% is the defensible ceiling
 
 # CR-015v2: Lever saturation caps retained as safety backstop (pool netting is primary)
 # These are now only used as absolute ceilings if pool data is unavailable
@@ -739,8 +739,8 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
     # and compute revenue/retention monetisation.
     #
     # Sources:
-    #   McKinsey: 10% CSAT → 2-3% revenue; CX leaders grow 4-8% above market
-    #   Bain (Reichheld): 5% retention → 25-95% profit increase
+    #   Industry benchmark: 10% CSAT → 2-3% revenue; CX leaders grow 4-8% above market
+    #   Industry research: 5% retention → 25-95% profit increase
     #   Industry: 1% FCR increase ≈ 1% CSAT increase
     # ══════════════════════════════════════════════════════════════
     csat_pool = pools.get('csat_experience', {})
@@ -1110,14 +1110,6 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
                 bu_impact[bu_name]['yearly_saving'][yr] += bu_location_yearly[bu_name][yr]
     
     bu_summary = {}
-    # CR-032: Distribute pool ceilings across BUs based on baseline FTE share
-    total_base_fte = sum(bi['baseline_fte'] for bi in bu_impact.values()) or 1
-    for bu_name, bi in bu_impact.items():
-        bu_share = bi['baseline_fte'] / total_base_fte
-        if bu_name in bu_pool_util:
-            for pk in bu_pool_util[bu_name]:
-                pu = pool_utilization.get(pk, {})
-                bu_pool_util[bu_name][pk]['ceiling'] = round((pu.get('ceiling_fte', 0)) * bu_share, 1)
     
     for bu_name, bi in bu_impact.items():
         bu_yearly = []
@@ -1170,6 +1162,15 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
                 'remaining_fte': round(remaining, 1),
                 'utilization_pct': round(consumed / max(ceiling, 0.1) * 100, 1),
             }
+    
+    # CR-016 fix: Distribute pool ceilings across BUs (must run AFTER pool_utilization is populated)
+    total_base_fte = sum(bi['baseline_fte'] for bi in bu_impact.values()) or 1
+    for bu_name, bi in bu_impact.items():
+        bu_share = bi['baseline_fte'] / total_base_fte
+        if bu_name in bu_pool_util:
+            for pk in bu_pool_util[bu_name]:
+                pu = pool_utilization.get(pk, {})
+                bu_pool_util[bu_name][pk]['ceiling'] = round((pu.get('ceiling_fte', 0)) * bu_share, 1)
     
     return {
         'roleImpact': {k: {'baseline': v['baseline'], 'yearly': [round(y) for y in v['yearly']]}

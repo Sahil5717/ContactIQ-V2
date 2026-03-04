@@ -1,5 +1,5 @@
 """
-EY ServiceEdge — Data Loader & ETL Engine
+ContactIQ — Data Loader & ETL Engine
 Reads raw CCaaS, CRM, HRIS, Survey exports + consultant config files.
 Transforms into analytical schemas matching spec Section 3.
 Industry-agnostic: all industry/client labels come from parameters.xlsx.

@@ -1,5 +1,5 @@
 """
-EY ServiceEdge — Recommendation Engine v12
+ContactIQ — Recommendation Engine v12
 v12-#12: Context-aware recommendations — each page gets distinct initiative ranking
          based on its diagnostic lens, not generic top-N.
 v12-#23: Diagnostic-Roadmap alignment — initiative linkage tables pull from

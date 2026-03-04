@@ -1,5 +1,5 @@
 """
-EY Contact Navigator — Gross Impact Engine
+ContactIQ — Gross Impact Engine
 Computes lever-specific gross FTE impact for each initiative.
 
 Instead of a single generic formula (affected_FTE × impact% × adoption),

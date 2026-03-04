@@ -1,5 +1,5 @@
 """
-EY ServiceEdge — Maturity Assessment Engine
+ContactIQ — Maturity Assessment Engine
 5-dimension assessment with 3-tier fallback scoring.
 CR-004: Radar chart data structured for proper visualization
 """

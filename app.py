@@ -1,5 +1,5 @@
 """
-EY ServiceEdge — Flask API Server (v8 Infrastructure)
+ContactIQ — Intelligent Contact Center Optimization Platform (v8 Infrastructure)
 Phase 1 Infrastructure: Authentication, File Upload, Data Management, API Layer.
 All existing engine routes preserved. New: login, file management, data source switching.
 """
@@ -26,7 +26,7 @@ from infrastructure.file_manager import (
 )
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ey-serviceedge-dev-key-change-in-prod')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'contactiq-dev-key-change-in-prod')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB upload limit
 
 STATE = {
@@ -249,7 +249,7 @@ def _build_demo_object(overrides=None):
 
 @app.route('/api/health')
 def api_health():
-    return jsonify({'status': 'ok', 'version': 'v14', 'service': 'ContactNavigator'})
+    return jsonify({'status': 'ok', 'version': 'v2.0', 'service': 'ContactIQ'})
 
 
 @app.route('/login')
@@ -405,7 +405,7 @@ def index():
     if not STATE['loaded'] and not STATE.get('_load_error'):
         try:
             _run_all()
-            print("[OK] ServiceEdge engines loaded successfully")
+            print("[OK] ContactIQ engines loaded successfully")
         except Exception as e:
             err_msg = f"{type(e).__name__}: {e}"
             STATE['_load_error'] = err_msg
@@ -703,26 +703,26 @@ def api_export():
         ws=wb.active; ws.title='Executive Summary'
         ws_write(ws, ['Metric','Value'], [
             ['Client', data['params'].get('clientName','')],['Industry', data['params'].get('industry','')],
-            ['Total Volume (raw)', data['totalVolume']],['Total FTE', data['totalFTE']],
+            ['Total Volume (raw)', data['totalVolume']],
             ['Total Cost', f"${data['totalCost']:,.0f}"],['NPV', f"${wf.get('totalNPV',0):,.0f}"],
             ['IRR', f"{wf.get('irr',0):.1f}%"],['Total Investment', f"${wf.get('totalInvestment',0):,.0f}"],
             ['ROI', f"{wf.get('roi',0):.1f}%"],['Payback', f"{wf.get('payback',0):.1f} months"],
-            ['FTE Reduction', wf.get('totalReduction',0)],['Enabled Initiatives', len(wf.get('enabledInits',[]))],
+            ['Annual Saving (Year 3)', f"${wf.get('yearly',[-1])[-1].get('annualSaving',0) if wf.get('yearly') else 0:,.0f}"],['Enabled Initiatives', len(wf.get('enabledInits',[]))],
         ])
         # ── Initiatives ──
         ws5 = wb.create_sheet('Initiatives')
-        ws_write(ws5, ['ID','Name','Layer','Lever','Enabled','Score','FTE Impact','Annual Saving',
+        ws_write(ws5, ['ID','Name','Layer','Lever','Enabled','Score','Annual Saving',
                        'Impl Risk','CX Risk','Ops Risk','Overall Risk','Rating'], [
             [i['id'],i['name'],i['layer'],i['lever'],'Yes' if i.get('enabled') else 'No',
-             f"{i.get('matchScore',0):.1f}",f"{i.get('_fteImpact',0):.1f}",f"${i.get('_annualSaving',0):,.0f}",
+             f"{i.get('matchScore',0):.1f}",f"${i.get('_annualSaving',0):,.0f}",
              i.get('implRisk',''),i.get('cxRisk',''),i.get('opsRisk',''),
              i.get('overallRisk',''),i.get('riskRating','')]
             for i in STATE['initiatives']
         ])
         # ── Waterfall ──
         ws6 = wb.create_sheet('Waterfall')
-        ws_write(ws6, ['Year','FTE Reduction','Final FTE','Annual Saving','Cum Saving','NPV'], [
-            [y['year'],y['fteReduction'],y['finalFTE'],f"${y['annualSaving']:,.0f}",
+        ws_write(ws6, ['Year','Annual Saving','Cum Saving','NPV'], [
+            [y['year'],f"${y['annualSaving']:,.0f}",
              f"${y['cumSaving']:,.0f}",f"${y['npv']:,.0f}"] for y in wf.get('yearly', [])
         ])
         # ── P2-6: BU Impact ──
@@ -731,20 +731,19 @@ def api_export():
             wsbu = wb.create_sheet('BU Impact')
             bu_rows = []
             for bu, bd in bu_summary.items():
-                baseline = bd.get('baseline_fte', 0)
                 for yr_idx, yr_data in enumerate(bd.get('yearly', [])):
-                    bu_rows.append([bu, yr_idx+1, baseline, yr_data.get('fte_reduction', 0),
-                                    f"${yr_data.get('saving', 0):,.0f}"])
-            ws_write(wsbu, ['Business Unit','Year','Baseline FTE','FTE Reduction','Annual Saving'], bu_rows)
+                    bu_rows.append([bu, yr_idx+1,
+                                    f"${yr_data.get('annualSaving', 0):,.0f}"])
+            ws_write(wsbu, ['Business Unit','Year','Annual Saving'], bu_rows)
         # ── P2-6: Risk Register ──
         risk_data = STATE.get('risk', {})
         risk_inits = risk_data.get('initiatives', [])
         if risk_inits:
             wsrisk = wb.create_sheet('Risk Register')
             ws_write(wsrisk, ['ID','Name','Layer','Impl Risk','CX Risk','Ops Risk','Overall','Rating',
-                              'FTE Impact','Annual Saving','Mitigations'], [
+                              'Annual Saving','Mitigations'], [
                 [r['id'],r['name'],r['layer'],r['implRisk'],r['cxRisk'],r['opsRisk'],
-                 r['overallRisk'],r['rating'],f"{r['fteImpact']:.1f}",f"${r['annualSaving']:,.0f}",
+                 r['overallRisk'],r['rating'],f"${r['annualSaving']:,.0f}",
                  '; '.join(r.get('mitigations',[])) ]
                 for r in risk_inits
             ])
@@ -753,12 +752,12 @@ def api_export():
         transitions = wkf.get('transitions', [])
         if transitions:
             wswf = wb.create_sheet('Workforce Transition')
-            ws_write(wswf, ['Role','Location','Sourcing','Reduction','Attrited','Redeployed',
+            ws_write(wswf, ['Role','Location','Sourcing','Year','Reduction','Attrited','Redeployed',
                             'Separated','Contract Adj','Transition Cost'], [
                 [t.get('role',''),t.get('location',''),t.get('sourcing',''),
-                 f"{t.get('reduction',0):.1f}",f"{t.get('attrition',0):.1f}",f"{t.get('redeployed',0):.1f}",
+                 t.get('year',0),f"{t.get('reduction',0):.1f}",f"{t.get('attrited',0):.1f}",f"{t.get('redeployed',0):.1f}",
                  f"{t.get('separated',0):.1f}",f"{t.get('contractAdjustment',0):.1f}",
-                 f"${t.get('transitionCost',0):,.0f}"]
+                 f"${t.get('totalTransitionCost',0):,.0f}"]
                 for t in transitions
             ])
         # ── P2-6: Location Mix ──
@@ -776,7 +775,7 @@ def api_export():
         export_path = os.path.join(os.path.dirname(__file__), 'data', 'export.xlsx')
         os.makedirs(os.path.dirname(export_path), exist_ok=True)
         wb.save(export_path)
-        return send_file(export_path, as_attachment=True, download_name='ServiceEdge_Export.xlsx')
+        return send_file(export_path, as_attachment=True, download_name='ContactIQ_Export.xlsx')
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error':str(e)}), 500
@@ -854,7 +853,7 @@ def api_export_pdf():
         pdf.cell(0, 10, params.get('industry', 'Industry'), ln=True, align='C')
         pdf.set_font('Helvetica', '', 10)
         pdf.ln(10)
-        pdf.cell(0, 8, 'Generated by EY ServiceEdge | Contact Navigator', ln=True, align='C')
+        pdf.cell(0, 8, 'Generated by ContactIQ — Intelligent Contact Center Optimization Platform', ln=True, align='C')
         
         # ── Executive Summary ──
         pdf.add_page()
@@ -873,7 +872,6 @@ def api_export_pdf():
             ('Return on Investment', f"{wf.get('roi', 0):.0f}%"),
             ('Payback Period', f"{wf.get('payback', 0):.1f} years"),
             ('Internal Rate of Return', f"{wf.get('irr', 0):.1f}%"),
-            ('FTE Reduction (Year 3)', f"{wf.get('totalReduction', 0):,.0f}"),
             ('Total Investment', f"${wf.get('totalInvestment', 0):,.0f}"),
         ]
         pdf.set_font('Helvetica', '', 11)
@@ -888,8 +886,8 @@ def api_export_pdf():
         pdf.set_font('Helvetica', 'B', 14)
         pdf.cell(0, 10, 'Yearly Projections', ln=True)
         pdf.set_font('Helvetica', 'B', 9)
-        headers = ['Year', 'FTE Reduction', 'Annual Saving', 'Cumulative', 'NPV']
-        col_w = [25, 35, 40, 40, 40]
+        headers = ['Year', 'Annual Saving', 'Cumulative', 'NPV']
+        col_w = [30, 45, 45, 45]
         pdf.set_fill_color(46, 46, 56)
         pdf.set_text_color(255, 255, 255)
         for i, h in enumerate(headers):
@@ -899,10 +897,9 @@ def api_export_pdf():
         pdf.set_font('Helvetica', '', 9)
         for y in wf.get('yearly', []):
             pdf.cell(col_w[0], 7, str(y.get('year', '')), border=1, align='C')
-            pdf.cell(col_w[1], 7, f"{y.get('fteReduction', 0):,.0f}", border=1, align='C')
-            pdf.cell(col_w[2], 7, f"${y.get('annualSaving', 0):,.0f}", border=1, align='C')
-            pdf.cell(col_w[3], 7, f"${y.get('cumSaving', 0):,.0f}", border=1, align='C')
-            pdf.cell(col_w[4], 7, f"${y.get('npv', 0):,.0f}", border=1, align='C')
+            pdf.cell(col_w[1], 7, f"${y.get('annualSaving', 0):,.0f}", border=1, align='C')
+            pdf.cell(col_w[2], 7, f"${y.get('cumSaving', 0):,.0f}", border=1, align='C')
+            pdf.cell(col_w[3], 7, f"${y.get('npv', 0):,.0f}", border=1, align='C')
             pdf.ln()
         
         # ── Layer Breakdown ──
@@ -910,8 +907,8 @@ def api_export_pdf():
         pdf.set_font('Helvetica', 'B', 14)
         pdf.cell(0, 10, 'Impact by Layer', ln=True)
         pdf.set_font('Helvetica', 'B', 9)
-        lh = ['Layer', 'FTE Reduction', 'Annual Saving']
-        lw = [70, 50, 60]
+        lh = ['Layer', 'Annual Saving']
+        lw = [100, 80]
         pdf.set_fill_color(46, 46, 56)
         pdf.set_text_color(255, 255, 255)
         for i, h in enumerate(lh):
@@ -922,8 +919,7 @@ def api_export_pdf():
         for layer, fte in wf.get('layerFTE', {}).items():
             saving = wf.get('layerSaving', {}).get(layer, 0)
             pdf.cell(lw[0], 7, layer, border=1)
-            pdf.cell(lw[1], 7, f"{fte:,.1f}", border=1, align='C')
-            pdf.cell(lw[2], 7, f"${saving:,.0f}", border=1, align='C')
+            pdf.cell(lw[1], 7, f"${saving:,.0f}", border=1, align='C')
             pdf.ln()
         
         # ── Top Initiatives ──
@@ -931,12 +927,12 @@ def api_export_pdf():
         pdf.set_font('Helvetica', 'B', 14)
         pdf.cell(0, 10, 'Top Initiatives by Impact', ln=True)
         
-        enabled = [i for i in STATE['initiatives'] if i.get('enabled') and i.get('_fteImpact', 0) > 0]
-        enabled.sort(key=lambda x: x.get('_fteImpact', 0), reverse=True)
+        enabled = [i for i in STATE['initiatives'] if i.get('enabled') and i.get('_annualSaving', 0) > 0]
+        enabled.sort(key=lambda x: x.get('_annualSaving', 0), reverse=True)
         
         pdf.set_font('Helvetica', 'B', 8)
-        ih = ['#', 'Initiative', 'Layer', 'FTE', 'Primary', 'Secondary', 'Saving']
-        iw = [8, 55, 32, 18, 18, 22, 35]
+        ih = ['#', 'Initiative', 'Layer', 'Lever', 'Annual Saving']
+        iw = [8, 65, 35, 40, 40]
         pdf.set_fill_color(46, 46, 56)
         pdf.set_text_color(255, 255, 255)
         for i, h in enumerate(ih):
@@ -946,38 +942,12 @@ def api_export_pdf():
         pdf.set_font('Helvetica', '', 8)
         for idx, init in enumerate(enabled[:20], 1):
             pdf.cell(iw[0], 6, str(idx), border=1, align='C')
-            name = init['name'][:28] + '..' if len(init['name']) > 30 else init['name']
+            name = init['name'][:32] + '..' if len(init['name']) > 34 else init['name']
             pdf.cell(iw[1], 6, name, border=1)
-            pdf.cell(iw[2], 6, init.get('layer', '')[:15], border=1, align='C')
-            pdf.cell(iw[3], 6, f"{init.get('_fteImpact', 0):.1f}", border=1, align='C')
-            pdf.cell(iw[4], 6, f"{init.get('_primaryFTE', init.get('_fteImpact', 0)):.1f}", border=1, align='C')
-            pdf.cell(iw[5], 6, f"{init.get('_secondaryFTE', 0):.1f}", border=1, align='C')
-            pdf.cell(iw[6], 6, f"${init.get('_annualSaving', 0):,.0f}", border=1, align='C')
+            pdf.cell(iw[2], 6, init.get('layer', '')[:18], border=1, align='C')
+            pdf.cell(iw[3], 6, init.get('lever', '').replace('_', ' ')[:20], border=1, align='C')
+            pdf.cell(iw[4], 6, f"${init.get('_annualSaving', 0):,.0f}", border=1, align='C')
             pdf.ln()
-        
-        # ── Scenarios ──
-        pdf.ln(8)
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.cell(0, 10, 'Scenario Comparison', ln=True)
-        scenarios = wf.get('scenarios', {})
-        if scenarios:
-            pdf.set_font('Helvetica', 'B', 9)
-            sh = ['Scenario', 'NPV', 'FTE Reduction', 'Investment', 'Total Saving']
-            sw_col = [35, 40, 35, 40, 40]
-            pdf.set_fill_color(46, 46, 56)
-            pdf.set_text_color(255, 255, 255)
-            for i, h in enumerate(sh):
-                pdf.cell(sw_col[i], 8, h, border=1, fill=True, align='C')
-            pdf.ln()
-            pdf.set_text_color(46, 46, 56)
-            pdf.set_font('Helvetica', '', 9)
-            for label, sc in scenarios.items():
-                pdf.cell(sw_col[0], 7, sc.get('label', label), border=1)
-                pdf.cell(sw_col[1], 7, f"${sc.get('npv', 0):,.0f}", border=1, align='C')
-                pdf.cell(sw_col[2], 7, f"{sc.get('fteReduction', 0):,.0f}", border=1, align='C')
-                pdf.cell(sw_col[3], 7, f"${sc.get('investment', 0):,.0f}", border=1, align='C')
-                pdf.cell(sw_col[4], 7, f"${sc.get('totalSaving', 0):,.0f}", border=1, align='C')
-                pdf.ln()
         
         # ── Pool Utilization ──
         pdf.ln(8)
@@ -1022,7 +992,13 @@ def api_export_pdf():
         pdf.line(10, pdf.get_y(), 80, pdf.get_y())
         pdf.ln(8)
         risk_data = STATE.get('risk', {})
-        overall_risk = risk_data.get('overallScore', 0)
+        risk_summary = risk_data.get('summary', {})
+        overall_risk = risk_summary.get('avgRisk', risk_summary.get('overallScore', 0))
+        if overall_risk == 0 and risk_data.get('initiatives'):
+            # Compute from initiatives if summary is empty
+            risk_inits_list = risk_data.get('initiatives', [])
+            if risk_inits_list:
+                overall_risk = sum(r.get('overallRisk', 0) for r in risk_inits_list) / len(risk_inits_list)
         risk_level = 'Low' if overall_risk < 2 else ('Medium' if overall_risk < 3.5 else 'High')
         pdf.set_font('Helvetica', 'B', 12)
         pdf.cell(0, 8, f'Overall Risk Score: {overall_risk:.1f}/5 ({risk_level})', ln=True)
@@ -1119,8 +1095,7 @@ def api_export_pdf():
         pdf.cell(0, 10, 'Diagnostic Highlights', ln=True)
         pdf.set_font('Helvetica', '', 9)
         diag_text_items = [
-            f"Total monthly volume: {data['params'].get('totalVolume', 0):,} contacts across {len(data.get('queues', []))} queues",
-            f"Total FTE: {data['params'].get('totalFTE', 0):,}",
+            f"Total monthly volume: {data.get('totalVolume', 0):,} contacts across {len(data.get('queues', []))} queues",
             f"Business units: {', '.join(data.get('bus', []))}",
             f"Active channels: {', '.join(data.get('channels', []))}",
             f"Enabled initiatives: {sum(1 for i in STATE['initiatives'] if i.get('enabled'))} of {len(STATE['initiatives'])}",
@@ -1132,13 +1107,13 @@ def api_export_pdf():
         pdf.ln(6)
         pdf.set_font('Helvetica', 'I', 8)
         pdf.set_text_color(128, 128, 128)
-        pdf.cell(0, 6, 'This report was generated by EY ServiceEdge | Contact Navigator. Cap methodology: McKinsey 2025, Gartner 2025.', ln=True, align='C')
+        pdf.cell(0, 6, 'This report was generated by ContactIQ — Intelligent Contact Center Optimization Platform. Cap methodology: ContactIQ industry benchmarks.', ln=True, align='C')
         pdf.cell(0, 6, 'Secondary lever impacts weighted at 50%. Pool-based netting prevents double-counting.', ln=True, align='C')
         
         export_path = os.path.join(os.path.dirname(__file__), 'data', 'report.pdf')
         os.makedirs(os.path.dirname(export_path), exist_ok=True)
         pdf.output(export_path)
-        return send_file(export_path, as_attachment=True, download_name='ServiceEdge_Report.pdf')
+        return send_file(export_path, as_attachment=True, download_name='ContactIQ_Report.pdf')
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500

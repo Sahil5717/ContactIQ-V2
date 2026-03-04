@@ -1,5 +1,5 @@
 """
-EY Contact Navigator — Intent Profile Enrichment Engine
+ContactIQ — Intent Profile Enrichment Engine
 Enriches each queue/intent with:
   - Deflection eligibility (repeatability, emotional risk, auth requirement, containment feasibility)
   - AHT decomposition (talk, hold, search, wrap) from single AHT+ACW values

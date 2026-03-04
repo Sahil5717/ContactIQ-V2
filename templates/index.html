@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EY Contact Navigator — Transformation Intelligence for Contact Centres</title>
+<title>ContactIQ — Intelligent Contact Center Optimization Platform</title>
 <style>
 /* ═══════════════════════════════════════════════════════════════
    MODULE 0: DESIGN SYSTEM & SHELL CSS
@@ -793,7 +793,7 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
 <aside class="sidebar">
   <div class="sidebar-logo">
     <h1>EY GDS Intelligence</h1>
-    <h2>Contact Navigator</h2>
+    <h2>ContactIQ</h2>
     <div class="sub">Transformation Intelligence for Contact Centres</div>
   </div>
   <nav id="sidebarNav">
@@ -861,9 +861,7 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
     <div class="nav-item" data-page="13" style="display:none;">
       <span class="nav-num">13</span><span>Workforce Transition</span>
     </div>
-    <div class="nav-item" data-page="21">
-      <span class="nav-num">21</span><span>Scenario Comparison</span>
-    </div>
+    <!-- CR-015: Scenario Comparison removed -->
     <div class="nav-phase">⚙️ Administration</div>
     <div class="nav-item" data-page="dm" onclick="toggleDataPanel()" style="cursor:pointer;">
       <span class="nav-num" style="font-size:14px;">📁</span><span>Data Management</span><span class="role-admin" style="font-size:9px;background:#FFE600;color:#2E2E38;padding:1px 6px;border-radius:3px;margin-left:6px;">Admin</span>
@@ -1071,7 +1069,7 @@ const _origRenderPage = typeof renderPage === 'function' ? renderPage : null;
 
 // ─── Logout ───
 async function handleLogout() {
-  if (!confirm('Sign out of Contact Navigator?')) return;
+  if (!confirm('Sign out of ContactIQ?')) return;
   try {
     await fetch('/api/auth/logout', {method: 'POST'});
     window.location.href = '/login';
@@ -2083,7 +2081,49 @@ function renderPage1() {
       </div>
     </div>
 
-    <!-- v12-#40: (2) Diagnostic Verdict — Health Score in Context -->
+    <!-- CR-001: (2) Business Case Summary — MOVED TO TOP -->
+    <div class="card" style="background:linear-gradient(135deg,#1a1a2e,#2E2E38);color:white;border:2px solid var(--ey-yellow);">
+      <div style="display:flex;align-items:flex-start;gap:16px;">
+        <div style="font-size:36px;">💼</div>
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:800;color:var(--ey-yellow);margin-bottom:8px;">Business Case Summary</div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:12px;">
+            <div><div style="font-size:22px;font-weight:800;color:var(--ey-yellow);">${fmt(wf.totalInvestment||0,'$m')}</div><div style="font-size:10px;opacity:0.7;">Total Investment</div></div>
+            <div><div style="font-size:22px;font-weight:800;color:#4CAF50;">${fmt(wf.totalNPV||0,'$m')}</div><div style="font-size:10px;opacity:0.7;">NPV (${DEMO.params?.horizon||3}-yr)</div></div>
+            <div><div style="font-size:22px;font-weight:800;color:#4CAF50;">${fmt(wf.totalSaving||0,'$m')}</div><div style="font-size:10px;opacity:0.7;">Total Saving</div></div>
+            <div><div style="font-size:22px;font-weight:800;color:#4CAF50;">${(wf.irr||0).toFixed(0)}%</div><div style="font-size:10px;opacity:0.7;">IRR</div></div>
+            <div style="border-left:1px solid rgba(255,255,255,0.2);padding-left:12px;"><div style="font-size:22px;font-weight:800;color:#00BCD4;">${fmt((_csatS2.totalCXValue||0),'$m')}</div><div style="font-size:10px;opacity:0.7;">CX Revenue</div></div>
+          </div>
+          <div style="font-size:12px;opacity:0.85;line-height:1.6;">
+            A ${DEMO.params?.horizon||3}-year transformation of <strong>${INITIATIVES.filter(i=>i.enabled).length} initiatives</strong> delivers
+            <strong style="color:var(--ey-yellow);">${projFTEReduction} FTE</strong> reduction with
+            <strong style="color:#4CAF50;">${fmt(wf.totalNPV||0,'$m')}</strong> NPV.
+            <strong style="color:var(--ey-yellow);">Recommend proceeding to detailed design.</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CR-001: (3) Navigation Bar — Diagnose→Size→Solve→Plan — MOVED TO TOP -->
+    <div class="card" style="padding:12px 20px;background:white;">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative;">
+        <div style="position:absolute;top:22px;left:12%;right:12%;height:3px;background:linear-gradient(90deg,var(--ey-red),var(--ey-amber),var(--ey-blue),var(--ey-green));border-radius:2px;z-index:0;"></div>
+        ${[
+          {icon:'D',phase:'Diagnose',color:'var(--ey-red)',desc:'Health '+Math.round(health)+'/100',click:4},
+          {icon:'S',phase:'Size',color:'var(--ey-amber)',desc:fmt(totalAddressable,'$m')+' addressable',click:8},
+          {icon:'R',phase:'Solve',color:'var(--ey-blue)',desc:INITIATIVES.filter(i=>i.enabled).length+' initiatives',click:9},
+          {icon:'P',phase:'Plan',color:'var(--ey-green)',desc:projFTEReduction+' FTE, '+(wf.irr||0).toFixed(0)+'% IRR',click:14},
+        ].map(s => `
+          <div style="text-align:center;cursor:pointer;z-index:1;" onclick="navigateTo(${s.click})">
+            <div style="width:40px;height:40px;border-radius:50%;background:${s.color};color:white;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,0.15);border:3px solid white;">${s.icon}</div>
+            <div style="font-size:12px;font-weight:800;color:var(--ey-dark);margin-top:4px;">${s.phase}</div>
+            <div style="font-size:10px;color:var(--ey-text-light);">${s.desc}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- (4) Diagnostic Verdict — Health Score + CR-002: Mini FTE Waterfall (replaces gauge) -->
     <div class="grid-2-1" style="margin-bottom:16px;">
       <div class="card" style="border-left:5px solid ${healthColor};">
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
@@ -2113,17 +2153,12 @@ function renderPage1() {
         </div>
       </div>
       <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
-        <div class="health-gauge">
-          <canvas id="healthGauge" width="200" height="200"></canvas>
-          <div class="health-gauge-value">
-            <div class="score" style="color:${healthColor}">${Math.round(health)}</div>
-            <div class="label">Health Score</div>
-          </div>
-        </div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ey-text-light);margin-bottom:8px;">FTE Waterfall</div>
+        <canvas id="execFTEWaterfall" width="220" height="180"></canvas>
       </div>
     </div>
 
-    <!-- v12-#40: (3) Top 3 Problem Themes — grouped by theme not queue -->
+    <!-- (5) Top 3 Problem Themes — grouped by theme not queue -->
     <div class="card">
       <div class="card-title">Complication — Top 3 Problem Themes</div>
       <div style="font-size:12px;color:var(--ey-text-light);margin-bottom:12px;">Performance gaps grouped by root cause, showing total monthly cost impact per theme.</div>
@@ -2142,7 +2177,7 @@ function renderPage1() {
       </div>
     </div>
 
-    <!-- v12-#40: (4) Total Addressable Opportunity -->
+    <!-- (6) Total Addressable Opportunity -->
     <div class="card" style="background:var(--ey-green-bg);border:2px solid var(--ey-green);">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
@@ -2157,7 +2192,7 @@ function renderPage1() {
       </div>
     </div>
 
-    <!-- v12-#40: (5) Recommended Path — Top 10 balanced across all 3 layers + rationale -->
+    <!-- (7) Recommended Path — Top 10 balanced across all 3 layers + rationale -->
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <div class="card-title" style="margin:0;">Resolution — Top 10 Priority Initiatives</div>
@@ -2168,7 +2203,7 @@ function renderPage1() {
         </div>
       </div>
       <div class="table-wrap"><table class="data-table" style="font-size:11px;">
-        <thead><tr><th>#</th><th>Initiative</th><th>Layer</th><th>Lever</th><th>FTE Impact</th><th>Annual Saving</th><th>Why Top 10</th></tr></thead>
+        <thead><tr><th>#</th><th>Initiative</th><th>Layer</th><th>Lever</th><th>Annual Saving</th><th>Why Top 10</th></tr></thead>
         <tbody>
           ${top10Inits.map((init,i) => {
             // Build rationale based on which diagnostic signals this init addresses
@@ -2185,7 +2220,6 @@ function renderPage1() {
               <td><strong>${init.id}</strong> — ${init.name}</td>
               <td><span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;background:${layerBg[init.layer]};color:${layerColors[init.layer]};font-weight:600;">${init.layer}</span></td>
               <td style="font-size:10px;">${init.lever.replace(/_/g,' ')}</td>
-              <td style="font-weight:700;">-${init._fteImpact?.toFixed(0)||'?'} FTE</td>
               <td style="font-weight:700;color:var(--ey-green);">${fmt(init._annualSaving,'$k')}/yr</td>
               <td style="font-size:10px;color:var(--ey-text-light);">${reason}</td>
             </tr>`;
@@ -2194,49 +2228,7 @@ function renderPage1() {
       </table></div>
     </div>
 
-    <!-- v12-#40: (6) Business Case Punchline -->
-    <div class="card" style="background:linear-gradient(135deg,#1a1a2e,#2E2E38);color:white;border:2px solid var(--ey-yellow);">
-      <div style="display:flex;align-items:flex-start;gap:16px;">
-        <div style="font-size:36px;">💼</div>
-        <div style="flex:1;">
-          <div style="font-size:15px;font-weight:800;color:var(--ey-yellow);margin-bottom:8px;">Business Case Summary</div>
-          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:12px;">
-            <div><div style="font-size:22px;font-weight:800;color:var(--ey-yellow);">${fmt(wf.totalInvestment||0,'$m')}</div><div style="font-size:10px;opacity:0.7;">Total Investment</div></div>
-            <div><div style="font-size:22px;font-weight:800;color:#4CAF50;">${fmt(wf.totalNPV||0,'$m')}</div><div style="font-size:10px;opacity:0.7;">NPV (${DEMO.params?.horizon||3}-yr)</div></div>
-            <div><div style="font-size:22px;font-weight:800;color:#4CAF50;">${fmt(wf.totalSaving||0,'$m')}</div><div style="font-size:10px;opacity:0.7;">Total Saving</div></div>
-            <div><div style="font-size:22px;font-weight:800;color:#4CAF50;">${(wf.irr||0).toFixed(0)}%</div><div style="font-size:10px;opacity:0.7;">IRR</div></div>
-            <div style="border-left:1px solid rgba(255,255,255,0.2);padding-left:12px;"><div style="font-size:22px;font-weight:800;color:#00BCD4;">${fmt((_csatS2.totalCXValue||0),'$m')}</div><div style="font-size:10px;opacity:0.7;">CX Revenue</div></div>
-          </div>
-          <div style="font-size:12px;opacity:0.85;line-height:1.6;">
-            A ${DEMO.params?.horizon||3}-year transformation of <strong>${INITIATIVES.filter(i=>i.enabled).length} initiatives</strong> delivers
-            <strong style="color:var(--ey-yellow);">${projFTEReduction} FTE</strong> reduction with
-            <strong style="color:#4CAF50;">${fmt(wf.totalNPV||0,'$m')}</strong> NPV.
-            <strong style="color:var(--ey-yellow);">Recommend proceeding to detailed design.</strong>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- v12-#40: (7) Navigation Bar — Diagnose→Size→Solve→Plan -->
-    <div class="card" style="padding:12px 20px;background:white;">
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative;">
-        <div style="position:absolute;top:22px;left:12%;right:12%;height:3px;background:linear-gradient(90deg,var(--ey-red),var(--ey-amber),var(--ey-blue),var(--ey-green));border-radius:2px;z-index:0;"></div>
-        ${[
-          {icon:'D',phase:'Diagnose',color:'var(--ey-red)',desc:'Health '+Math.round(health)+'/100',click:4},
-          {icon:'S',phase:'Size',color:'var(--ey-amber)',desc:fmt(totalAddressable,'$m')+' addressable',click:8},
-          {icon:'R',phase:'Solve',color:'var(--ey-blue)',desc:INITIATIVES.filter(i=>i.enabled).length+' initiatives',click:9},
-          {icon:'P',phase:'Plan',color:'var(--ey-green)',desc:projFTEReduction+' FTE, '+(wf.irr||0).toFixed(0)+'% IRR',click:14},
-        ].map(s => `
-          <div style="text-align:center;cursor:pointer;z-index:1;" onclick="navigateTo(${s.click})">
-            <div style="width:40px;height:40px;border-radius:50%;background:${s.color};color:white;display:inline-flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,0.15);border:3px solid white;">${s.icon}</div>
-            <div style="font-size:12px;font-weight:800;color:var(--ey-dark);margin-top:4px;">${s.phase}</div>
-            <div style="font-size:10px;color:var(--ey-text-light);">${s.desc}</div>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-
-    <!-- Year-over-Year Projection -->
+    <!-- (8) Year-over-Year Projection -->
     <div class="card">
       <div class="card-title">Year-over-Year Projection <span style="font-size:11px; font-weight:400; color:var(--ey-text-light); margin-left:8px;">Click any cell to see calculation breakdown</span></div>
       ${(() => {
@@ -2323,14 +2315,90 @@ function renderPage1() {
     </div>
   `;
 
-  // Draw health gauge
-  drawHealthGauge(health, healthColor);
+  // CR-002: Draw mini FTE Waterfall (replaces health gauge)
+  drawExecFTEWaterfall();
 
   // Draw FTE Waterfall step-down chart (Change 2)
   drawFTEWaterfallChart();
 }
 
 function drawFTEWaterfallChart() {
+  const canvas = document.getElementById('fteWaterfallChart');
+  if (!canvas) return;
+
+// CR-002: Compact FTE Waterfall for Executive Summary (replaces health gauge)
+function drawExecFTEWaterfall() {
+  const canvas = document.getElementById('execFTEWaterfall');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const baseline = DEMO.totalFTE;
+  const layerFTE = WATERFALL.layerFTE || {};
+  const aiRed = Math.round(layerFTE['AI & Automation'] || 0);
+  const omRed = Math.round(layerFTE['Operating Model'] || 0);
+  const locRed = Math.round(layerFTE['Location Strategy'] || 0);
+  const totalRed = aiRed + omRed + locRed;
+  const finalFTE = Math.max(0, baseline - totalRed);
+
+  const bars = [
+    { label: 'Baseline', value: baseline, color: '#2E2E38', type: 'total' },
+    { label: 'AI & Auto', value: -aiRed, color: '#1A73E8', type: 'decrease' },
+    { label: 'Op Model', value: -omRed, color: '#168736', type: 'decrease' },
+    { label: 'Location', value: -locRed, color: '#D97706', type: 'decrease' },
+    { label: 'Target', value: finalFTE, color: '#4CAF50', type: 'total' },
+  ];
+
+  const pad = { top: 14, bottom: 28, left: 10, right: 10 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+  const barW = chartW / bars.length * 0.6;
+  const gap = chartW / bars.length;
+  const maxVal = baseline * 1.08;
+  function yScale(v) { return pad.top + chartH - (v / maxVal) * chartH; }
+
+  let running = 0;
+  bars.forEach((bar, i) => {
+    const x = pad.left + i * gap + (gap - barW) / 2;
+    let barTop, barHeight;
+    if (bar.type === 'total') {
+      barTop = yScale(bar.value);
+      barHeight = yScale(0) - barTop;
+      ctx.fillStyle = bar.color;
+      ctx.fillRect(x, barTop, barW, barHeight);
+      running = bar.value;
+    } else {
+      const prevTotal = running;
+      const decrease = Math.abs(bar.value);
+      barTop = yScale(prevTotal);
+      barHeight = (decrease / maxVal) * chartH;
+      ctx.fillStyle = bar.color + '33';
+      ctx.fillRect(x, barTop, barW, barHeight);
+      ctx.fillStyle = bar.color;
+      ctx.fillRect(x, barTop, barW, 3);
+      running = prevTotal - decrease;
+      // Connector line
+      if (i < bars.length - 1) {
+        const nextX = pad.left + (i+1) * gap + (gap - barW) / 2;
+        const lineY = yScale(running);
+        ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1; ctx.setLineDash([3,2]);
+        ctx.beginPath(); ctx.moveTo(x + barW, lineY); ctx.lineTo(nextX, lineY); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    // Value label
+    ctx.fillStyle = bar.color; ctx.font = 'bold 9px Inter, sans-serif'; ctx.textAlign = 'center';
+    const labelVal = bar.type === 'total' ? bar.value : -Math.abs(bar.value);
+    ctx.fillText((bar.type === 'total' ? '' : '') + Math.abs(labelVal), x + barW/2, barTop - 3);
+    // X label
+    ctx.fillStyle = '#888'; ctx.font = '8px Inter, sans-serif';
+    ctx.fillText(bar.label, x + barW/2, H - 4);
+  });
+}
+
+function drawFTEWaterfallChart_legacy() {
+  // Legacy full-page waterfall (page 1 — no longer rendered but kept for compatibility)
   const canvas = document.getElementById('fteWaterfallChart');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -3835,6 +3903,21 @@ if (DEMO.riskRegister && DEMO.riskRegister.length) {
 }
 
 // ── V6: Sync DEMO fields after any backend mutation (toggle, save, recalculate) ──
+
+// CR-012: SINGLE SOURCE OF TRUTH — All pages MUST reference these, never compute independently
+const HEADLINE_METRICS = {
+  get fteReduction() { return WATERFALL.totalReduction || 0; },
+  get totalSaving()  { return WATERFALL.totalSaving || 0; },
+  get annualSaving() { return (WATERFALL.yearly && WATERFALL.yearly.length) ? WATERFALL.yearly[WATERFALL.yearly.length-1].annualSaving || 0 : 0; },
+  get totalNPV()     { return WATERFALL.totalNPV || 0; },
+  get totalInvestment() { return WATERFALL.totalInvestment || 0; },
+  get roi()          { return WATERFALL.roi || 0; },
+  get irr()          { return WATERFALL.irr || 0; },
+  get payback()      { return WATERFALL.payback || 0; },
+  get layerFTE()     { return WATERFALL.layerFTE || {}; },
+  get layerSaving()  { return WATERFALL.layerSaving || {}; },
+};
+
 function _syncDemoFromBackend() {
     // Sync waterfall-derived fields
     if (WATERFALL) {
@@ -4134,11 +4217,75 @@ function runWaterfall() {
     }
   });
 
+  // CR-016: Compute BU-level summary (matches backend buSummary)
+  const buSummary = {};
+  const bus = DEMO.bus || [];
+  const totalVol = DEMO.queues.reduce((s,q) => s + q.volume, 0) || 1;
+  const buVolMap = {};
+  bus.forEach(bu => { buVolMap[bu] = DEMO.queues.filter(q => q.bu === bu).reduce((s,q) => s + q.volume, 0); });
+  const buFTEMap = {};
+  bus.forEach(bu => { buFTEMap[bu] = DEMO.totalFTE * (buVolMap[bu] / totalVol); });
+  const poolKeys = ['deflection', 'aht_reduction', 'transfer_reduction', 'escalation_reduction', 'repeat_reduction', 'shrinkage_reduction'];
+  
+  bus.forEach(bu => {
+    const buShare = buVolMap[bu] / totalVol;
+    const buYearly = [];
+    const buPoolUtil = {};
+    poolKeys.forEach(pk => { buPoolUtil[pk] = { consumed: 0, ceiling: 0 }; });
+    
+    // Distribute initiative impacts to BU by channel volume overlap
+    const buQueues = DEMO.queues.filter(q => q.bu === bu);
+    const buChannels = [...new Set(buQueues.map(q => q.channel))];
+    const initAttrib = [];
+    
+    enabledInits.forEach(init => {
+      const overlap = init.channels.filter(c => buChannels.includes(c));
+      if (overlap.length === 0) return;
+      const initBUVol = buQueues.filter(q => init.channels.includes(q.channel)).reduce((s,q) => s + q.volume, 0);
+      const initTotVol = DEMO.queues.filter(q => init.channels.includes(q.channel)).reduce((s,q) => s + q.volume, 0) || 1;
+      const initBUShare = initBUVol / initTotVol;
+      const buFTE = (init._fteImpact || 0) * initBUShare;
+      const buSaving = (init._annualSaving || 0) * initBUShare;
+      if (buFTE > 0.01 || buSaving > 0.01) {
+        initAttrib.push({ id: init.id, name: init.name, layer: init.layer, fte: Math.round(buFTE * 10) / 10, saving: Math.round(buSaving) });
+      }
+      const lever = init.lever || '';
+      if (lever in buPoolUtil) buPoolUtil[lever].consumed += buFTE;
+    });
+    
+    // Build yearly projections by BU share of yearly totals
+    for (let yr = 0; yr < horizon; yr++) {
+      buYearly.push({
+        year: yr + 1,
+        fteReduction: Math.round((yearly[yr]?.fteReduction || 0) * buShare * 10) / 10,
+        annualSaving: Math.round((yearly[yr]?.annualSaving || 0) * buShare),
+      });
+    }
+    
+    // Set pool ceilings from global pools (proportional to BU share)
+    const globalPool = DEMO.waterfall?.poolUtilization || {};
+    poolKeys.forEach(pk => {
+      const gp = globalPool[pk] || {};
+      buPoolUtil[pk].ceiling = Math.round((gp.ceiling_fte || 0) * buShare * 10) / 10;
+    });
+    
+    initAttrib.sort((a,b) => b.fte - a.fte);
+    buSummary[bu] = {
+      baselineFTE: Math.round(buFTEMap[bu] * 10) / 10,
+      weightedCost: Math.round(DEMO.roles.reduce((s,r) => s + r.headcount * r.costPerFTE, 0) / DEMO.totalFTE),
+      yearly: buYearly,
+      totalFTEReduction: buYearly.length > 0 ? buYearly[buYearly.length - 1].fteReduction : 0,
+      totalSaving: buYearly.reduce((s,y) => s + y.annualSaving, 0),
+      initiativeAttrib: initAttrib,
+      poolUtilization: buPoolUtil,
+    };
+  });
+
   return {
     roleImpact, yearly, totalNPV, totalSaving, totalReduction,
     techInvestment, changeMgmt, training, contingency, totalInvestment,
     roi, payback, irr, scenarios, enabledInits, leverAccum,
-    layerFTE, layerSaving
+    layerFTE, layerSaving, buSummary
   };
 }
 
@@ -4766,13 +4913,15 @@ function renderPage7() {
 
   // v12-#15: ALL above-benchmark cost findings across channels
   const costFindings = [];
+  const _siFlat_cost = _getSubIntentsFlat(DEMO.subIntentEnriched || []);
   DEMO.channels.forEach(ch => {
     const chBm = getChannelBenchmark(ch, 'CPC') || bmCPC;
     _qs.filter(q => q.channel === ch).forEach(q => {
       if (q.cpc > chBm) {
         const gapPct = ((q.cpc - chBm) / chBm * 100);
         const excessCost = q.volume * (q.cpc - chBm);
-        costFindings.push({ intent: q.intent, channel: ch, bu: q.bu, cpc: q.cpc, benchmark: chBm, gapPct, excessCost, volume: q.volume });
+        const subs = _siFlat_cost.filter(si => si.parentIntent === q.intent).map(si => si.subIntent || si.name).slice(0,3);
+        costFindings.push({ intent: q.intent, channel: ch, bu: q.bu, cpc: q.cpc, benchmark: chBm, gapPct, excessCost, volume: q.volume, subIntents: subs });
       }
     });
   });
@@ -4798,10 +4947,10 @@ function renderPage7() {
       <div class="card-title">Above-Benchmark Cost Queues — All Channels</div>
       <div style="font-size:11px;color:var(--ey-text-light);margin-bottom:8px;">${costFindings.length} queues exceed their channel CPC benchmark. Total excess spend: <strong>${fmt(costFindings.reduce((s,f)=>s+f.excessCost,0),'$k')}/mo</strong></div>
       <div class="table-wrap"><table class="data-table" style="font-size:11px;">
-        <thead><tr><th>Intent</th><th>Channel</th><th>BU</th><th>Your CPC</th><th>Benchmark</th><th>Gap %</th><th>Excess Cost ($/mo)</th><th>Volume</th></tr></thead>
+        <thead><tr><th>Intent</th><th>Sub-Intents</th><th>Channel</th><th>BU</th><th>Your CPC</th><th>Benchmark</th><th>Gap %</th><th>Excess Cost ($/mo)</th><th>Volume</th></tr></thead>
         <tbody>
           ${costFindings.slice(0,20).map(f => `<tr>
-            <td>${f.intent}</td><td>${f.channel}</td><td>${f.bu}</td>
+            <td>${f.intent}</td><td style="font-size:10px;color:var(--ey-text-light);">${f.subIntents.length > 0 ? f.subIntents.join(', ') : '—'}</td><td>${f.channel}</td><td>${f.bu}</td>
             <td style="font-weight:700;color:var(--ey-red);">${fmt(f.cpc,'$')}</td>
             <td>${fmt(f.benchmark,'$')}</td>
             <td style="color:var(--ey-red);">+${f.gapPct.toFixed(0)}%</td>
@@ -5012,7 +5161,7 @@ function renderPage8() {
         <div class="card-title">Intent-Level Feasibility Analysis</div>
         <div style="font-size:11px;color:var(--ey-text-light);margin-bottom:8px;">Deflection = from assisted channels (Voice/Chat/Email) → self-service (App/IVR/WhatsApp). Click any row to see sub-intent breakdown.</div>
         <div class="table-wrap"><table class="data-table" style="font-size:11px;">
-          <thead><tr><th>Intent</th><th>Complexity</th><th>Feasibility</th><th>Current SS %</th><th>Deflection Potential</th><th>Volume/mo</th><th>Avg CPC</th><th>Monthly Saving</th></tr></thead>
+          <thead><tr><th>Intent</th><th>Complexity</th><th>Feasibility</th><th>Current SS %</th><th>Deflection Potential</th><th>Deflect To</th><th>Volume/mo</th><th>Avg CPC</th><th>Monthly Saving</th></tr></thead>
           <tbody>
             ${intentFeasibility.map((i, idx) => {
               const fc = i.feasibility >= 60 ? 'green' : i.feasibility >= threshold ? 'amber' : 'red';
@@ -5025,6 +5174,7 @@ function renderPage8() {
                 <td><div style="display:flex;align-items:center;gap:6px;"><div style="width:60px;height:8px;background:var(--ey-mid-gray);border-radius:4px;overflow:hidden;"><div style="width:${i.feasibility}%;height:100%;background:${ragBg(fc)};border-radius:4px;"></div></div><strong style="color:${ragBg(fc)};">${i.feasibility.toFixed(0)}%</strong></div></td>
                 <td>${fmt(i.ssPct,'%')}</td>
                 <td>${i.deflectionPotential > 0 ? fmt(i.deflectionPotential,'%') : '<span style="color:var(--ey-text-light);">—</span>'}</td>
+                <td style="font-size:10px;">${i.feasibility >= threshold ? (i.complexity < 0.3 ? 'App/Self-Service' : i.complexity < 0.5 ? 'Chat, IVR' : 'Chat') : '<span style="color:var(--ey-text-light);">—</span>'}</td>
                 <td>${fmt(i.volume,'int')}</td>
                 <td>${fmt(i.avgCPC,'$')}</td>
                 <td style="color:${i.savingPotential > 0 ? 'var(--ey-green)' : 'var(--ey-text-light)'};font-weight:700;">${i.savingPotential > 0 ? fmt(i.savingPotential,'$k') : '—'}</td>
@@ -5046,6 +5196,7 @@ function renderPage8() {
                     '<td><div style="display:flex;align-items:center;gap:4px;"><div style="width:40px;height:6px;background:var(--ey-mid-gray);border-radius:3px;overflow:hidden;"><div style="width:'+siFeasibility+'%;height:100%;background:'+ragBg(siFC)+';border-radius:3px;"></div></div><span style="color:'+ragBg(siFC)+';font-weight:600;">'+siFeasibility.toFixed(0)+'%</span></div></td>' +
                     '<td>—</td>' +
                     '<td>' + (siDeflPot > 0 ? fmt(siDeflPot,'%') : '<span style="color:var(--ey-text-light);">—</span>') + '</td>' +
+                    '<td style="font-size:9px;">' + (siDeflPot > 0 ? (siComplexity < 0.3 ? 'App/SS' : siComplexity < 0.5 ? 'Chat, IVR' : 'Chat') : '—') + '</td>' +
                     '<td>' + fmt(siVol,'int') + ' <span style="font-size:8px;color:var(--ey-text-light);">(' + ((si.volumeShare||0)*100).toFixed(0) + '%)</span></td>' +
                     '<td>—</td>' +
                     '<td style="color:' + (siSaving > 0 ? 'var(--ey-green)' : 'var(--ey-text-light)') + ';font-weight:600;">' + (siSaving > 0 ? fmt(siSaving,'$k') : '—') + '</td></tr>';
@@ -5123,18 +5274,31 @@ function renderPage9() {
   const layers = ['AI & Automation', 'Operating Model', 'Location Strategy'];
   const layerColors = { 'AI & Automation': '#1A73E8', 'Operating Model': '#168736', 'Location Strategy': '#D97706' };
   const enabledInits = inits.filter(i => i.enabled);
-  const totalSaving = enabledInits.reduce((s,i) => s + (i._annualSaving||0), 0);
-  const totalFTE = enabledInits.reduce((s,i) => s + (i._fteImpact||0), 0);
+  // CR-012: Use HEADLINE_METRICS (waterfall-computed, pool-netted) as single source of truth
+  const totalSaving = HEADLINE_METRICS.annualSaving;
+  const totalFTE = HEADLINE_METRICS.fteReduction;
+  // Gross initiative sum (for reference only — not displayed as headline)
+  const grossFTE = enabledInits.reduce((s,i) => s + (i._fteImpact||0), 0);
   const savedLayer = window._activeInitLayer || 'all';
 
+  // CR-010: BU-scoped metrics
+  const buActive = _currentBUFilter !== 'all';
+  const buShare = _buVolumeShare();
+  const buSaving = buActive ? totalSaving * buShare : totalSaving;
+  const buFTE = buActive ? Math.round(totalFTE * buShare) : totalFTE;
+  const buRelevantInits = buActive ? enabledInits.filter(i => _isInitRelevantToBU(i)) : enabledInits;
+
   el.innerHTML = `
+    ${buActive ? `<div style="background:#E3F2FD;border:1px solid #1A73E8;border-radius:8px;padding:8px 16px;margin-bottom:12px;font-size:12px;color:#1A73E8;font-weight:600;">
+      📊 Filtered: ${_buLabel()} (${(buShare*100).toFixed(0)}% of total volume) — savings and FTE scaled proportionally. ${buRelevantInits.length} of ${enabledInits.length} enabled initiatives apply to this BU's channels.
+    </div>` : ''}
     <div class="kpi-row" id="initKpiRow" style="grid-template-columns:repeat(6,1fr); margin-bottom:16px;">
-      <div class="kpi-card" id="kpiAI" style="border-left-color:#1A73E8;"><div class="kpi-value">${inits.filter(i=>i.layer==='AI & Automation' && i.enabled).length}<span style="font-size:12px;color:var(--ey-text-light);">/${inits.filter(i=>i.layer==='AI & Automation').length}</span></div><div class="kpi-label">AI & Automation</div></div>
-      <div class="kpi-card" id="kpiOp" style="border-left-color:#168736;"><div class="kpi-value">${inits.filter(i=>i.layer==='Operating Model' && i.enabled).length}<span style="font-size:12px;color:var(--ey-text-light);">/${inits.filter(i=>i.layer==='Operating Model').length}</span></div><div class="kpi-label">Operating Model</div></div>
-      <div class="kpi-card" id="kpiLoc" style="border-left-color:#D97706;"><div class="kpi-value">${inits.filter(i=>i.layer==='Location Strategy' && i.enabled).length}<span style="font-size:12px;color:var(--ey-text-light);">/${inits.filter(i=>i.layer==='Location Strategy').length}</span></div><div class="kpi-label">Location Strategy</div></div>
-      <div class="kpi-card" id="kpiActive" style="border-left-color:var(--ey-green);"><div class="kpi-value">${enabledInits.length}<span style="font-size:12px;color:var(--ey-text-light);">/${inits.length}</span></div><div class="kpi-label">Active</div></div>
-      <div class="kpi-card" id="kpiFTE" style="border-left-color:var(--ey-green);"><div class="kpi-value" style="color:var(--ey-green);">−${totalFTE.toFixed(0)} <span style="font-size:11px;font-weight:400;">FTE</span></div><div class="kpi-label">Total FTE Impact</div></div>
-      <div class="kpi-card" id="kpiSaving" style="border-left-color:var(--ey-green);"><div class="kpi-value" style="color:var(--ey-green);">${fmt(totalSaving,'$m')}<span style="font-size:11px;font-weight:400;">/yr</span></div><div class="kpi-label">Total Annual Saving</div></div>
+      <div class="kpi-card" id="kpiAI" style="border-left-color:#1A73E8;"><div class="kpi-value">${buActive ? inits.filter(i=>i.layer==='AI & Automation' && i.enabled && _isInitRelevantToBU(i)).length : inits.filter(i=>i.layer==='AI & Automation' && i.enabled).length}<span style="font-size:12px;color:var(--ey-text-light);">/${inits.filter(i=>i.layer==='AI & Automation').length}</span></div><div class="kpi-label">AI & Automation</div></div>
+      <div class="kpi-card" id="kpiOp" style="border-left-color:#168736;"><div class="kpi-value">${buActive ? inits.filter(i=>i.layer==='Operating Model' && i.enabled && _isInitRelevantToBU(i)).length : inits.filter(i=>i.layer==='Operating Model' && i.enabled).length}<span style="font-size:12px;color:var(--ey-text-light);">/${inits.filter(i=>i.layer==='Operating Model').length}</span></div><div class="kpi-label">Operating Model</div></div>
+      <div class="kpi-card" id="kpiLoc" style="border-left-color:#D97706;"><div class="kpi-value">${buActive ? inits.filter(i=>i.layer==='Location Strategy' && i.enabled && _isInitRelevantToBU(i)).length : inits.filter(i=>i.layer==='Location Strategy' && i.enabled).length}<span style="font-size:12px;color:var(--ey-text-light);">/${inits.filter(i=>i.layer==='Location Strategy').length}</span></div><div class="kpi-label">Location Strategy</div></div>
+      <div class="kpi-card" id="kpiActive" style="border-left-color:var(--ey-green);"><div class="kpi-value">${buRelevantInits.length}<span style="font-size:12px;color:var(--ey-text-light);">/${buActive ? enabledInits.length : inits.length}</span></div><div class="kpi-label">${buActive ? 'BU-Relevant' : 'Active'}</div></div>
+      <div class="kpi-card" id="kpiFTE" style="border-left-color:var(--ey-green);"><div class="kpi-value" style="color:var(--ey-green);">−${buFTE} <span style="font-size:11px;font-weight:400;">FTE</span></div><div class="kpi-label">Net FTE Reduction${buActive ? ' (BU share)' : ''}</div></div>
+      <div class="kpi-card" id="kpiSaving" style="border-left-color:var(--ey-green);"><div class="kpi-value" style="color:var(--ey-green);">${fmt(buSaving,'$m')}<span style="font-size:11px;font-weight:400;">/yr</span></div><div class="kpi-label">Annual Saving${buActive ? ' (BU share)' : ''}</div></div>
     </div>
 
     <!-- So-What Box -->
@@ -5144,11 +5308,11 @@ function renderPage9() {
         <div>
           <div style="font-weight:800;font-size:14px;margin-bottom:4px;">Smart Recommendation Engine</div>
           <div style="font-size:12px;color:var(--ey-text);">
-            Based on your diagnostic data, <strong>${enabledInits.length} of ${inits.length} initiatives</strong> are recommended
+            Based on your diagnostic data, <strong>${buRelevantInits.length} of ${inits.length} initiatives</strong> are recommended${buActive ? ' for '+_buLabel() : ''}
             (relevance score ≥ ${RELEVANCE_THRESHOLD}/100).
             ${inits.filter(i => !i.enabled).length > 0 ? `<strong>${inits.filter(i => !i.enabled).length} initiatives</strong> were excluded — they don't match your channels, pain points, or volume profile.` : ''}
             Enabled initiatives can deliver
-            <strong>${fmt(totalSaving,'$m')}/yr</strong> in savings with <strong>${totalFTE.toFixed(0)} FTE</strong> reduction.
+            <strong>${fmt(buSaving,'$m')}/yr</strong> in savings with <strong>${buFTE} FTE</strong> net reduction (after pool netting)${buActive ? ' — BU proportional share' : ''}.
             ${(() => {
               const quickWins = enabledInits.filter(i => i.effort === 'low' && i.startMonth <= 3);
               return quickWins.length > 0 ? `<strong>${quickWins.length} quick wins</strong> (low effort, immediate start) should be prioritized for first 90 days.` : '';
@@ -5188,14 +5352,16 @@ function renderPage9() {
           <div class="table-wrap" style="max-height:300px; overflow-y:auto;">
             <table class="data-table" style="font-size:11px;">
               <thead style="position:sticky;top:0;z-index:2;">
-                <tr><th style="width:35px;">On</th><th>ID</th><th>Initiative</th><th>Score</th><th>Tier</th><th>Stage</th><th>Lever</th><th>Effort</th><th>Channels</th><th>FTE Δ</th><th>Saving/yr</th><th>CSAT</th><th style="width:40px;">Edit</th></tr>
+                <tr><th style="width:35px;">On</th><th>ID</th><th>Initiative</th><th>Score</th><th>Tier</th><th>Stage</th><th>Lever</th><th>Effort</th><th>Channels</th><th>Saving/yr</th><th>CSAT</th><th style="width:40px;">Edit</th></tr>
               </thead>
               <tbody>
                 ${layerInits.map((init, i) => {
                   const globalIdx = inits.indexOf(init);
                   const tierColors = {strong:'var(--ey-green)',moderate:'#D97706',weak:'var(--ey-text-light)',poor:'var(--ey-red)',excluded:'#888',trigger_fail:'#C5003E'};
                   const stageColors = {'AI Base':'#1A73E8','AI Enhanced':'#9C27B0','Autonomous':'#168736'};
-                  return `<tr style="opacity:${init.enabled ? 1 : 0.45};cursor:pointer;" ondblclick="openInitEditor(${globalIdx})" title="${(init.reasons||init.relevanceReasons||[]).join(' · ')}">
+                  const buIrrelevant = buActive && !_isInitRelevantToBU(init);
+                  const rowOpacity = !init.enabled ? 0.35 : buIrrelevant ? 0.40 : 1;
+                  return `<tr style="opacity:${rowOpacity};cursor:pointer;${buIrrelevant ? 'background:#F5F5F5;' : ''}" ondblclick="openInitEditor(${globalIdx})" title="${buIrrelevant ? '[Not applicable to '+_buLabel()+'] ' : ''}${(init.reasons||init.relevanceReasons||[]).join(' · ')}">
                     <td onclick="event.stopPropagation()"><input type="checkbox" ${init.enabled ? 'checked' : ''} onchange="toggleInitiative(${globalIdx})"></td>
                     <td><strong style="color:${layerColors[layer]};">${init.id}</strong></td>
                     <td>${init.name}</td>
@@ -5205,7 +5371,6 @@ function renderPage9() {
                     <td style="font-size:10px;">${init.lever.replace(/_/g,' ')}</td>
                     <td><span class="badge badge-${init.effort==='low'?'low':init.effort==='medium'?'medium':'high'}">${init.effort}</span></td>
                     <td style="font-size:10px;">${init.channels.slice(0,2).join(', ')}${init.channels.length>2?'…':''}</td>
-                    <td style="color:var(--ey-green);font-weight:700;">−${init._fteImpact ? init._fteImpact.toFixed(0) : '—'}</td>
                     <td style="color:var(--ey-green);font-weight:700;">${init._annualSaving ? fmt(init._annualSaving,'$k') : '—'}</td>
                     <td style="color:#00BCD4;font-weight:600;font-size:10px;">${(init._csatContribution||0) > 0.001 ? '+' + (init._csatContribution).toFixed(3) : '—'}</td>
                     <td onclick="event.stopPropagation()"><button style="border:none;background:none;cursor:pointer;font-size:14px;" onclick="openInitEditor(${globalIdx})">✏️</button></td>
@@ -6153,19 +6318,102 @@ function renderPage10() {
   // v12-#24: KPI tiles labeled as intent-channel pairs
   const showMaintain = window._chShowMaintain || false;
 
-  // v12-#26: Build initiative-driven migration flows
+  // v1-CR014: Robustly build initiative-driven migration flows
   const enabledInits = (INITIATIVES||[]).filter(i => i.enabled);
   const migrationFlows = [];
-  const scaleDowns = decisions.filter(d => d.action === 'SCALE DOWN' || d.action === 'RETIRE');
-  const scaleUps = decisions.filter(d => d.action === 'SCALE UP' || d.action === 'INTRODUCE');
-  scaleDowns.forEach(sd => {
-    const targets = scaleUps.filter(su => su.intent === sd.intent);
-    if (targets.length > 0) {
-      const migrateVol = Math.round(sd.volume * 0.4);
-      targets.forEach(tg => {
-        migrationFlows.push({ intent: sd.intent, from: sd.channel, to: tg.channel, volume: Math.round(migrateVol / targets.length) });
-      });
+  
+  // Identify high-cost (source) and low-cost (target) channels from actual data
+  const channelStats = {};
+  _fq10.forEach(q => {
+    if (!channelStats[q.channel]) channelStats[q.channel] = { vol: 0, cost: 0 };
+    channelStats[q.channel].vol += q.volume;
+    channelStats[q.channel].cost += q.volume * q.cpc;
+  });
+  const highCostChannels = ['Voice', 'Retail/Walk-in', 'Email']; // typical source channels
+  const lowCostChannels = ['Chat', 'App/Self-Service', 'IVR', 'SMS/WhatsApp', 'Social Media'];
+  
+  // Method 1: From deflection/channel-shift initiatives
+  const deflectionInits = enabledInits.filter(i => 
+    i.lever === 'deflection' || i.lever === 'cost_reduction' ||
+    i.name.toLowerCase().includes('deflect') || i.name.toLowerCase().includes('self-service') || 
+    i.name.toLowerCase().includes('chatbot') || i.name.toLowerCase().includes('bot') ||
+    i.name.toLowerCase().includes('ivr') || i.name.toLowerCase().includes('migration') ||
+    i.name.toLowerCase().includes('virtual agent') || i.name.toLowerCase().includes('auto-response'));
+  
+  deflectionInits.forEach(init => {
+    // Determine source and target channels
+    const initTargets = (init.channels || []).filter(ch => lowCostChannels.includes(ch));
+    const initSources = (init.channels || []).filter(ch => highCostChannels.includes(ch));
+    
+    // Default source is Voice if not specified, default target is App/Self-Service
+    const fromChannels = initSources.length > 0 ? initSources : ['Voice'];
+    let toChannels = initTargets.length > 0 ? initTargets : [];
+    if (toChannels.length === 0) {
+      if (init.name.toLowerCase().includes('ivr')) toChannels = ['IVR'];
+      else if (init.name.toLowerCase().includes('whatsapp') || init.name.toLowerCase().includes('sms')) toChannels = ['SMS/WhatsApp'];
+      else if (init.name.toLowerCase().includes('chat') || init.name.toLowerCase().includes('bot')) toChannels = ['Chat'];
+      else if (init.name.toLowerCase().includes('email')) toChannels = ['Email'];
+      else toChannels = ['App/Self-Service'];
     }
+    
+    fromChannels.forEach(fromCh => {
+      const fromVol = (channelStats[fromCh] || {}).vol || 0;
+      if (fromVol === 0) return;
+      
+      // Estimate migrated volume using initiative impact and adoption
+      const migrateVol = Math.round(fromVol * Math.min(init.impact || 0.10, 0.35) * (init.adoption || 0.75));
+      if (migrateVol < 1) return;
+      
+      // Find top intents from this channel
+      const fromQueues = _fq10.filter(q => q.channel === fromCh).sort((a,b) => b.volume - a.volume);
+      const topIntent = fromQueues.length > 0 ? fromQueues[0].intent : 'Multiple';
+      
+      toChannels.forEach(toCh => {
+        if (toCh === fromCh) return;
+        const vol = Math.round(migrateVol / toChannels.length);
+        if (vol > 0) {
+          migrationFlows.push({
+            intent: topIntent, from: fromCh, to: toCh, volume: vol,
+            source: init.id + ' — ' + init.name
+          });
+        }
+      });
+    });
+  });
+  
+  // Method 2: Fallback from channel strategy decisions
+  if (migrationFlows.length === 0) {
+    const scaleDowns = decisions.filter(d => d.action === 'SCALE DOWN' || d.action === 'RETIRE');
+    const scaleUps = decisions.filter(d => d.action === 'SCALE UP' || d.action === 'INTRODUCE');
+    scaleDowns.forEach(sd => {
+      let targets = scaleUps.filter(su => su.intent === sd.intent);
+      if (targets.length === 0) targets = scaleUps.slice(0, 2);
+      if (targets.length > 0 && sd.volume > 0) {
+        const migrateVol = Math.round(sd.volume * 0.30);
+        targets.forEach(tg => {
+          migrationFlows.push({ intent: sd.intent, from: sd.channel, to: tg.channel, volume: Math.round(migrateVol / targets.length) });
+        });
+      }
+    });
+  }
+  
+  // Deduplicate: merge flows with same from→to
+  const mergedFlows = [];
+  const flowKey = mf => mf.from + '→' + mf.to;
+  const flowMap = {};
+  migrationFlows.forEach(mf => {
+    const key = flowKey(mf);
+    if (!flowMap[key]) {
+      flowMap[key] = { ...mf, intents: [mf.intent] };
+      mergedFlows.push(flowMap[key]);
+    } else {
+      flowMap[key].volume += mf.volume;
+      if (!flowMap[key].intents.includes(mf.intent)) flowMap[key].intents.push(mf.intent);
+    }
+  });
+  // Update intent labels for merged flows
+  mergedFlows.forEach(mf => {
+    if (mf.intents && mf.intents.length > 1) mf.intent = mf.intents.length + ' intents';
   });
 
   // v12-#27: Build migration risk warnings from actual data
@@ -6192,7 +6440,7 @@ function renderPage10() {
 
   // v12-#27: Dynamic migration savings from enabled initiatives
   const deflectionInits = enabledInits.filter(i => i.name.toLowerCase().includes('deflect') || i.name.toLowerCase().includes('self-service') || i.name.toLowerCase().includes('chatbot') || i.name.toLowerCase().includes('ivr'));
-  const totalMigVol = migrationFlows.reduce((s,m)=>s+m.volume,0);
+  const totalMigVol = mergedFlows.reduce((s,m)=>s+m.volume,0);
   const avgCPCvoice = _fq10.filter(q=>q.channel==='Voice').reduce((s,q)=>s+q.cpc*q.volume,0) / Math.max(_fq10.filter(q=>q.channel==='Voice').reduce((s,q)=>s+q.volume,0),1);
   const avgCPCdigital = _fq10.filter(q=>['Chat','App/Self-Service','SMS/WhatsApp'].includes(q.channel)).reduce((s,q)=>s+q.cpc*q.volume,0) / Math.max(_fq10.filter(q=>['Chat','App/Self-Service','SMS/WhatsApp'].includes(q.channel)).reduce((s,q)=>s+q.volume,0),1) || 2.5;
   const annualMigSaving = totalMigVol * (avgCPCvoice - avgCPCdigital) * 12;
@@ -6226,19 +6474,23 @@ function renderPage10() {
     <div class="card" style="margin-bottom:16px;">
       <div class="card-title">Intent-Channel Portfolio</div>
       <div class="table-wrap" style="max-height:350px; overflow-y:auto;"><table class="data-table" style="font-size:11px;">
-        <thead style="position:sticky;top:0;z-index:2;"><tr><th>Intent</th><th>Channel</th><th>Action</th><th>Volume</th><th>Health</th><th>CPC</th><th>Rationale</th></tr></thead>
+        <thead style="position:sticky;top:0;z-index:2;"><tr><th>Intent</th><th>Sub-Intents</th><th>Channel</th><th>Action</th><th>Volume</th><th>Health</th><th>CPC</th><th>Rationale</th></tr></thead>
         <tbody>
-          ${decisions.filter(d => showMaintain || d.action !== 'MAINTAIN').sort((a,b) => {
+          ${(() => {
+            const _siFlat_p10 = _getSubIntentsFlat(DEMO.subIntentEnriched || []);
+            return decisions.filter(d => showMaintain || d.action !== 'MAINTAIN').sort((a,b) => {
             const order = { RETIRE:0, FIX:1, 'SCALE DOWN':2, INTRODUCE:3, 'SCALE UP':4, MAINTAIN:5 };
             return (order[a.action]||5) - (order[b.action]||5);
-          }).map(d =>
-            '<tr><td>'+d.intent+'</td><td>'+d.channel+'</td>' +
+          }).map(d => {
+            const subs = _siFlat_p10.filter(si => si.parentIntent === d.intent).map(si => si.subIntent || si.name).slice(0,3);
+            return '<tr><td>'+d.intent+'</td><td style="font-size:10px;color:var(--ey-text-light);">'+(subs.length > 0 ? subs.join(', ') : '—')+'</td><td>'+d.channel+'</td>' +
             '<td><span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:'+actionColors[d.action]+'20;color:'+actionColors[d.action]+';">'+d.action+'</span></td>' +
             '<td style="text-align:right;">'+(d.volume > 0 ? fmt(d.volume,'int') : '—')+(d.isNew ? ' <span style="font-size:9px;color:var(--ey-blue);">→ est. '+fmt(d.estVolume||0,'int')+'</span>' : '')+'</td>' +
             '<td>'+(d.health > 0 ? '<strong style="color:'+ ragBg(ragColor(d.health)) +';">'+(d.health*100).toFixed(0)+'</strong>' : (d.isNew ? '<span style="padding:1px 6px;border-radius:3px;font-size:9px;background:#E3F2FD;color:#1A73E8;font-weight:600;">New Opportunity</span>' : '—'))+'</td>' +
             '<td>'+(d.avgCPC ? fmt(d.avgCPC,'$') : '—')+'</td>' +
-            '<td style="font-size:10px;">'+d.rationale+'</td></tr>'
-          ).join('')}
+            '<td style="font-size:10px;">'+d.rationale+'</td></tr>';
+          }).join('');
+          })()}
         </tbody>
       </table></div>
       <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
@@ -6254,11 +6506,11 @@ function renderPage10() {
     <div class="card" style="margin-bottom:16px;">
       <div class="card-title">Channel Migration Flow — Intent Level</div>
       <div style="font-size:11px;color:var(--ey-text-light);margin-bottom:8px;">Derived from ${enabledInits.length} enabled initiatives. Toggle initiatives on Roadmap to update.</div>
-      ${migrationFlows.length > 0 ? `
+      ${mergedFlows.length > 0 ? `
       <table class="data-table" style="font-size:11px;">
         <thead><tr><th>Intent</th><th>From Channel</th><th>To Channel</th><th>Monthly Volume</th><th>Annual Saving</th></tr></thead>
         <tbody>
-          ${migrationFlows.map(mf => {
+          ${mergedFlows.map(mf => {
             const saving = mf.volume * (avgCPCvoice - avgCPCdigital) * 12;
             return '<tr><td><strong>'+mf.intent+'</strong></td><td style="color:var(--ey-red);">'+mf.from+'</td><td style="color:var(--ey-green);">'+mf.to+'</td><td style="text-align:right;">'+fmt(mf.volume,'int')+'</td><td style="text-align:right;color:var(--ey-green);font-weight:600;">'+fmt(saving,'$k')+'/yr</td></tr>';
           }).join('')}
@@ -7057,11 +7309,12 @@ function renderPage14() {
       </div>
     </div>
 
-    <!-- ─── COST WATERFALL: Current → Future ─── -->
+    <!-- ─── CR-011: COST WATERFALL — Connected, Layer-by-Layer ─── -->
     <div class="grid-2" style="margin-bottom:16px;">
       <div class="card">
-        <div class="card-title">FTE Waterfall — Current to Future State</div>
-        <canvas id="fteWaterfall" width="500" height="300"></canvas>
+        <div class="card-title">Cost Transformation Waterfall</div>
+        <div style="font-size:11px;color:var(--ey-text-light);margin-bottom:8px;">Current annual cost base → savings by transformation layer → target state (Year ${horizon})</div>
+        <canvas id="costWaterfallChart" width="500" height="300"></canvas>
       </div>
       <div class="card">
         <div class="card-title">Cumulative NPV Build</div>
@@ -7083,31 +7336,6 @@ function renderPage14() {
           <tr><td><strong>NPV</strong></td><td>—</td>${wf.yearly.map(y=>'<td>'+fmt(y.npv,'$m')+'</td>').join('')}</tr>
         </tbody>
       </table>
-    </div>
-
-    <!-- ─── SCENARIO COMPARISON + SENSITIVITY ─── -->
-    <div class="grid-2" style="margin-bottom:16px;">
-      <div class="card">
-        <div class="card-title">Scenario Comparison</div>
-        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px;">
-          ${Object.values(sc).map(s => 
-            '<div style="padding:14px; border-radius:8px; border:2px solid '+(s.label==='Base Case' ? 'var(--ey-yellow)' : 'var(--ey-mid-gray)')+'; text-align:center;">' +
-              '<div style="font-weight:700; margin-bottom:4px;">'+s.label+'</div>' +
-              (s.description ? '<div style="font-size:10px; color:var(--ey-text-light); margin-bottom:8px;">'+s.description+'</div>' : '') +
-              '<div style="font-size:24px; font-weight:800; color:var(--ey-green);">'+safeFmt(s.npv,'$m')+'</div>' +
-              '<div style="font-size:11px; color:var(--ey-text-light);">NPV</div>' +
-              '<div style="margin-top:8px; font-size:12px;">IRR: <strong>'+safeFixed(s.irr||0)+'%</strong></div>' +
-              '<div style="font-size:12px;">FTE: <strong>−'+safeNum(s.fteReduction)+' FTE</strong></div>' +
-              '<div style="font-size:12px;">Investment: <strong>'+safeFmt(s.investment,'$m')+'</strong></div>' +
-              '<div style="font-size:12px;">Saving: <strong>'+safeFmt(s.annualSaving,'$m')+'/yr</strong></div>' +
-            '</div>'
-          ).join('')}
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title">Sensitivity Tornado (±20% NPV Swing)</div>
-        <canvas id="tornadoChart" width="500" height="280"></canvas>
-      </div>
     </div>
 
     <!-- ─── INVESTMENT BREAKDOWN + CX IMPACT ─── -->
@@ -7139,7 +7367,7 @@ function renderPage14() {
             ${retainedCusts > 0 ? '<tr><td>Customers Retained</td><td colspan="2" style="text-align:center;">—</td><td style="color:var(--ey-green);font-weight:700;">+' + retainedCusts.toLocaleString() + '/yr</td></tr>' : ''}
           </tbody>
         </table>
-        <div style="font-size:10px;color:var(--ey-text-light);margin-top:8px;">Revenue: McKinsey (1 CSAT point ≈ ${(revenuePerCSATPoint > 0 ? fmt(revenuePerCSATPoint,'$k') : '—')} revenue). Retention: Bain (5% retention → 25-95% profit).</div>
+        <div style="font-size:10px;color:var(--ey-text-light);margin-top:8px;">Revenue: Industry benchmarks (1 CSAT point ≈ ${(revenuePerCSATPoint > 0 ? fmt(revenuePerCSATPoint,'$k') : '—')} revenue). Retention: Industry research (5% retention → 25-95% profit).</div>
       </div>
     </div>
 
@@ -7212,9 +7440,8 @@ function renderPage14() {
     </div>
   `;
 
-  drawFTEWaterfall();
+  drawCostWaterfall();
   drawNPVChart();
-  drawTornado(sensVars);
   drawInvestPie(investBreakdown);
 }
 
@@ -7244,6 +7471,122 @@ function drawInvestPie(data) {
     ctx.fillText(`${d.category.split(' ')[0]} ${d.pct}%`, lx, ly);
     angle += slice;
   });
+}
+
+// CR-011: Proper connected cost waterfall (Current Cost → Layer Savings → Target Cost)
+function drawCostWaterfall() {
+  const canvas = document.getElementById('costWaterfallChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = 500, H = 300, pad = {l:70, r:20, t:25, b:55};
+  ctx.clearRect(0, 0, W, H);
+
+  const annualBaseCost = DEMO.roles.reduce((s,r) => s + r.headcount * r.costPerFTE, 0);
+  const layerSav = WATERFALL.layerSaving || {};
+  const aiSav = layerSav['AI & Automation'] || 0;
+  const omSav = layerSav['Operating Model'] || 0;
+  const locSav = layerSav['Location Strategy'] || 0;
+  const totalSav = aiSav + omSav + locSav;
+  const targetCost = annualBaseCost - totalSav;
+
+  const bars = [
+    { label: 'Current Cost', value: annualBaseCost, color: '#2E2E38', type: 'total' },
+    { label: 'AI & Auto', value: -aiSav, color: '#1A73E8', type: 'decrease' },
+    { label: 'Op Model', value: -omSav, color: '#168736', type: 'decrease' },
+    { label: 'Location', value: -locSav, color: '#D97706', type: 'decrease' },
+    { label: 'Target Cost', value: targetCost, color: '#4CAF50', type: 'total' },
+  ];
+
+  const chartW = W - pad.l - pad.r;
+  const chartH = H - pad.t - pad.b;
+  const maxVal = annualBaseCost * 1.12;
+  const barW = chartW / bars.length * 0.60;
+  const gap = chartW / bars.length;
+
+  function yScale(v) { return pad.t + chartH - (v / maxVal) * chartH; }
+
+  // Grid lines
+  ctx.strokeStyle = '#E8E8ED'; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const v = (maxVal / 4) * i;
+    const y = yScale(v);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    ctx.fillStyle = '#999'; ctx.font = '9px Inter, sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(fmt(v, '$m'), pad.l - 6, y + 3);
+  }
+
+  let running = 0;
+  const barPositions = []; // store for connector lines
+
+  bars.forEach((bar, i) => {
+    const x = pad.l + i * gap + (gap - barW) / 2;
+    let barTop, barBottom;
+
+    if (bar.type === 'total') {
+      barTop = yScale(bar.value);
+      barBottom = yScale(0);
+      ctx.fillStyle = bar.color;
+      ctx.fillRect(x, barTop, barW, barBottom - barTop);
+      running = bar.value;
+      barPositions.push({ x, top: barTop, bottom: barBottom, right: x + barW, runAfter: bar.value });
+    } else {
+      const prevRunning = running;
+      const decrease = Math.abs(bar.value);
+      barTop = yScale(prevRunning);
+      const barBtm = yScale(prevRunning - decrease);
+      running = prevRunning - decrease;
+
+      // Decrease bar body
+      ctx.fillStyle = bar.color + '30';
+      ctx.fillRect(x, barTop, barW, barBtm - barTop);
+      // Solid accent stripe at bottom
+      ctx.fillStyle = bar.color;
+      ctx.fillRect(x, barBtm - 3, barW, 3);
+      // Border
+      ctx.strokeStyle = bar.color; ctx.lineWidth = 1.5;
+      ctx.strokeRect(x, barTop, barW, barBtm - barTop);
+
+      barPositions.push({ x, top: barTop, bottom: barBtm, right: x + barW, runAfter: running });
+    }
+
+    // Value label
+    ctx.fillStyle = '#2E2E38'; ctx.font = 'bold 10px Inter, sans-serif'; ctx.textAlign = 'center';
+    if (bar.type === 'total') {
+      ctx.fillText(fmt(bar.value, '$m'), x + barW / 2, barTop - 6);
+    } else {
+      const midY = (yScale(running + Math.abs(bar.value)) + yScale(running)) / 2;
+      ctx.fillStyle = bar.color; ctx.font = 'bold 10px Inter, sans-serif';
+      ctx.fillText('−' + fmt(Math.abs(bar.value), '$m'), x + barW / 2, midY + 4);
+    }
+
+    // Bar label
+    ctx.fillStyle = '#555'; ctx.font = '10px Inter, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(bar.label, x + barW / 2, H - pad.b + 14);
+  });
+
+  // Connector lines (dashed) between bars
+  ctx.setLineDash([4, 3]);
+  ctx.strokeStyle = '#AAAACC'; ctx.lineWidth = 1;
+  for (let i = 0; i < barPositions.length - 1; i++) {
+    const from = barPositions[i];
+    const to = barPositions[i + 1];
+    const y = yScale(from.runAfter);
+    ctx.beginPath();
+    ctx.moveTo(from.right + 1, y);
+    ctx.lineTo(to.x - 1, y);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Savings annotation arrow
+  const savY1 = yScale(annualBaseCost);
+  const savY2 = yScale(targetCost);
+  const arrowX = W - pad.r - 5;
+  ctx.strokeStyle = '#4CAF50'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(arrowX, savY1); ctx.lineTo(arrowX, savY2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(arrowX - 4, savY2 + 8); ctx.lineTo(arrowX, savY2); ctx.lineTo(arrowX + 4, savY2 + 8); ctx.fillStyle = '#4CAF50'; ctx.fill();
+  ctx.fillStyle = '#4CAF50'; ctx.font = 'bold 10px Inter, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(fmt(totalSav, '$m') + '/yr', arrowX, (savY1 + savY2) / 2 + 4);
 }
 
 function drawFTEWaterfall() {
@@ -7425,7 +7768,7 @@ function renderPage16() {
     {
       name: 'Customer Experience & Retention',
       icon: '⭐', color: '#00BCD4',
-      desc: 'CSAT improvement driving revenue growth and reduced churn — McKinsey: 10% CSAT → 2-3% revenue; Bain: 5% retention → 25-95% profit',
+      desc: 'CSAT improvement driving revenue growth and reduced churn — Industry benchmarks: 10% CSAT → 2-3% revenue; 5% retention → 25-95% profit',
       poolKey: 'csat_experience',
       levers: [],  // CSAT is cross-cutting, not a single lever
       isFTE: false,  // Revenue-denominated, not FTE
@@ -7487,11 +7830,11 @@ function renderPage16() {
         <div style="font-size:11px;color:var(--ey-text);line-height:1.7;margin-top:8px;">
           <strong>FTE Buckets (1–5):</strong> Pool ceilings are computed from intent-level data: volume × eligibility × feasibility per lever type.
           Captured value reflects enabled initiatives after pool-based netting (no double-counting) and safety caps
-          (max ${Math.round(ABSOLUTE_SINGLE_INIT_CAP*100||30)}% per initiative, max ${Math.round(PER_ROLE_MAX_REDUCTION*100||50)}% per role — McKinsey 2025).
+          (max ${Math.round(ABSOLUTE_SINGLE_INIT_CAP*100||30)}% per initiative, max ${Math.round(PER_ROLE_MAX_REDUCTION*100||50)}% per role — industry benchmarks).
           ${wf.poolSummary ? 'Total opportunity: ' + (wf.poolSummary.total_pool_fte||0).toFixed(0) + ' FTE across ' + (wf.poolSummary.total_volume||0).toLocaleString() + ' annual contacts.' : ''}
           <br><strong>CX Bucket (6):</strong> CSAT gap computed per intent×channel vs industry benchmarks. Initiative csatImpact values aggregated with
-          logarithmic diminishing returns (saturation curve, k=1.5). Revenue impact: McKinsey (10% CSAT → 2-3% revenue).
-          Retention: Bain & Company (5% retention → 25-95% profit increase). ${csatData.saturationPct ? 'Currently at ' + csatData.saturationPct.toFixed(0) + '% saturation of the CSAT gap.' : ''}
+          logarithmic diminishing returns (saturation curve, k=1.5). Revenue impact: industry benchmarks (10% CSAT → 2-3% revenue).
+          Retention: industry research (5% retention → 25-95% profit increase). ${csatData.saturationPct ? 'Currently at ' + csatData.saturationPct.toFixed(0) + '% saturation of the CSAT gap.' : ''}
         </div>
       </details>
     </div>
@@ -7503,7 +7846,7 @@ function renderPage16() {
         <div><strong style="color:#4CAF50;">FTE Captured</strong> = FTE reduction from currently enabled initiatives, after pool netting</div>
         <div><strong style="color:#FF9800;">FTE Untapped</strong> = Pool Ceiling − Captured; remaining opportunity to unlock</div>
         <div><strong style="color:var(--ey-dark);">FTE Untapped Value</strong> = Untapped FTE × weighted-average cost per FTE (${fmt(wtdCost,'$k')}/FTE)</div>
-        <div><strong style="color:#00BCD4;">CX Revenue Opp</strong> = revenue at risk from CSAT gap vs benchmark (McKinsey: 10% CSAT → 2-3% revenue)</div>
+        <div><strong style="color:#00BCD4;">CX Revenue Opp</strong> = revenue at risk from CSAT gap vs benchmark (industry benchmarks: 10% CSAT → 2-3% revenue)</div>
       </div>
     </div>
 
@@ -7894,6 +8237,20 @@ function _filteredQueues() {
 function _filteredVolume() { return _filteredQueues().reduce((s,q) => s + q.volume, 0); }
 function _buLabel() { return _currentBUFilter === 'all' ? 'All BUs' : _currentBUFilter; }
 
+// CR-010: BU-scoped initiative relevance
+function _buVolumeShare() {
+  if (_currentBUFilter === 'all') return 1;
+  const buVol = _filteredQueues().reduce((s,q) => s + q.volume, 0);
+  const totVol = DEMO.queues.reduce((s,q) => s + q.volume, 0);
+  return totVol > 0 ? buVol / totVol : 0;
+}
+function _isInitRelevantToBU(init) {
+  if (_currentBUFilter === 'all') return true;
+  const buQueues = _filteredQueues();
+  const buChannels = [...new Set(buQueues.map(q => q.channel))];
+  return init.channels.some(c => buChannels.includes(c));
+}
+
 function handleBUFilterChange(val) {
   _currentBUFilter = val;
   // Visual feedback — highlight when filtering
@@ -7903,7 +8260,7 @@ function handleBUFilterChange(val) {
     sel.style.background = val === 'all' ? 'white' : '#E3F2FD';
   }
   // Invalidate all pages that depend on BU filter
-  [1, 2, 4, 5, 6, 7, 8, 10, 12, 14, 17, 18, 19].forEach(p => { rendered[p] = false; });
+  [1, 2, 4, 5, 6, 7, 8, 9, 10, 12, 14, 17, 18, 19].forEach(p => { rendered[p] = false; });
   // Re-render current page
   renderPage(currentPage);
 }
@@ -7965,25 +8322,7 @@ function renderPage17() {
     locFTE[l] = Math.round(totalFTE * locVolumes[l] / totalVol);
   });
 
-  // CR-033: Location state (user-configurable sliders)
-  if (!window._locMixState) {
-    window._locMixState = {};
-    const locs = DEMO.locations || Object.keys(locVolumes);
-    locs.forEach(l => { window._locMixState[l] = Math.round(locVolumes[l] / totalVol * 100); });
-  }
-  window._locMixUpdate = function(loc, val) {
-    window._locMixState[loc] = parseInt(val);
-    // Normalize to 100%
-    const locs = Object.keys(window._locMixState);
-    const sum = locs.reduce((s,l) => s + window._locMixState[l], 0);
-    if (sum !== 100 && locs.length > 1) {
-      const others = locs.filter(l => l !== loc);
-      const remaining = 100 - parseInt(val);
-      const otherSum = others.reduce((s,l) => s + window._locMixState[l], 0) || 1;
-      others.forEach(l => { window._locMixState[l] = Math.round(window._locMixState[l] / otherSum * remaining); });
-    }
-    renderPage17();
-  };
+  // CR-017: Location Mix sliders removed
 
   let html = `<div style="margin-bottom:20px;">
     <h2 style="font-size:22px;font-weight:700;color:var(--ey-dark);margin-bottom:4px;">Business Unit Impact Analysis</h2>
@@ -8123,164 +8462,7 @@ function renderPage17() {
   });
   html += '</div></div>';
 
-  // ═══ CONFIGURABLE LOCATION MIX (CR-033) ═══
-  const locations = DEMO.locations || Object.keys(locVolumes);
-  if (locations.length > 0) {
-    const costMatrix = DEMO.locationCostMatrix || {};
-    const locColors = {'Onshore': 'var(--ey-blue)', 'Nearshore': 'var(--ey-amber)', 'Offshore': 'var(--ey-teal)'};
-    
-    html += '<div class="card" style="padding:20px;margin-bottom:24px;border-left:4px solid var(--ey-teal);">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">';
-    html += '<h3 style="font-size:15px;font-weight:700;color:var(--ey-dark);">Location Mix Strategy</h3>';
-    html += '<span style="font-size:10px;padding:3px 8px;border-radius:4px;background:var(--ey-yellow-bg);border:1px solid var(--ey-yellow);font-weight:600;">Editable — adjust sliders to model target state</span></div>';
-    html += '<div style="font-size:11px;color:var(--ey-text-light);margin-bottom:16px;">Current state derived from queue-level interaction data. Use sliders to model recommended future location mix.</div>';
-    
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:16px;">';
-    locations.forEach(loc => {
-      const currentPct = Math.round((locVolumes[loc] || 0) / totalVol * 100);
-      const targetPct = window._locMixState[loc] || currentPct;
-      const cost = costMatrix[loc]?.['In-house']?.costPerFTE || costMatrix[loc]?.['Outsourced']?.costPerFTE || 0;
-      const fte = Math.round(totalFTE * targetPct / 100);
-      
-      html += '<div style="background:var(--ey-light-gray);border-radius:8px;padding:16px;border-left:4px solid '+(locColors[loc] || '#999')+';"><div style="font-size:14px;font-weight:700;color:var(--ey-dark);margin-bottom:10px;">'+loc+'</div>';
-      html += '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;"><span>Current: <strong>'+currentPct+'%</strong></span><span>Target: <strong>'+targetPct+'%</strong></span></div>';
-      html += '<input type="range" min="0" max="100" value="'+targetPct+'" style="width:100%;margin:8px 0;" onchange="_locMixUpdate(\''+loc+'\',this.value)" oninput="this.nextElementSibling.textContent=this.value+\'%\'">';
-      html += '<div style="text-align:center;font-size:16px;font-weight:700;color:var(--ey-dark);">'+targetPct+'%</div>';
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;font-size:11px;">';
-      html += '<div><span style="color:var(--ey-text-light);">Est. FTE</span><br><strong>'+fte.toLocaleString()+'</strong></div>';
-      if (cost > 0) html += '<div><span style="color:var(--ey-text-light);">Cost/FTE</span><br><strong>$'+(cost/1000).toFixed(0)+'K</strong></div>';
-      html += '</div></div>';
-    });
-    html += '</div>';
-    
-    // CR-033 v14: Per-BU location sliders (Consumer / Enterprise separate controls)
-    if (bus.length > 1) {
-      // Initialise per-BU target state from queue data
-      if (!window._buLocMixState) {
-        window._buLocMixState = {};
-        bus.forEach(bu => {
-          window._buLocMixState[bu] = {};
-          let buTotal = 0;
-          locations.forEach(loc => {
-            const v = (DEMO.queues || []).filter(q => q.bu === bu && (q.location || 'Unspecified') === loc).reduce((s,q) => s + q.volume, 0);
-            window._buLocMixState[bu][loc] = v;
-            buTotal += v;
-          });
-          if (buTotal > 0) {
-            locations.forEach(loc => { window._buLocMixState[bu][loc] = Math.round(window._buLocMixState[bu][loc] / buTotal * 100); });
-          } else {
-            locations.forEach(loc => { window._buLocMixState[bu][loc] = Math.round(100 / locations.length); });
-          }
-        });
-      }
-      window._buLocMixUpdate = function(bu, loc, val) {
-        window._buLocMixState[bu][loc] = parseInt(val);
-        // Auto-normalise remaining locs proportionally
-        const others = locations.filter(l => l !== loc);
-        const remaining = 100 - parseInt(val);
-        const otherSum = others.reduce((s,l) => s + window._buLocMixState[bu][l], 0) || 1;
-        others.forEach(l => { window._buLocMixState[bu][l] = Math.round(window._buLocMixState[bu][l] / otherSum * remaining); });
-        renderPage17();
-      };
-
-      const buColors = { Consumer: 'var(--ey-blue)', Business: 'var(--ey-teal)', Enterprise: 'var(--ey-purple)' };
-      const locColors2 = { Onshore: '#1A73E8', Nearshore: '#D97706', Offshore: '#168736' };
-
-      html += '<div style="margin-top:20px;border-top:1px solid var(--ey-border);padding-top:16px;">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
-      html += '<div style="font-size:13px;font-weight:700;color:var(--ey-dark);">Per-BU Target Location Mix</div>';
-      html += '<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:#EDE7F6;color:#512DA8;font-weight:600;">CR-033 — Editable per BU</span></div>';
-      html += '<div style="font-size:11px;color:var(--ey-text-light);margin-bottom:14px;">Set separate onshore / nearshore / offshore targets for each Business Unit. Sliders auto-normalise to 100%.</div>';
-
-      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">';
-      bus.forEach(bu => {
-        const buState = window._buLocMixState[bu] || {};
-        const buColor = buColors[bu] || 'var(--ey-dark)';
-        const buFTE = Math.round(totalFTE * (DEMO.queues || []).filter(q => q.bu === bu).reduce((s,q) => s + q.volume, 0) / Math.max(totalVol, 1));
-        const buMix = locations.map(loc => ({ loc, pct: buState[loc] || 0 }));
-        // Current mix from data
-        let buRawTotal = 0;
-        const buCurrentMix = {};
-        locations.forEach(loc => {
-          const v = (DEMO.queues || []).filter(q => q.bu === bu && (q.location || 'Unspecified') === loc).reduce((s,q) => s + q.volume, 0);
-          buCurrentMix[loc] = v; buRawTotal += v;
-        });
-        locations.forEach(loc => { buCurrentMix[loc] = buRawTotal > 0 ? Math.round(buCurrentMix[loc] / buRawTotal * 100) : 0; });
-
-        html += '<div style="border:1px solid var(--ey-mid-gray);border-left:4px solid '+buColor+';border-radius:8px;padding:16px;">';
-        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
-        html += '<span style="font-size:14px;font-weight:700;color:var(--ey-dark);">'+bu+'</span>';
-        html += '<span style="font-size:10px;color:var(--ey-text-light);">~'+buFTE+' FTE</span></div>';
-        locations.forEach(loc => {
-          const tgtPct = buState[loc] || 0;
-          const curPct = buCurrentMix[loc] || 0;
-          const c = locColors2[loc] || '#555';
-          const delta = tgtPct - curPct;
-          const deltaLabel = delta === 0 ? '' : (delta > 0 ? ' <span style="color:var(--ey-green);font-size:9px;">▲+'+delta+'%</span>' : ' <span style="color:var(--ey-red);font-size:9px;">▼'+delta+'%</span>');
-          html += '<div style="margin-bottom:10px;">';
-          html += '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">';
-          html += '<span style="font-weight:600;color:'+c+';">'+loc+'</span>';
-          html += '<span style="font-weight:700;">'+tgtPct+'%'+deltaLabel+' <span style="color:var(--ey-text-light);font-weight:400;">(was '+curPct+'%)</span></span></div>';
-          html += '<input type="range" min="0" max="100" step="5" value="'+tgtPct+'" style="width:100%;accent-color:'+c+';height:4px;" ';
-          html += 'oninput="_buLocMixUpdate(\''+bu+'\',\''+loc+'\',this.value)">';
-          html += '<div style="width:100%;height:6px;background:var(--ey-mid-gray);border-radius:3px;margin-top:3px;overflow:hidden;">';
-          html += '<div style="width:'+tgtPct+'%;height:100%;background:'+c+';border-radius:3px;"></div></div>';
-          html += '</div>';
-        });
-        // Mini donut-style summary bar
-        html += '<div style="margin-top:6px;display:flex;height:8px;border-radius:4px;overflow:hidden;">';
-        locations.forEach(loc => {
-          html += '<div style="width:'+buState[loc]+'%;background:'+(locColors2[loc]||'#ccc')+';"></div>';
-        });
-        html += '</div>';
-        html += '<div style="display:flex;gap:8px;margin-top:4px;">';
-        locations.forEach(loc => {
-          html += '<span style="font-size:9px;color:'+(locColors2[loc]||'#555')+';">■ '+loc+' '+buState[loc]+'%</span>';
-        });
-        html += '</div></div>';
-      });
-      html += '</div>'; // grid
-
-      // BU vs Global comparison table
-      html += '<div style="margin-top:16px;background:var(--ey-light-gray);border-radius:6px;padding:12px;">';
-      html += '<div style="font-size:11px;font-weight:700;margin-bottom:8px;color:var(--ey-dark);">BU vs Global Target Comparison</div>';
-      html += '<table style="width:100%;border-collapse:collapse;font-size:10px;">';
-      html += '<thead><tr style="background:var(--ey-mid-gray);"><th style="padding:6px 8px;text-align:left;">Business Unit</th>';
-      locations.forEach(l => { html += '<th style="padding:6px 8px;text-align:center;">'+l+' Target</th>'; });
-      html += '<th style="padding:6px 8px;text-align:center;">vs Global</th></tr></thead><tbody>';
-      bus.forEach(bu => {
-        const buState = window._buLocMixState[bu] || {};
-        html += '<tr style="border-bottom:1px solid #eee;"><td style="padding:6px 8px;font-weight:600;">'+bu+'</td>';
-        locations.forEach(loc => {
-          const pct = buState[loc] || 0;
-          const globalPct = window._locMixState[loc] || 0;
-          const diff = pct - globalPct;
-          const bg = Math.abs(diff) > 10 ? (diff > 0 ? '#E8F5E9' : '#FFF3E0') : '';
-          html += '<td style="padding:6px 8px;text-align:center;background:'+bg+';font-weight:600;">'+pct+'%</td>';
-        });
-        // Overall offshore % for this BU vs global
-        const buOff = buState['Offshore'] || 0;
-        const gOff = window._locMixState['Offshore'] || 0;
-        const offDiff = buOff - gOff;
-        html += '<td style="padding:6px 8px;text-align:center;font-size:10px;color:'+(Math.abs(offDiff)>10?'var(--ey-amber)':'var(--ey-text-light)')+';">';
-        html += (offDiff >= 0 ? '↑ '+offDiff+'% more offshore' : '↓ '+Math.abs(offDiff)+'% less offshore')+'</td></tr>';
-      });
-      html += '</tbody></table></div>';
-      html += '</div>'; // per-BU section
-    }
-    
-    // Linked location initiatives
-    const locInits = (INITIATIVES || []).filter(i => i.enabled && i.layer === 'Location Strategy');
-    if (locInits.length > 0) {
-      html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--ey-border);font-size:11px;">';
-      html += '<div style="font-weight:700;margin-bottom:6px;">Linked Location Initiatives from Roadmap:</div>';
-      locInits.forEach(i => {
-        html += '<span style="display:inline-block;background:var(--ey-teal-bg,#E0F7FA);color:var(--ey-teal);padding:2px 8px;border-radius:4px;margin:2px;font-size:10px;">'+i.id+': '+i.name+'</span>';
-      });
-      html += '</div>';
-    }
-    html += '</div>';
-  }
+  // CR-017: Location Mix Strategy section removed
 
   // ═══ BU WEIGHTED COSTS ═══
   const pSum = WATERFALL.poolSummary || {};
@@ -8496,16 +8678,18 @@ function renderPage19() {
       const siCplx = si.complexity || 0.5;
       const siCplxLabel = typeof siCplx === 'string' ? siCplx : siCplx < 0.33 ? 'Simple' : siCplx < 0.66 ? 'Moderate' : 'Complex';
       const siCplxColor = siCplx >= 0.66 ? 'var(--ey-red)' : siCplx >= 0.33 ? 'var(--ey-amber)' : 'var(--ey-green)';
-      const feas = si.feasibilityScore != null ? (si.feasibilityScore * 100).toFixed(0) + '%' : '—';
+      const feas = si.feasibilityScore != null ? si.feasibilityScore.toFixed(0) + '%' : '—';
       h += `<tr class="si-row-${qIdx}" style="display:none;background:#FAFBFC;font-size:10px;">
         <td></td>
         <td style="padding-left:24px;color:var(--ey-text-light);">└ ${si.subIntent || si.name}</td>
         <td style="color:var(--ey-text-light);">${q.channel||''}</td>
-        <td colspan="2" style="color:var(--ey-text-light);font-size:9px;">Feasibility: ${feas}</td>
+        <td style="color:var(--ey-text-light);font-size:9px;">${(si.deflectableChannels||[]).join(', ') || '—'}</td>
+        <td style="color:var(--ey-text-light);font-size:9px;">Feas: ${feas}</td>
         <td style="text-align:right;">${fmt(siVol,'k')}</td>
         <td style="text-align:center;">${((si.volumeShare||0)*100).toFixed(0)}%</td>
-        <td colspan="2" style="text-align:center;color:var(--ey-text-light);">${(si.deflectableChannels||[]).join(', ') || '—'}</td>
-        <td></td>
+        <td style="text-align:center;color:var(--ey-text-light);">${si.estimatedAHT ? si.estimatedAHT + 's' : '—'}</td>
+        <td style="text-align:center;color:var(--ey-text-light);">—</td>
+        <td style="text-align:center;color:var(--ey-text-light);">—</td>
         <td style="text-align:center;"><span style="color:${siCplxColor};font-weight:600;">${siCplxLabel}</span></td>
       </tr>`;
     });
@@ -8560,14 +8744,6 @@ function _omSliderDebounce() {
   _omSliderTimer = setTimeout(() => {
     // Invalidate pages that show location data so they pick up target OM state
     [10, 12, 17].forEach(p => { rendered[p] = false; });
-    // Update BU Impact location section if user navigates there
-    const tgt = window._targetOpModel;
-    if (tgt && window._locMixState) {
-      // Sync location sliders on BU Impact page with OM target
-      window._locMixState['Onshore'] = tgt.onshore;
-      window._locMixState['Nearshore'] = tgt.nearshore;
-      window._locMixState['Offshore'] = tgt.offshore;
-    }
     // Toast
     const toast = document.getElementById('dmToast');
     if (toast) { toast.textContent = '✓ Location target updated — BU Impact synced'; toast.style.display = 'block'; toast.style.background = '#168736'; setTimeout(() => toast.style.display = 'none', 2000); }
@@ -8681,63 +8857,12 @@ function renderPage20() {
       </div>
     </div>
 
-    <!-- Cost/Effort Bridge Waterfall: Current to Target (CR-037 v14) -->
+    <!-- Cost Waterfall: Current to Target (CR-011 v1.0 — proper connected waterfall) -->
     <div class="card" style="margin-bottom:16px;">
-      <div class="card-title">Cost-Effort Bridge — Current to Target State
-        <span style="font-size:11px;font-weight:400;color:var(--ey-text-light);margin-left:8px;">Waterfall decomposition of total cost reduction</span>
+      <div class="card-title">Cost Waterfall — Current to Target State
+        <span style="font-size:11px;font-weight:400;color:var(--ey-text-light);margin-left:8px;">Connected waterfall: headcount + location arbitrage savings</span>
       </div>
-      <div style="font-size:11px;color:var(--ey-text-light);margin-bottom:14px;">Step-by-step cost reduction: headcount rationalisation plus location mix arbitrage savings.</div>
-      ${(function(){
-        const currentTotal = currentBlended * totalFTE;
-        const fteSaving = reduction * currentBlended;
-        const locArb = Math.max(0, locationSaving);
-        const targetTotal = tgtBlended * futureFTE;
-        const maxVal = Math.max(currentTotal, 1);
-        const BAR_H = 160;
-        const fmtV = v => v >= 1e6 ? '$'+(v/1e6).toFixed(1)+'M' : '$'+(v/1e3).toFixed(0)+'K';
-        function barH(v){ return Math.max(6, Math.round(Math.abs(v)/maxVal*BAR_H)); }
-        const items = [
-          {label:'Current\nCost Base', value:currentTotal, type:'base', color:'#1A73E8'},
-          {label:'FTE\nReduction\n−'+reduction.toFixed(0)+' FTE', value:-fteSaving, type:'neg', color:'#C5003E'},
-          {label:'Location\nArbitrage', value:-locArb, type:'neg', color:'#D97706'},
-          {label:'Target\nCost Base', value:targetTotal, type:'result', color:'#168736'},
-        ];
-        const wfHtml = items.map((b,i)=>{
-          const h = barH(b.value);
-          const gap = BAR_H - h;
-          const isNeg = b.type==='neg';
-          const isBase = b.type==='base';
-          const borderR = isNeg ? '0 0 5px 5px' : '5px 5px 0 0';
-          const marginTop = isNeg ? gap+'px' : '0';
-          const linesLabel = b.label.split('\n').join('<br>');
-          const connector = i < items.length-1 ? '<div style="flex:0 0 20px;display:flex;align-items:center;padding-bottom:28px;font-size:16px;color:#bbb;">→</div>' : '';
-          return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;">'+
-            '<div style="font-size:10px;font-weight:800;color:'+b.color+';margin-bottom:4px;text-align:center;">'+fmtV(Math.abs(b.value))+'</div>'+
-            '<div style="height:'+BAR_H+'px;display:flex;flex-direction:column;justify-content:'+(isBase||b.type==='result'?'flex-end':'flex-start')+';width:72px;">'+
-              '<div style="height:'+h+'px;background:'+b.color+';border-radius:'+borderR+';opacity:'+(b.type==='result'?1:0.82)+';'+(isNeg?'margin-top:'+gap+'px;':'')+'">'+'</div>'+
-            '</div>'+
-            '<div style="font-size:9px;color:var(--ey-text-light);text-align:center;margin-top:6px;line-height:1.4;">'+linesLabel+'</div>'+
-          '</div>'+connector;
-        }).join('');
-        return '<div style="display:flex;align-items:flex-end;gap:0;padding:4px 8px 0;">'+wfHtml+'</div>';
-      })()}
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px;">
-        <div style="background:#EEF4FF;border-radius:6px;padding:10px;text-align:center;">
-          <div style="font-size:10px;color:var(--ey-text-light);">FTE Headcount Savings</div>
-          <div style="font-size:18px;font-weight:800;color:var(--ey-blue);">${fmt(reduction * currentBlended,'$m')}</div>
-          <div style="font-size:9px;color:var(--ey-text-light);">${reduction.toFixed(0)} FTE × ${fmt(currentBlended,'$k')}/FTE</div>
-        </div>
-        <div style="background:#FFF8E1;border-radius:6px;padding:10px;text-align:center;">
-          <div style="font-size:10px;color:var(--ey-text-light);">Location Arbitrage Saving</div>
-          <div style="font-size:18px;font-weight:800;color:var(--ey-amber);">${locationSaving > 0 ? fmt(locationSaving,'$m') : '—'}</div>
-          <div style="font-size:9px;color:var(--ey-text-light);">${tgt.onshore}/${tgt.nearshore}/${tgt.offshore} On/Near/Off</div>
-        </div>
-        <div style="background:var(--ey-green-bg);border:2px solid var(--ey-green);border-radius:6px;padding:10px;text-align:center;">
-          <div style="font-size:10px;color:var(--ey-text-light);">Total Annual Saving</div>
-          <div style="font-size:18px;font-weight:800;color:var(--ey-green);">${fmt(reduction * currentBlended + Math.max(0,locationSaving),'$m')}</div>
-          <div style="font-size:9px;color:var(--ey-text-light);">${futureFTE.toFixed(0)} FTE × ${fmt(tgtBlended,'$k')}/FTE target</div>
-        </div>
-      </div>
+      <canvas id="opModelWaterfall" width="680" height="280"></canvas>
     </div>
 
     <!-- Tiered Model Editor -->
@@ -8773,14 +8898,14 @@ function renderPage20() {
       </div>
       <div style="font-size:11px;color:var(--ey-text-light);margin-bottom:8px;">Location Strategy initiatives linked to your target model. Use Auto-Enable to activate initiatives flagged as needed and trigger a full recalculation.</div>
       <table class="data-table" style="font-size:11px;">
-        <thead><tr><th>Initiative</th><th>Layer</th><th>Status</th><th>Start</th><th>Ramp</th><th>FTE Impact</th><th>Rationale</th></tr></thead>
+        <thead><tr><th>Initiative</th><th>Layer</th><th>Status</th><th>Start</th><th>Ramp</th><th>Annual Saving</th><th>Rationale</th></tr></thead>
         <tbody>
           ${locInits.map(i => '<tr style="background:'+(neededInits.includes(i)?'#FFF8E1':'')+';">' +
             '<td><strong>' + i.id + '</strong> ' + i.name + '</td>' +
             '<td><span class="badge badge-low">' + i.layer + '</span></td>' +
             '<td>' + (i.enabled ? '<span style="color:var(--ey-green);font-weight:700;">✅ Enabled</span>' : '<span style="color:#E65100;font-weight:700;">Not enabled</span>') + '</td>' +
             '<td>M' + i.startMonth + '</td><td>' + i.ramp + 'mo</td>' +
-            '<td style="font-weight:600;color:var(--ey-green);">' + ((i._fteImpact||0) > 0 ? '-' + (i._fteImpact||0).toFixed(1) : '—') + '</td>' +
+            '<td style="font-weight:600;color:var(--ey-green);">' + ((i._annualSaving||0) > 0 ? fmt(i._annualSaving,'$k') + '/yr' : '—') + '</td>' +
             '<td style="font-size:10px;">' + (neededInits.includes(i) ? '<span style="background:#FFF3CD;color:#B45309;padding:1px 6px;border-radius:4px;font-weight:700;">⚠ Needed for target mix</span>' : '<span style="color:var(--ey-text-light);">Available</span>') + '</td></tr>'
           ).join('') || '<tr><td colspan="7" style="color:var(--ey-text-light);">No Location Strategy initiatives in roadmap</td></tr>'}
         </tbody>
@@ -8805,6 +8930,99 @@ function renderPage20() {
     `;
   }
   renderOM();
+  // CR-011: Draw connected waterfall on Operating Model page
+  _drawOpModelWaterfall(currentBlended, totalFTE, reduction, futureFTE, locationSaving, tgtBlended);
+}
+
+
+// CR-011: Connected cost waterfall for Operating Model page
+function _drawOpModelWaterfall(currentBlended, totalFTE, reduction, futureFTE, locationSaving, tgtBlended) {
+  const canvas = document.getElementById('opModelWaterfall');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const currentCost = currentBlended * totalFTE;
+  const fteSaving = reduction * currentBlended;
+  const locArb = Math.max(0, locationSaving);
+  const targetCost = tgtBlended * futureFTE;
+  const fmtV = v => v >= 1e6 ? '$'+(v/1e6).toFixed(1)+'M' : '$'+(v/1e3).toFixed(0)+'K';
+
+  const bars = [
+    { label: 'Current Cost Base', value: currentCost, color: '#1A73E8', type: 'total' },
+    { label: 'FTE Reduction (−'+Math.round(reduction)+')', value: -fteSaving, color: '#C5003E', type: 'decrease' },
+    { label: 'Location Arbitrage', value: -locArb, color: '#D97706', type: 'decrease' },
+    { label: 'Target Cost Base', value: targetCost, color: '#168736', type: 'total' },
+  ];
+
+  const pad = { top: 24, bottom: 44, left: 70, right: 20 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+  const barW = chartW / bars.length * 0.55;
+  const gap = chartW / bars.length;
+  const maxVal = currentCost * 1.1;
+  function yScale(v) { return pad.top + chartH - (v / maxVal) * chartH; }
+
+  // Grid lines + Y axis
+  ctx.strokeStyle = '#E8E8ED'; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const v = (maxVal / 4) * i;
+    const y = yScale(v);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    ctx.fillStyle = '#888'; ctx.font = '10px Inter, sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(fmtV(v), pad.left - 6, y + 3);
+  }
+
+  let running = 0;
+  bars.forEach((bar, i) => {
+    const x = pad.left + i * gap + (gap - barW) / 2;
+    if (bar.type === 'total') {
+      const top = yScale(bar.value);
+      const h = yScale(0) - top;
+      ctx.fillStyle = bar.color;
+      ctx.fillRect(x, top, barW, h);
+      running = bar.value;
+      // Value label
+      ctx.fillStyle = bar.color; ctx.font = 'bold 12px Inter, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(fmtV(bar.value), x + barW/2, top - 6);
+    } else {
+      const prevTotal = running;
+      const decrease = Math.abs(bar.value);
+      const top = yScale(prevTotal);
+      const h = (decrease / maxVal) * chartH;
+      // Floating decrease bar
+      ctx.fillStyle = bar.color + '30';
+      ctx.fillRect(x, top, barW, h);
+      ctx.fillStyle = bar.color;
+      ctx.fillRect(x, top, barW, 3);
+      ctx.fillRect(x, top + h - 1, barW, 2);
+      running = prevTotal - decrease;
+      // Value label
+      ctx.fillStyle = bar.color; ctx.font = 'bold 11px Inter, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('−' + fmtV(decrease), x + barW/2, top + h/2 + 4);
+      // Connector to next bar
+      if (i < bars.length - 1) {
+        const nextX = pad.left + (i+1) * gap + (gap - barW) / 2;
+        const lineY = yScale(running);
+        ctx.strokeStyle = '#999'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+        ctx.beginPath(); ctx.moveTo(x + barW, lineY); ctx.lineTo(nextX, lineY); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    // X axis label
+    ctx.fillStyle = '#555'; ctx.font = '10px Inter, sans-serif'; ctx.textAlign = 'center';
+    const lines = bar.label.split('(');
+    ctx.fillText(lines[0].trim(), x + barW/2, H - (lines.length > 1 ? 18 : 8));
+    if (lines.length > 1) { ctx.fillStyle = bar.color; ctx.font = '9px Inter, sans-serif'; ctx.fillText('('+lines[1], x + barW/2, H - 6); }
+  });
+
+  // Connector from baseline to first decrease
+  const baselineY = yScale(currentCost);
+  const firstDecX = pad.left + 1 * gap + (gap - barW) / 2;
+  ctx.strokeStyle = '#999'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(pad.left + barW + (gap - barW)/2, baselineY);
+  ctx.lineTo(firstDecX, baselineY); ctx.stroke(); ctx.setLineDash([]);
 }
 
 

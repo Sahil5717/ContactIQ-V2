@@ -1,4 +1,4 @@
 """
-EY ServiceEdge — Infrastructure Layer
+ContactIQ — Infrastructure Layer
 SQLite persistence, authentication, file management.
 """

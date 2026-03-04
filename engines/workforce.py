@@ -1,5 +1,5 @@
 """
-EY ServiceEdge — Workforce Transition Engine (P2-2)
+ContactIQ — Workforce Transition Engine (P2-2)
 Reskilling matrix, redeployment planning, location-aware transition planning,
 and per-BU workforce impact.
 """
@@ -114,7 +114,12 @@ def run_workforce(data, waterfall, initiatives):
                 continue
             
             red = round(red)
-            attrited = min(red, round(hc * loc_annual_attrition))
+            # CR-019: Cap attrition absorption at 60% of natural attrition
+            # In practice, not all attrition can be perfectly captured as managed non-backfill;
+            # some roles/skills won't align, requiring active transition pathways
+            natural_attrition = round(hc * loc_annual_attrition)
+            attrition_capture_rate = 0.60  # Realistic capture of natural attrition for managed reduction
+            attrited = min(red, round(natural_attrition * attrition_capture_rate))
             remaining = max(0, red - attrited)
             
             if src_params['contract_adjustment']:

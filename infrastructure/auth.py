@@ -1,5 +1,5 @@
 """
-EY ServiceEdge — Authentication Middleware
+ContactIQ — Authentication Middleware
 Flask request decoration and session management.
 """
 from functools import wraps

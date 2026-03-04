@@ -1,5 +1,5 @@
 """
-EY ServiceEdge — Database Layer
+ContactIQ — Database Layer
 SQLite persistence for users, sessions, uploaded files, and overrides.
 Lightweight, zero external dependencies beyond stdlib.
 """

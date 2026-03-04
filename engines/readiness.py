@@ -1,5 +1,5 @@
 """
-EY ServiceEdge — Readiness Scoring Engine (EY Methodology)
+ContactIQ — Readiness Scoring Engine
 
 Computes 3 readiness scores from diagnostic data:
   1. Automation Readiness Score

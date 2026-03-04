@@ -1,5 +1,5 @@
 """
-EY ServiceEdge — Risk Assessment Engine (P2-7)
+ContactIQ — Risk Assessment Engine (P2-7)
 3-axis risk scoring (Implementation, CX, Operational) with per-initiative
 mitigations, dependency mapping, and dimensional awareness.
 """

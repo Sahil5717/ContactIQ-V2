@@ -1,5 +1,5 @@
 """
-EY ServiceEdge — Diagnostic Engine
+ContactIQ — Diagnostic Engine
 CR-009: Root cause analysis with fallback for no-red queues
 CR-011: Cost analysis with missing field handling
 CR-016: Mismatch summary with unique channel rationales

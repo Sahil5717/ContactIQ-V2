@@ -1,5 +1,5 @@
 """
-EY Contact Navigator — Opportunity Pool Engine
+ContactIQ — Opportunity Pool Engine
 Computes hard ceilings for each benefit lever from actual client data.
 
 Pool Types:
@@ -333,8 +333,8 @@ def compute_pools(enriched_queues, roles, params, cost_matrix=None):
     # and converts to revenue impact via retention/CLV research.
     #
     # Sources:
-    #   McKinsey: 10% CSAT increase → 2-3% revenue growth
-    #   Bain (Reichheld): 5% retention improvement → 25-95% profit increase
+    #   Industry benchmark: 10% CSAT increase → 2-3% revenue growth
+    #   Industry research: 5% retention improvement → 25-95% profit increase
     #   Teneo.ai / industry: 1% FCR increase ≈ 1% CSAT increase
     #   HBR: Best-experience customers spend 140% more (transaction) /
     #         74% vs 43% retention (subscription)
@@ -389,14 +389,14 @@ def compute_pools(enriched_queues, roles, params, cost_matrix=None):
     annual_churn = params.get('annualChurnRate', 0.12)
     total_revenue = customer_base * revenue_per_customer if customer_base > 0 else 0
     
-    # McKinsey multiplier: 10% CSAT improvement → 2.5% revenue (midpoint of 2-3%)
+    # Industry multiplier: 10% CSAT improvement → 2.5% revenue (midpoint of 2-3%)
     # On a 5-point scale, "10% CSAT" ≈ 0.5 points. So 1 point ≈ 5% revenue.
     revenue_per_csat_point = total_revenue * 0.05 if total_revenue > 0 else (
         # Fallback: use contact centre cost base as proxy (8% per point)
         sum(r['headcount'] * r['costPerFTE'] for r in roles) * 0.08
     )
     
-    # Bain retention link: 1 CSAT point → ~2.5% retention improvement
+    # Retention link: 1 CSAT point → ~2.5% retention improvement
     # (derived from: 5% retention → 25-95% profit; conservative end)
     retention_per_csat_point = 0.025
     churn_base = customer_base * annual_churn if customer_base > 0 else 0
