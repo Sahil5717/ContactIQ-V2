@@ -361,23 +361,45 @@ def _location_readiness(channel, complexity, emotional_risk):
 def _gross_shrinkage(init, affected_fte, cost, impact, adoption, pools, params):
     """
     Shrinkage: reduce shrinkage % → release capacity → FTE equivalent
+    
+    V4.6-#6 fix: Shrinkage reduction frees capacity across the ENTIRE FTE base,
+    not just the implementing roles (e.g. WFM Analysts). When shrinkage drops from
+    30% to 28%, ALL agents get 2% more productive time, not just the analysts who
+    configured the WFM tool.
+    
+    We use total FTE from pools data as the base, with the initiative's impact/adoption
+    determining how much of the shrinkage gap it can close.
     """
     current_shrinkage = params.get('shrinkage', 0.30)
-    shrinkage_reduction = current_shrinkage * impact * adoption
-    # Can't go below target floor
     target = params.get('targetShrinkage', 0.22)
     max_reduction = max(0, current_shrinkage - target)
+    
+    shrinkage_reduction = current_shrinkage * impact * adoption
     shrinkage_reduction = min(shrinkage_reduction, max_reduction)
     
-    fte_freed = affected_fte * shrinkage_reduction
-    saving = fte_freed * cost
+    # V4.6-#6: Use total FTE base, not just target roles
+    # Shrinkage improvement benefits ALL agents, not just WFM/Supervisors
+    total_fte = params.get('totalFTE', affected_fte)
+    if pools and isinstance(pools, dict):
+        pool_summary = pools.get('summary', {})
+        total_fte = pool_summary.get('total_fte', total_fte)
+    
+    fte_freed = total_fte * shrinkage_reduction
+    
+    # Cost: use weighted average cost across all roles (not just target roles)
+    avg_cost = cost  # fallback
+    if pools and isinstance(pools, dict):
+        pool_summary = pools.get('summary', {})
+        avg_cost = pool_summary.get('weighted_cost_per_fte', cost)
+    
+    saving = fte_freed * avg_cost
     
     return {
         'gross_fte': round(fte_freed, 1),
         'gross_contacts': 0,
         'gross_seconds': 0,
         'gross_saving': round(saving),
-        'mechanism': f"Shrinkage: {shrinkage_reduction:.1%} reduction on {affected_fte} FTE → {fte_freed:.1f} FTE",
+        'mechanism': f"Shrinkage: {shrinkage_reduction:.1%} reduction on {total_fte} total FTE → {fte_freed:.1f} FTE",
         'mechanism_detail': [],
         'eligible_volume': 0,
     }

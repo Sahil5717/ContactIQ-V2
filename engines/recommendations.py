@@ -184,6 +184,69 @@ PAGE_SCORERS = {
 }
 
 
+def _build_initiative_triggers(init, signals, data):
+    """v4.5-#5: Generate initiative-specific trigger text from metadata, not generic signals.
+    Uses mechanism, savings, lever, channels, and impact data for differentiation."""
+    triggers = []
+    lever = init.get('lever', '')
+    layer = init.get('layer', '')
+    saving = init.get('_annualSaving', 0)
+    fte = init.get('_fteImpact', 0)
+    mechanism = init.get('_mechanism', '')
+    pool_consumed = init.get('_poolConsumed', 0)
+    channels = init.get('channels', [])
+    impact_pct = init.get('impact', 0)
+
+    if lever == 'cost_reduction':
+        # Location Strategy: differentiate by mechanism and migration specifics
+        if pool_consumed > 0:
+            triggers.append(f"{pool_consumed:.0f} FTE migratable")
+        arb = data.get('params', {}).get('locationArbitrage', 0.35)
+        if arb > 0:
+            triggers.append(f"{arb:.0%} cost arbitrage")
+        if saving > 0:
+            triggers.append(f"${saving/1000:,.0f}K/yr saving")
+    elif lever == 'deflection':
+        if impact_pct > 0:
+            triggers.append(f"{impact_pct:.0%} deflection rate")
+        if channels:
+            triggers.append(f"via {channels[0]}" if len(channels) == 1 else f"{len(channels)} channels")
+        if fte > 0:
+            triggers.append(f"−{fte:.0f} FTE")
+    elif lever == 'aht_reduction':
+        aht_impact = init.get('ahtImpact', impact_pct)
+        if aht_impact > 0:
+            triggers.append(f"−{aht_impact:.0%} AHT")
+        if fte > 0:
+            triggers.append(f"−{fte:.0f} FTE")
+    elif lever in ('repeat_reduction', 'fcr_improvement'):
+        fcr_impact = init.get('fcrImpact', impact_pct)
+        if fcr_impact > 0:
+            triggers.append(f"+{fcr_impact:.0%} FCR")
+        if fte > 0:
+            triggers.append(f"−{fte:.0f} FTE")
+    elif lever in ('escalation_reduction', 'shrinkage_reduction'):
+        if impact_pct > 0:
+            triggers.append(f"−{impact_pct:.0%} {lever.replace('_', ' ')}")
+        if fte > 0:
+            triggers.append(f"−{fte:.0f} FTE")
+    else:
+        # Generic: use first relevant signal description
+        for sig in signals:
+            if lever in SIGNAL_TO_LEVER.get(sig['type'], []):
+                short = sig.get('description', '').split('(')[0].strip().split('—')[0].strip()
+                if short and short not in triggers:
+                    triggers.append(short)
+                    break
+        if fte > 0:
+            triggers.append(f"−{fte:.0f} FTE")
+
+    if not triggers:
+        triggers = [init.get('description', layer) or layer]
+
+    return triggers[:3]
+
+
 def get_recommendations(page_context, data, diagnostic, initiatives, waterfall=None, max_recs=5, maturity=None):
     """v12-#12: Context-aware recommendations. v12-#23: Only surfaces enabled (roadmap-aligned) initiatives. v12-#43: Maturity-aware."""
     signals = _detect_signals(page_context, data, diagnostic, waterfall, maturity)
@@ -206,17 +269,9 @@ def get_recommendations(page_context, data, diagnostic, initiatives, waterfall=N
     recommendations = []
     for rel, init in top:
         saving = init.get('_annualSaving', 0)
-        # v12-#44: Build trigger_details from matched signals (intent × channel × metric)
+        # v4.5-#5: Initiative-specific trigger details (not generic signal matching)
         lever = init.get('lever', '')
-        trigger_details = []
-        for sig in signals:
-            if lever in SIGNAL_TO_LEVER.get(sig['type'], []):
-                desc = sig.get('description', '')
-                short = desc.split('(')[0].strip().split('—')[0].strip()
-                if short and short not in trigger_details:
-                    trigger_details.append(short)
-        if not trigger_details:
-            trigger_details = [init.get('layer', 'Transformation')]
+        trigger_details = _build_initiative_triggers(init, signals, data)
         # v12-#44: Format savings_display
         if abs(saving) >= 1_000_000:
             savings_display = f"${saving/1_000_000:,.1f}M/yr"

@@ -105,6 +105,37 @@ LEVER_CAPS = {
 LEVER_ORDER = ['deflection', 'aht_reduction', 'repeat_reduction', 'transfer_reduction',
                'escalation_reduction', 'shrinkage_reduction', 'cost_reduction']
 
+# V4.10-#11: All known levers for multi-lever support
+ALL_LEVERS = set(LEVER_ORDER)
+
+# V4.10-#11: Secondary lever inference thresholds from initiative impact fields
+SECONDARY_LEVER_INFERENCE = {
+    'ahtImpact':  ('aht_reduction',        0.03),   # |ahtImpact| > 3% → aht_reduction lever
+    'fcrImpact':  ('repeat_reduction',      0.03),   # fcrImpact > 3% → repeat_reduction lever
+}
+
+def _populate_initiative_levers(initiatives):
+    """
+    V4.10-#11: Auto-populate the 'levers' dict on each initiative.
+    Primary lever is always True. Secondary levers inferred from impact fields.
+    If 'levers' already exists (e.g., user-edited), preserve it.
+    """
+    for init in initiatives:
+        if 'levers' in init and isinstance(init['levers'], dict) and len(init['levers']) > 0:
+            continue  # already populated (user-edited)
+        primary = init.get('lever', 'aht_reduction')
+        levers = {primary: True}
+        for field, (target_lever, threshold) in SECONDARY_LEVER_INFERENCE.items():
+            if target_lever == primary:
+                continue
+            val = init.get(field, 0)
+            if field == 'ahtImpact':
+                val = abs(val)
+            if val >= threshold:
+                levers[target_lever] = True
+        init['levers'] = levers
+    return initiatives
+
 
 # ── Monthly Benefit Phasing (CR-020) ──
 # S-curve ramp over N months from go-live, not from calendar Year 1.
@@ -212,6 +243,9 @@ def score_initiatives(data, diagnostic, readiness_ctx=None):
 
     # Max possible saving cap (no single initiative > 25% of total cost base)
     max_possible_saving = max(total_cost * 0.25, 1)
+    
+    # V4.6-#6: Total FTE needed for shrinkage/escalation value computation
+    total_fte = data.get('totalFTE', sum(r['headcount'] for r in roles))
 
     initiatives = []
     raw_scores = []
@@ -296,7 +330,36 @@ def score_initiatives(data, diagnostic, readiness_ctx=None):
             weighted_cost = sum(r['headcount'] * r['costPerFTE'] for r in affected_roles) / affected_fte
         else:
             weighted_cost = 55000  # fallback
-        raw_saving = affected_fte * init['impact'] * init['adoption'] * weighted_cost
+        
+        # V4.6-#6: Shrinkage and escalation levers impact the ENTIRE operation,
+        # not just the implementing roles. A WFM tool benefits all 1200 agents,
+        # not just the 3 WFM analysts who configure it.
+        if lever == 'shrinkage_reduction':
+            # Shrinkage saving = total FTE × shrinkage gap × impact × adoption × avg cost
+            shrink = data['params'].get('shrinkage', 0.30)
+            target_shrink = data['params'].get('targetShrinkage', 0.22)
+            shrink_gap = max(0, shrink - target_shrink)
+            effective_reduction = min(shrink * init['impact'] * init['adoption'], shrink_gap)
+            raw_saving = total_fte * effective_reduction * (total_cost / max(total_fte, 1))
+        elif lever == 'escalation_reduction':
+            # Escalation reduction directly frees L2/L3/Supervisor capacity.
+            # Two approaches, use the higher: (a) affected roles, (b) volume-based
+            # (a) Role-based: L2/L3 agents handle fewer escalated cases
+            role_saving = affected_fte * init['impact'] * init['adoption'] * weighted_cost
+            # (b) Volume-based: prevented escalations × full L2 handle time (15 min avg)
+            annualization = data['params'].get('volumeAnnualizationFactor', 12)
+            avg_esc_rate = sum(q.get('escalation', 0) * q['volume'] for q in queues) / max(sum(q['volume'] for q in queues), 1)
+            preventable_share = 0.35
+            annual_matching_vol = sum(q['volume'] for q in queues if q['channel'] in init['channels']) * annualization
+            prevented = annual_matching_vol * avg_esc_rate * preventable_share * init['impact'] * init['adoption']
+            l2_handle_sec = 900  # 15 min per escalated contact at L2/L3 level
+            hours_saved = (prevented * l2_handle_sec) / 3600
+            net_hours = data['params'].get('grossHoursPerYear', 2080) * (1 - data['params'].get('shrinkage', 0.30))
+            vol_saving = (hours_saved / max(net_hours, 1)) * (total_cost / max(total_fte, 1))
+            raw_saving = max(role_saving, vol_saving)
+        else:
+            raw_saving = affected_fte * init['impact'] * init['adoption'] * weighted_cost
+        
         value = min(1.0, raw_saving / max(max_possible_saving, 1))
         reasons.append(f'Value: {value:.2f} (${raw_saving:,.0f} potential saving)')
 
@@ -402,6 +465,32 @@ def score_initiatives(data, diagnostic, readiness_ctx=None):
     # ── Sort by score descending ──
     initiatives.sort(key=lambda x: x['score'], reverse=True)
 
+    # ══ V4.6-#6: POOL COVERAGE GUARANTEE ══
+    # Problem: min-max normalization systematically under-scores levers with smaller
+    # value potential (shrinkage_reduction, escalation_reduction) because the 0-100 scale
+    # is anchored to the highest-value initiatives (typically deflection or AHT).
+    # A complete transformation programme MUST include workforce optimization levers.
+    # Fix: if a lever has (a) at least one initiative that passed the trigger gate AND
+    # (b) no initiatives currently enabled → auto-enable top 2 by raw score.
+    # Pool netting prevents any over-counting; this just ensures representation.
+    coverage_levers = ['shrinkage_reduction', 'escalation_reduction', 'repeat_reduction']
+    for clev in coverage_levers:
+        enabled_for_lever = [i for i in initiatives if i.get('lever') == clev and i.get('enabled')]
+        if len(enabled_for_lever) == 0:
+            # Find candidates that passed trigger (or had it overridden)
+            candidates = [i for i in initiatives
+                          if i.get('lever') == clev
+                          and i.get('triggerPassed')
+                          and i.get('matchTier') not in ('excluded', 'trigger_fail')]
+            candidates.sort(key=lambda x: x.get('_rawScore', 0), reverse=True)
+            for c in candidates[:2]:  # enable top 2
+                c['enabled'] = True
+                c['matchTier'] = 'coverage_guarantee'
+                c['reasons'] = c.get('reasons', []) + [
+                    f'Pool coverage guarantee: auto-enabled (top scorer for {clev}, '
+                    f'score {c.get("score",0):.1f}/100 below threshold but pool has meaningful ceiling)'
+                ]
+
     # ── Assign staggered start months for enabled initiatives ──
     month_cursor = 1
     for init in sorted([x for x in initiatives if x['enabled']], key=lambda x: x['score'], reverse=True):
@@ -415,7 +504,142 @@ def score_initiatives(data, diagnostic, readiness_ctx=None):
                            'medium_term' if init['endMonth'] <= 12 else 'strategic'
         month_cursor += {'low': 1, 'medium': 2, 'high': 3}.get(init['effort'], 2)
 
+    # V4.10-#11: Populate levers dict from impact fields
+    _populate_initiative_levers(initiatives)
+
     return initiatives
+
+
+def _compute_projected_kpis(enabled_inits, queues, data, params, pools, wf_total_saving=0):
+    """
+    V4.6-#17: Compute projected values for all 7 operational KPIs.
+    
+    Uses per-initiative impact fields (ahtImpact, fcrImpact, csatImpact) and
+    lever-specific aggregation with diminishing returns / cap curves.
+    
+    Returns dict: metric_name -> {current, projected, benchmark, delta, deltaPct, rag, contributors}
+    """
+    roles = data.get('roles', [])
+    total_vol = sum(q.get('volume', 0) for q in queues) or 1
+    benchmarks = data.get('benchmarks', {})
+    bm_defaults = benchmarks.get('_defaults', benchmarks)
+    
+    # ── Weighted current values ──
+    avg_aht_min = sum(q.get('aht', 0) * q.get('volume', 0) for q in queues) / total_vol
+    avg_fcr = sum(q.get('fcr', 0) * q.get('volume', 0) for q in queues) / total_vol
+    avg_csat = data.get('avgCSAT', sum(q.get('csat', 0) * q.get('volume', 0) for q in queues) / total_vol)
+    avg_cpc = data.get('avgCPC', sum(q.get('cpc', 0) * q.get('volume', 0) for q in queues) / total_vol)
+    avg_esc = sum(q.get('escalation', 0) * q.get('volume', 0) for q in queues) / total_vol
+    avg_repeat = sum(q.get('repeat', 0) * q.get('volume', 0) for q in queues) / total_vol
+    avg_ces = sum(q.get('ces', 0) * q.get('volume', 0) for q in queues) / total_vol
+    
+    # ── Benchmarks ──
+    def _bm(key, fallback):
+        v = bm_defaults.get(key, {})
+        return v.get('global', v) if isinstance(v, dict) else (v if v else fallback)
+    
+    bm_aht = _bm('AHT', 6.0); bm_fcr = _bm('FCR', 0.76); bm_csat = _bm('CSAT', 3.8)
+    bm_cpc = _bm('CPC', 5.0); bm_esc = _bm('Escalation', 0.12)
+    bm_repeat = _bm('Repeat', 0.08); bm_ces = _bm('CES', 2.5)
+    
+    def _safe_bm(v, fb):
+        return v if isinstance(v, (int, float)) else fb
+    
+    # ── AHT: sum ahtImpact * adoption, capped at 40% ──
+    raw_aht_reduction = sum(abs(i.get('ahtImpact', 0)) * i.get('adoption', 0.8)
+                            for i in enabled_inits if i.get('ahtImpact', 0) < 0)
+    eff_aht_reduction = min(raw_aht_reduction, 0.40)
+    if raw_aht_reduction > 0.20:
+        eff_aht_reduction = 0.20 + (min(raw_aht_reduction, 0.60) - 0.20) * 0.5
+        eff_aht_reduction = min(eff_aht_reduction, 0.40)
+    proj_aht = round(avg_aht_min * (1 - eff_aht_reduction), 2)
+    aht_contribs = sorted([{'id': i['id'], 'name': i['name'],
+        'impact': round(abs(i.get('ahtImpact', 0)) * i.get('adoption', 0.8), 3)}
+        for i in enabled_inits if i.get('ahtImpact', 0) < 0], key=lambda x: x['impact'], reverse=True)
+    
+    # ── FCR: sum fcrImpact * adoption, diminishing as FCR rises ──
+    raw_fcr_uplift = sum(i.get('fcrImpact', 0) * i.get('adoption', 0.8)
+                         for i in enabled_inits if i.get('fcrImpact', 0) > 0)
+    eff_fcr_uplift = raw_fcr_uplift * (1 - avg_fcr * 0.3)
+    proj_fcr = round(min(0.95, avg_fcr + eff_fcr_uplift), 4)
+    fcr_contribs = sorted([{'id': i['id'], 'name': i['name'],
+        'impact': round(i.get('fcrImpact', 0) * i.get('adoption', 0.8), 3)}
+        for i in enabled_inits if i.get('fcrImpact', 0) > 0], key=lambda x: x['impact'], reverse=True)
+    
+    # ── CSAT: sum csatImpact * adoption, saturation curve ──
+    raw_csat_uplift = sum(i.get('csatImpact', 0) * i.get('adoption', 0.8)
+                          for i in enabled_inits if i.get('csatImpact', 0) != 0)
+    csat_gap = max(0, _safe_bm(bm_csat, 3.8) - avg_csat)
+    eff_csat_uplift = min(raw_csat_uplift, csat_gap * 1.1) if csat_gap > 0 else min(raw_csat_uplift, 0.3)
+    proj_csat = round(min(5.0, avg_csat + eff_csat_uplift), 3)
+    csat_contribs = sorted([{'id': i['id'], 'name': i['name'],
+        'impact': round(i.get('csatImpact', 0) * i.get('adoption', 0.8), 3)}
+        for i in enabled_inits if i.get('csatImpact', 0) != 0], key=lambda x: x['impact'], reverse=True)
+    
+    # ── CPC: placeholder — updated after yearly financial calc ──
+    annual_cost_base = sum(r['headcount'] * r['costPerFTE'] for r in roles)
+    annual_vol = data.get('totalVolumeAnnual', total_vol * params.get('volumeAnnualizationFactor', 12))
+    proj_cpc = round((annual_cost_base - wf_total_saving) / max(annual_vol, 1), 2)
+    
+    # ── Escalation: avgEsc * (1 - sum escalation_reduction impact * adoption) ──
+    raw_esc_reduction = sum(i.get('impact', 0) * i.get('adoption', 0.8)
+                            for i in enabled_inits if i.get('lever') == 'escalation_reduction')
+    eff_esc_reduction = min(raw_esc_reduction, 0.50)
+    proj_esc = round(avg_esc * (1 - eff_esc_reduction), 4)
+    esc_contribs = sorted([{'id': i['id'], 'name': i['name'],
+        'impact': round(i.get('impact', 0) * i.get('adoption', 0.8), 3)}
+        for i in enabled_inits if i.get('lever') == 'escalation_reduction'], key=lambda x: x['impact'], reverse=True)
+    
+    # ── Repeat: avgRepeat * (1 - reduction) + FCR spillover ──
+    raw_repeat_reduction = sum(i.get('impact', 0) * i.get('adoption', 0.8)
+                               for i in enabled_inits if i.get('lever') == 'repeat_reduction')
+    fcr_spillover = eff_fcr_uplift * 0.80
+    total_repeat_reduction = min(raw_repeat_reduction + fcr_spillover, 0.60)
+    proj_repeat = round(max(0.01, avg_repeat * (1 - total_repeat_reduction)), 4)
+    repeat_contribs = sorted([{'id': i['id'], 'name': i['name'],
+        'impact': round(i.get('impact', 0) * i.get('adoption', 0.8), 3)}
+        for i in enabled_inits if i.get('lever') == 'repeat_reduction'], key=lambda x: x['impact'], reverse=True)
+    
+    # ── CES: derived from AHT + FCR via industry regression ──
+    aht_ces_effect = eff_aht_reduction * 0.3 * avg_ces
+    fcr_ces_effect = eff_fcr_uplift * 1.5
+    proj_ces = round(max(1.0, avg_ces - aht_ces_effect - fcr_ces_effect), 2)
+    
+    # ── RAG: green=meets benchmark, amber=within 10%, red=>10% gap ──
+    def _rag(projected, benchmark, direction='higher'):
+        if benchmark == 0: return 'green'
+        gap_pct = ((benchmark - projected) / benchmark * 100) if direction == 'higher' else ((projected - benchmark) / benchmark * 100)
+        return 'green' if gap_pct <= 0 else ('amber' if gap_pct <= 10 else 'red')
+    
+    def _kpi(label, unit, direction, current, projected, benchmark, contribs, extra=None):
+        d = {
+            'label': label, 'unit': unit, 'direction': direction,
+            'current': current, 'projected': projected, 'benchmark': benchmark,
+            'delta': round(projected - current, 4),
+            'deltaPct': round((projected - current) / max(abs(current), 0.001) * 100, 1),
+            'rag': _rag(projected, benchmark, direction),
+            'contributors': contribs[:5],
+        }
+        if extra: d.update(extra)
+        return d
+    
+    return {
+        'AHT': _kpi('Avg Handle Time', 'min', 'lower', round(avg_aht_min, 1), round(proj_aht, 1),
+                     round(_safe_bm(bm_aht, 6.0), 1), aht_contribs, {'reductionPct': round(eff_aht_reduction * 100, 1)}),
+        'FCR': _kpi('First Contact Resolution', '%', 'higher', round(avg_fcr, 3), round(proj_fcr, 3),
+                     round(_safe_bm(bm_fcr, 0.76), 3), fcr_contribs),
+        'CSAT': _kpi('Customer Satisfaction', '/5', 'higher', round(avg_csat, 2), round(proj_csat, 2),
+                      round(_safe_bm(bm_csat, 3.8), 2), csat_contribs),
+        'CPC': _kpi('Cost Per Contact', '$', 'lower', round(avg_cpc, 2), round(proj_cpc, 2),
+                     round(_safe_bm(bm_cpc, 5.0), 2), []),
+        'Escalation': _kpi('Escalation Rate', '%', 'lower', round(avg_esc, 4), round(proj_esc, 4),
+                           round(_safe_bm(bm_esc, 0.12), 4), esc_contribs, {'reductionPct': round(eff_esc_reduction * 100, 1)}),
+        'Repeat': _kpi('Repeat Contact Rate', '%', 'lower', round(avg_repeat, 4), round(proj_repeat, 4),
+                        round(_safe_bm(bm_repeat, 0.08), 4), repeat_contribs, {'reductionPct': round(total_repeat_reduction * 100, 1)}),
+        'CES': _kpi('Customer Effort Score', '/5', 'lower', round(avg_ces, 2), round(proj_ces, 2),
+                     round(_safe_bm(bm_ces, 2.5), 2), []),
+    }
+
 
 
 def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=False):
@@ -441,6 +665,12 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
     params = data['params']
     enabled = [i for i in initiatives if i.get('enabled')]
     total_fte = data['totalFTE']
+    
+    # V4.10-#11: Ensure all initiatives have a 'levers' dict
+    _populate_initiative_levers(initiatives)
+    
+    # V4.6-#6: Make totalFTE available via params for _gross_shrinkage
+    params['totalFTE'] = total_fte
     
     # ── Step 1: Enrich intents ──
     try:
@@ -548,8 +778,8 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
             gross_saving = gross.get('gross_saving', 0)
             pool_capped = False
             
-            # Consume from location pool (cost_reduction)
-            if pools and 'cost_reduction' in pools and gross_migrated > 0:
+            # Consume from location pool (cost_reduction → 'location' key in pools)
+            if pools and 'location' in pools and gross_migrated > 0:
                 try:
                     loc_consumption = consume_pool(
                         pools, 'cost_reduction', gross_migrated, 0, 0)
@@ -605,7 +835,12 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         
         # ── 4c: Apply safety caps (3-layer: pool ceiling already applied, now absolute + per-role) ──
         # Per-lever initiative caps REMOVED in CR-014v2 — redundant with pool netting
-        abs_cap = ABSOLUTE_SINGLE_INIT_CAP * tot_aff
+        # V4.6-#6: Shrinkage benefits ALL agents, not just implementing roles (WFM/Supervisors).
+        # The abs_cap must use the benefiting FTE base, not the implementing role headcount.
+        if lever == 'shrinkage_reduction':
+            abs_cap = ABSOLUTE_SINGLE_INIT_CAP * total_fte
+        else:
+            abs_cap = ABSOLUTE_SINGLE_INIT_CAP * tot_aff
         red = min(net_fte, abs_cap)
         
         # ── 4c2: Compute secondary lever impacts (CR-025) ──
@@ -639,7 +874,17 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         
         # ── 4c3: Combined cap check (primary + secondary vs per-role availability) ──
         combined_fte = red + secondary_total_fte
-        avail = sum(max(0, r['headcount'] * PER_ROLE_MAX_REDUCTION - role_cum[r['role']]) for r in affected)
+        # V4.6-#6: Shrinkage reduction frees capacity across ALL roles, not just implementing roles.
+        # Use all roles for availability check and FTE distribution.
+        if lever == 'shrinkage_reduction':
+            all_agent_roles = [r for r in roles if r['headcount'] > 0]
+            avail = sum(max(0, r['headcount'] * PER_ROLE_MAX_REDUCTION - role_cum[r['role']]) for r in all_agent_roles)
+            benefit_roles = all_agent_roles
+            benefit_fte = sum(r['headcount'] for r in all_agent_roles)
+        else:
+            avail = sum(max(0, r['headcount'] * PER_ROLE_MAX_REDUCTION - role_cum[r['role']]) for r in affected)
+            benefit_roles = affected
+            benefit_fte = tot_aff
         if combined_fte > avail:
             # Scale both primary and secondary proportionally
             scale = avail / max(combined_fte, 0.01)
@@ -651,8 +896,8 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         red = max(0, red)
         
         # Update per-role cumulative (primary + secondary combined)
-        for r in affected:
-            role_cum[r['role']] += combined_fte * (r['headcount'] / tot_aff)
+        for r in benefit_roles:
+            role_cum[r['role']] += combined_fte * (r['headcount'] / max(benefit_fte, 1))
         
         # ── 4d: Apply monthly-phased ramp (CR-020) ──
         start_m = max(1, init.get('startMonth', 1))
@@ -662,13 +907,14 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         
         total_init_fte = red + secondary_total_fte
         
-        # Weighted cost per affected FTE (needed for per-BU and storing results)
-        wtd = sum(r['headcount'] * r['costPerFTE'] for r in affected) / max(tot_aff, 1)
+        # Weighted cost per benefiting FTE
+        # V4.6-#6: shrinkage benefits all roles; use avg cost across all roles
+        wtd = sum(r['headcount'] * r['costPerFTE'] for r in benefit_roles) / max(benefit_fte, 1)
         
         for yr in range(horizon):
             factor = yearly_factors[yr] if yr < len(yearly_factors) else 0.0
-            for r in affected:
-                role_impact[r['role']]['yearly'][yr] += total_init_fte * factor * (r['headcount'] / tot_aff)
+            for r in benefit_roles:
+                role_impact[r['role']]['yearly'][yr] += total_init_fte * factor * (r['headcount'] / max(benefit_fte, 1))
         
         # ── P2-1: Per-BU FTE attribution ──
         # Distribute initiative's impact across BUs based on matching queue volume
@@ -847,6 +1093,12 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         'contributors': sorted(csat_contributors, key=lambda x: x.get('effective_csat', 0), reverse=True)[:15],
     }
     
+    # ── V4.6-#17: Operational KPI Projections ──
+    # Compute projected values for all 7 KPIs from initiative lever impacts
+    kpi_projections = _compute_projected_kpis(
+        enabled, queues, data, params, pools, wf_total_saving=0  # will be updated after yearly calc
+    )
+    
     # ── Clamp per-role yearly ──
     for ri in role_impact.values():
         ri['yearly'] = [min(v, ri['baseline'] * PER_ROLE_MAX_REDUCTION) for v in ri['yearly']]
@@ -907,6 +1159,20 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
     total_npv = sum(y['npv'] for y in yearly)
     total_saving = sum(y['annualSaving'] for y in yearly)
     total_red = yearly[-1]['fteReduction'] if yearly else 0
+    
+    # V4.6-#17: Update CPC projection now that total_saving is known
+    # Use ratio method for consistency: projected CPC = current CPC × (1 - saving/costBase)
+    if kpi_projections:
+        annual_cost_base = sum(r['headcount'] * r['costPerFTE'] for r in roles)
+        steady_saving = yearly[-1]['annualSaving'] if yearly else 0
+        cost_reduction_ratio = steady_saving / max(annual_cost_base, 1)
+        current_cpc = kpi_projections['CPC']['current']
+        proj_cpc = round(current_cpc * (1 - cost_reduction_ratio), 2)
+        kpi_projections['CPC']['projected'] = proj_cpc
+        kpi_projections['CPC']['delta'] = round(proj_cpc - current_cpc, 2)
+        kpi_projections['CPC']['deltaPct'] = round((proj_cpc - current_cpc) / max(current_cpc, 0.01) * 100, 1)
+        bm_cpc_val = kpi_projections['CPC']['benchmark']
+        kpi_projections['CPC']['rag'] = 'green' if proj_cpc <= bm_cpc_val else ('amber' if (proj_cpc - bm_cpc_val) / max(bm_cpc_val, 0.01) <= 0.10 else 'red')
     
     # Gross FTE reduction (sum of all _fteImpact, pre-ramp) vs Net (waterfall Year-N, post-ramp)
     gross_fte_reduction = round(sum(i.get('_fteImpact', 0) for i in enabled), 1)
@@ -1156,12 +1422,33 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
             ceiling = pv.get('ceiling_fte', 0)
             remaining = pv.get('remaining_fte', 0)
             consumed = ceiling - remaining
-            pool_utilization[pk] = {
+            entry = {
                 'ceiling_fte': ceiling,
                 'consumed_fte': round(consumed, 1),
                 'remaining_fte': round(remaining, 1),
                 'utilization_pct': round(consumed / max(ceiling, 0.1) * 100, 1),
             }
+            # V4.6-#7: Location pool needs dollar fields (cost arbitrage, not FTE reduction)
+            if pk == 'location':
+                ceiling_saving = pv.get('ceiling_saving', 0)
+                remaining_saving = pv.get('remaining_saving', ceiling_saving)
+                consumed_saving = ceiling_saving - remaining_saving
+                entry['ceiling_saving'] = round(ceiling_saving)
+                entry['consumed_saving'] = round(consumed_saving)
+                entry['remaining_saving'] = round(remaining_saving)
+                entry['cost_arbitrage'] = pv.get('cost_arbitrage', 0.35)
+                entry['migratable_share'] = pv.get('migratable_share', 0)
+            pool_utilization[pk] = entry
+    
+    # V4.6-#7: Alias 'cost_reduction' → 'location' so frontend bucket lookup works
+    # (Initiatives use lever='cost_reduction' but pool key is 'location')
+    if 'location' in pool_utilization:
+        pool_utilization['cost_reduction'] = pool_utilization['location']
+    
+    # V4.6-#8: Ensure csat_experience has ceiling_total_value for frontend compat
+    if 'csat_experience' in pool_utilization:
+        cx = pool_utilization['csat_experience']
+        cx['ceiling_total_value'] = cx.get('ceiling_revenue', 0)
     
     # CR-016 fix: Distribute pool ceilings across BUs (must run AFTER pool_utilization is populated)
     total_base_fte = sum(bi['baseline_fte'] for bi in bu_impact.values()) or 1
@@ -1199,6 +1486,8 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         'auditTrail': audit_trail,
         # ── v10: CSAT / CX fields ──
         'csatSummary': csat_summary,
+        # ── V4.6-#17: Operational KPI Projections ──
+        'kpiProjections': kpi_projections,
         # ── P2-1: Dimensional fields ──
         'buSummary': bu_summary,
         'locations': data.get('locations', ['Onshore']),

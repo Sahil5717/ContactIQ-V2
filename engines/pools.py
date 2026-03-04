@@ -384,10 +384,22 @@ def compute_pools(enriched_queues, roles, params, cost_matrix=None):
         portfolio_csat_gap = total_weighted_gap
     
     # Revenue/retention monetisation
+    # V4.6-#8: Sensible defaults if customerBase/revenuePerCustomer not provided
     customer_base = params.get('customerBase', 0)
     revenue_per_customer = params.get('revenuePerCustomer', 0)
     annual_churn = params.get('annualChurnRate', 0.12)
-    total_revenue = customer_base * revenue_per_customer if customer_base > 0 else 0
+    
+    # Fallback: derive customer base from contact volume (industry avg: 3-5 contacts/customer/year)
+    if customer_base <= 0:
+        customer_base = max(1, round(total_volume / 4))  # ~4 contacts per customer per year
+    if revenue_per_customer <= 0:
+        # Fallback: derive from total cost base (CC cost ≈ 3-8% of revenue; use 5% midpoint)
+        total_cost_base = sum(r['headcount'] * r['costPerFTE'] for r in roles)
+        implied_revenue = total_cost_base / 0.05 if total_cost_base > 0 else 0
+        revenue_per_customer = round(implied_revenue / max(customer_base, 1), 2) if implied_revenue > 0 else 500  # $500 default
+    
+    total_revenue = customer_base * revenue_per_customer
+    total_revenue = max(total_revenue, 1)  # V4.6-#8: Guard against $0 denominator
     
     # Industry multiplier: 10% CSAT improvement → 2.5% revenue (midpoint of 2-3%)
     # On a 5-point scale, "10% CSAT" ≈ 0.5 points. So 1 point ≈ 5% revenue.

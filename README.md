@@ -1,6 +1,6 @@
 # ContactIQ — Intelligent Contact Center Optimization Platform
 
-**Version:** 1.0 (Sprint 1)
+**Version:** 4.6 (V4.6-#17: Operational KPI Improvement Dashboard)
 **Stack:** Flask + HTML/JS (Chart.js)
 
 ## Overview

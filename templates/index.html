@@ -1403,7 +1403,8 @@ function _buildCompactRecTable(recs, triggerLabel, theme) {
   recs.slice(0, 8).forEach((r, i) => {
     const lc = layerColors[r.layer] || '#666';
     const triggers = (r.trigger_details || []).slice(0, 3).map(t => '<span style="display:inline-block;font-size:8px;padding:1px 5px;border-radius:3px;background:'+accentColor+'0A;color:'+accentColor+';margin:1px;border:1px solid '+accentColor+'33;">'+t+'</span>').join('');
-    const fte = r.fte_impact != null ? r.fte_impact.toFixed(1) : (r._fteImpact != null ? r._fteImpact.toFixed(1) : '—');
+    const rawFte = r.fte_impact != null ? r.fte_impact : (r._fteImpact != null ? r._fteImpact : null);
+    const fte = (rawFte == null || Math.abs(rawFte) < 0.05) ? '—' : rawFte.toFixed(1);
     html += '<tr style="border-left:3px solid '+lc+';">' +
       '<td style="color:var(--ey-text-light);">'+(i+1)+'</td>' +
       '<td><strong style="font-size:11px;">'+r.name+'</strong></td>' +
@@ -1609,7 +1610,7 @@ function generateFallbackDemo() {
 // ─── UTILITY FUNCTIONS ───
 function fmt(n, type) {
   if (type === '$') return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  if (type === '$k') return '$' + (n / 1000).toFixed(0) + 'K';
+  if (type === '$k') return Math.abs(n) >= 10000000 ? '$' + (n / 1000000).toFixed(1) + 'M' : '$' + (n / 1000).toFixed(0) + 'K';
   if (type === '$m') return '$' + (n / 1000000).toFixed(1) + 'M';
   if (type === '%') return (n * 100).toFixed(1) + '%';
   if (type === 'dec') return Number(n).toFixed(2);
@@ -1791,7 +1792,8 @@ function renderPage(page) {
       1: 'executive_summary', 2: 'benchmarking', 3: 'maturity',
       4: 'heatmap', 5: 'friction_map', 6: 'gap_analysis',
       7: 'cost_analysis', 8: 'self_service', 10: 'channel_strategy',
-      14: 'impact_dashboard', 16: 'opportunity_sizing',
+      14: null, /* v4.3-#13: removed — Impact Dashboard is Justify phase, not Diagnose */
+      16: 'opportunity_sizing',
     };
     if (pageRecMap[page]) {
       // Inject a container at the top of the page content
@@ -2077,6 +2079,20 @@ function renderPage1() {
   const totalAddressable = wf.totalSaving || 0;
   const wastedSpend = _filteredQueues().filter(q => getQueueHealth(q) < 0.70).reduce((s,q) => s + q.volume * q.cpc, 0);
 
+  // V4.8-#3: Cost of Inaction computation
+  const horizon = DEMO.params?.horizon || 3;
+  const annualBaseCost = DEMO.roles.reduce((s,r) => s + r.headcount * r.costPerFTE, 0);
+  const doNothingCost = Array.from({length: horizon}, (_,yr) =>
+    annualBaseCost * Math.pow(1 + (DEMO.params?.wageInflation||0.03), yr+1) * (1 + (DEMO.params?.volumeGrowth||0.02) * (yr+1))
+  );
+  const totalDoNothing = doNothingCost.reduce((s,c) => s + c, 0);
+  const totalWithTransform = wf.yearly.reduce((s,y) => s + y.futureCost, 0) + (wf.totalInvestment || 0);
+  const costOfInaction = totalDoNothing - totalWithTransform;
+  const layerSav = wf.layerSaving || {};
+  const aiSav = layerSav['AI & Automation'] || 0;
+  const omSav = layerSav['Operating Model'] || 0;
+  const locSav = layerSav['Location Strategy'] || 0;
+
   const el = document.getElementById('page-1');
   el.innerHTML = `
     <!-- v12-#40: SCR Narrative — (1) Client Context Banner -->
@@ -2116,6 +2132,33 @@ function renderPage1() {
     </div>
 
     <!-- CR-001: (3) Navigation Bar — Diagnose→Size→Solve→Plan — MOVED TO TOP -->
+    <!-- V4.6-#17: Mini KPI Improvement Strip -->
+    ${(() => {
+      const kpis = WATERFALL.kpiProjections || {};
+      const strip = ['AHT','FCR','CSAT','CPC'];
+      if (!Object.keys(kpis).length) return '';
+      const ragColors = {green:'#4CAF50',amber:'#FF9800',red:'#F44336'};
+      return '<div class="card" style="padding:10px 16px;margin-bottom:12px;background:var(--ey-light-gray);border:1px solid var(--ey-mid-gray);">' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">' +
+          '<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ey-text-light);">KPI Improvement Forecast</span>' +
+          '<span style="font-size:9px;color:var(--ey-text-light);cursor:pointer;" onclick="navigateTo(14)">→ Full dashboard on P14</span>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">' +
+        strip.map(k => {
+          const kp = kpis[k]; if (!kp) return '';
+          const rc = ragColors[kp.rag] || '#666';
+          const isGood = (kp.direction === 'higher' && kp.delta > 0) || (kp.direction === 'lower' && kp.delta < 0);
+          const arrow = isGood ? '▲' : '▼';
+          const dc = isGood ? '#4CAF50' : '#F44336';
+          const fv = (v, u) => u === '%' ? (v*100).toFixed(1)+'%' : u === '/5' ? v.toFixed(2) : u === '$' ? '$'+v.toFixed(2) : v.toFixed(1)+(u==='min'?' min':'');
+          return '<div style="text-align:center;padding:6px 4px;background:white;border-radius:6px;border-left:3px solid '+rc+';">' +
+            '<div style="font-size:10px;font-weight:700;color:var(--ey-text-light);">'+k+'</div>' +
+            '<div style="font-size:13px;font-weight:800;color:var(--ey-dark);">'+fv(kp.current, kp.unit)+'</div>' +
+            '<div style="font-size:11px;color:'+dc+';font-weight:600;">'+arrow+' '+fv(kp.projected, kp.unit)+'</div>' +
+          '</div>';
+        }).join('') +
+        '</div></div>';
+    })()}
     <div class="card" style="padding:12px 20px;background:white;">
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative;">
         <div style="position:absolute;top:22px;left:12%;right:12%;height:3px;background:linear-gradient(90deg,var(--ey-red),var(--ey-amber),var(--ey-blue),var(--ey-green));border-radius:2px;z-index:0;"></div>
@@ -2165,7 +2208,7 @@ function renderPage1() {
       </div>
       <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ey-text-light);margin-bottom:8px;">FTE Waterfall</div>
-        <canvas id="execFTEWaterfall" width="220" height="180"></canvas>
+        <canvas id="execFTEWaterfall" width="320" height="220"></canvas>
       </div>
     </div>
 
@@ -2189,6 +2232,61 @@ function renderPage1() {
     </div>
 
     <!-- (6) Total Addressable Opportunity -->
+
+    <!-- V4.8-#3: Cost of Inaction — SCR Narrative + Do Nothing vs Transform + Mini Charts -->
+    <div class="card" style="border-left:5px solid var(--ey-red);margin-bottom:16px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ey-red);margin-bottom:6px;font-weight:700;">Complication — Cost of Inaction</div>
+      <div style="font-size:13px;line-height:1.65;color:var(--ey-dark);">
+        Without intervention, the operation absorbs an additional <strong style="color:var(--ey-red);">${fmt(costOfInaction,'$m')}</strong> in avoidable cost over ${horizon} years.
+        At ${(DEMO.params?.volumeGrowth*100||2).toFixed(0)}% volume growth and ${((DEMO.params?.wageInflation||0.03)*100).toFixed(1)}% wage inflation,
+        headcount grows from ${DEMO.totalFTE.toLocaleString()} to ~${(DEMO.totalFTE + Math.round(DEMO.totalFTE * (DEMO.params?.volumeGrowth||0.02) * horizon)).toLocaleString()} FTE
+        while cost per FTE compounds annually. <strong>The gap between action and inaction widens every year.</strong>
+      </div>
+      <table class="data-table" style="font-size:11px;margin-top:12px;">
+        <thead><tr><th>Metric</th><th>Baseline</th>${Array.from({length:horizon},(_,i)=>'<th>Year '+(i+1)+'</th>').join('')}<th style="background:var(--ey-red-bg);">Total</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Do Nothing</strong></td><td>${fmt(annualBaseCost,'$m')}/yr</td>
+            ${doNothingCost.map(c => '<td>'+fmt(c,'$m')+'/yr</td>').join('')}
+            <td style="background:var(--ey-red-bg);font-weight:800;color:var(--ey-red);">${fmt(totalDoNothing,'$m')}</td>
+          </tr>
+          <tr>
+            <td><strong>With Transformation</strong></td><td>—</td>
+            ${wf.yearly.map(y => '<td>'+fmt(y.futureCost,'$m')+'/yr</td>').join('')}
+            <td style="font-weight:700;">${fmt(totalWithTransform,'$m')}</td>
+          </tr>
+          <tr style="background:var(--ey-green-bg);">
+            <td><strong>Gap (Avoidable Cost)</strong></td><td>—</td>
+            ${wf.yearly.map((y,i) => '<td style="font-weight:700;color:var(--ey-green);">'+fmt(doNothingCost[i]-y.futureCost,'$m')+'</td>').join('')}
+            <td style="background:var(--ey-green-bg);font-weight:800;color:var(--ey-green);">${fmt(costOfInaction,'$m')}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- V4.8-#3: Resolution — Investment Case One-Liner + Mini Charts -->
+    <div class="card" style="border-left:5px solid var(--ey-green);margin-bottom:16px;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ey-green);margin-bottom:6px;font-weight:700;">Resolution — Transformation Investment Case</div>
+      <div style="font-size:13px;line-height:1.65;color:var(--ey-dark);margin-bottom:14px;">
+        ${INITIATIVES.filter(i=>i.enabled).length} initiatives across ${[...new Set(INITIATIVES.filter(i=>i.enabled).map(i=>i.layer))].length} transformation layers
+        deliver a <strong>${(projFTEReduction/DEMO.totalFTE*100).toFixed(0)}% headcount reduction</strong>
+        (${DEMO.totalFTE.toLocaleString()} → ${(DEMO.totalFTE - projFTEReduction).toLocaleString()} FTE)
+        with <strong style="color:var(--ey-green);">${fmt(projSavings,'$m')}/yr</strong> steady-state savings by Year ${horizon}.
+        The programme pays back in <strong>${(wf.payback||0).toFixed(1)} months</strong> and generates <strong>${(wf.irr||0).toFixed(0)}% IRR</strong>.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--ey-text-light);text-align:center;margin-bottom:4px;">Cost Transformation Waterfall</div>
+          <canvas id="p1CostWaterfall" width="420" height="200"></canvas>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--ey-text-light);text-align:center;margin-bottom:4px;">Cumulative NPV Build</div>
+          <canvas id="p1NPVBuild" width="420" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- (6-original) Total Addressable Opportunity -->
     <div class="card" style="background:var(--ey-green-bg);border:2px solid var(--ey-green);">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
@@ -2230,7 +2328,11 @@ function renderPage1() {
               <td style="font-weight:700;color:var(--ey-text-light);">${i+1}</td>
               <td><strong>${init.id}</strong> — ${init.name}</td>
               <td><span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;background:${layerBg[init.layer]};color:${layerColors[init.layer]};font-weight:600;">${init.layer}</span></td>
-              <td style="font-size:10px;">${init.lever.replace(/_/g,' ')}</td>
+              <td style="font-size:10px;">${(() => {
+                const lc = {'deflection':'#2196F3','aht_reduction':'#FF9800','escalation_reduction':'#9C27B0','cost_reduction':'#4CAF50','shrinkage_reduction':'#00BCD4','repeat_reduction':'#E91E63'};
+                const al = init.levers ? Object.keys(init.levers).filter(l => init.levers[l]) : [init.lever];
+                return al.map(l => '<span style="padding:1px 4px;border-radius:3px;font-size:8px;background:'+(lc[l]||'#888')+'18;color:'+(lc[l]||'#888')+';font-weight:600;">'+(l===init.lever?'★ ':'')+l.replace(/_/g,' ').substring(0,12)+'</span>').join(' ');
+              })()}</td>
               <td style="font-weight:700;color:var(--ey-green);">${fmt(init._annualSaving,'$k')}/yr</td>
               <td style="font-size:10px;color:var(--ey-text-light);">${reason}</td>
             </tr>`;
@@ -2329,8 +2431,186 @@ function renderPage1() {
   // CR-002: Draw mini FTE Waterfall (replaces health gauge)
   drawExecFTEWaterfall();
 
+  // V4.8-#3: Draw Cost of Inaction charts on P1
+  drawP1CostWaterfall(annualBaseCost, aiSav, omSav, locSav);
+  drawP1NPVBuild();
+
   // Draw FTE Waterfall step-down chart (Change 2)
   drawFTEWaterfallChart();
+}
+
+// V4.8-#3: Mini Cost Waterfall on P1
+function drawP1CostWaterfall(annualBaseCost, aiSav, omSav, locSav) {
+  const canvas = document.getElementById('p1CostWaterfall');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const pad = {l:60, r:15, t:18, b:40};
+  ctx.clearRect(0, 0, W, H);
+
+  const totalSav = aiSav + omSav + locSav;
+  const targetCost = annualBaseCost - totalSav;
+  const bars = [
+    { label: 'Current Cost', value: annualBaseCost, color: '#2E2E38', type: 'total' },
+    { label: 'AI & Auto', value: -aiSav, color: '#1A73E8', type: 'decrease' },
+    { label: 'Op Model', value: -omSav, color: '#168736', type: 'decrease' },
+    { label: 'Location', value: -locSav, color: '#D97706', type: 'decrease' },
+    { label: 'Target Cost', value: targetCost, color: '#4CAF50', type: 'total' },
+  ];
+
+  const chartW = W - pad.l - pad.r;
+  const chartH = H - pad.t - pad.b;
+  const maxVal = annualBaseCost * 1.12;
+  const gap = chartW / bars.length;
+  const barW = gap * 0.58;
+  function yScale(v) { return pad.t + chartH - (v / maxVal) * chartH; }
+
+  // Grid
+  ctx.strokeStyle = '#E8E8ED'; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 3; i++) {
+    const v = (maxVal / 3) * i;
+    const y = yScale(v);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    ctx.fillStyle = '#999'; ctx.font = '8px Inter, sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(fmt(v, '$m'), pad.l - 5, y + 3);
+  }
+
+  let running = 0;
+  const positions = [];
+  bars.forEach((bar, i) => {
+    const x = pad.l + i * gap + (gap - barW) / 2;
+    if (bar.type === 'total') {
+      const barTop = yScale(bar.value);
+      const barBottom = yScale(0);
+      ctx.fillStyle = bar.color;
+      ctx.fillRect(x, barTop, barW, barBottom - barTop);
+      running = bar.value;
+      positions.push({ x, right: x + barW, runAfter: bar.value });
+      ctx.fillStyle = '#2E2E38'; ctx.font = 'bold 9px Inter, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(fmt(bar.value, '$m'), x + barW / 2, barTop - 4);
+    } else {
+      const prev = running;
+      const dec = Math.abs(bar.value);
+      const barTop = yScale(prev);
+      const barBtm = yScale(prev - dec);
+      running = prev - dec;
+      ctx.fillStyle = bar.color + '30';
+      ctx.fillRect(x, barTop, barW, barBtm - barTop);
+      ctx.fillStyle = bar.color;
+      ctx.fillRect(x, barBtm - 2, barW, 2);
+      ctx.strokeStyle = bar.color; ctx.lineWidth = 1;
+      ctx.strokeRect(x, barTop, barW, barBtm - barTop);
+      const midY = (barTop + barBtm) / 2;
+      ctx.fillStyle = bar.color; ctx.font = 'bold 9px Inter, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('−' + fmt(dec, '$m'), x + barW / 2, midY + 3);
+      positions.push({ x, right: x + barW, runAfter: running });
+    }
+    ctx.fillStyle = '#555'; ctx.font = '9px Inter, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(bar.label, x + barW / 2, H - pad.b + 12);
+  });
+
+  // Connector lines
+  ctx.setLineDash([3, 2]); ctx.strokeStyle = '#AAAACC'; ctx.lineWidth = 0.8;
+  for (let i = 0; i < positions.length - 1; i++) {
+    const y = yScale(positions[i].runAfter);
+    ctx.beginPath(); ctx.moveTo(positions[i].right + 1, y); ctx.lineTo(positions[i+1].x - 1, y); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Savings arrow
+  const arrowX = W - pad.r - 4;
+  const y1 = yScale(annualBaseCost), y2 = yScale(targetCost);
+  ctx.strokeStyle = '#4CAF50'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(arrowX, y1); ctx.lineTo(arrowX, y2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(arrowX-3, y2+6); ctx.lineTo(arrowX, y2); ctx.lineTo(arrowX+3, y2+6);
+  ctx.fillStyle = '#4CAF50'; ctx.fill();
+  ctx.fillStyle = '#4CAF50'; ctx.font = 'bold 9px Inter, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(fmt(totalSav, '$m')+'/yr', arrowX, (y1+y2)/2+3);
+}
+
+// V4.8-#3: Mini Cumulative NPV Build on P1
+function drawP1NPVBuild() {
+  const canvas = document.getElementById('p1NPVBuild');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const pad = {l:55, r:15, t:18, b:35};
+  ctx.clearRect(0, 0, W, H);
+
+  const yearly = WATERFALL.yearly || [];
+  const inv = WATERFALL.totalInvestment || 0;
+  // Build cumulative NPV series including investment at year 0
+  const cumNPV = [-inv];
+  yearly.forEach((y, i) => cumNPV.push(cumNPV[i] + (y.npv || 0)));
+  const maxNPV = Math.max(...cumNPV) * 1.15;
+  const minNPV = Math.min(...cumNPV, 0) * 1.15;
+  const range = maxNPV - minNPV || 1;
+
+  function yScale(v) { return pad.t + (H - pad.t - pad.b) * (1 - (v - minNPV) / range); }
+
+  // Zero line
+  const zeroY = yScale(0);
+  ctx.strokeStyle = '#CCC'; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(pad.l, zeroY); ctx.lineTo(W - pad.r, zeroY); ctx.stroke();
+
+  // Grid
+  const steps = 4;
+  ctx.strokeStyle = '#E8E8ED'; ctx.lineWidth = 0.4;
+  for (let i = 0; i <= steps; i++) {
+    const v = minNPV + (range / steps) * i;
+    const y = yScale(v);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    ctx.fillStyle = '#999'; ctx.font = '8px Inter, sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(fmt(v, '$m'), pad.l - 5, y + 3);
+  }
+
+  // Area fill
+  const chartW = W - pad.l - pad.r;
+  ctx.beginPath();
+  cumNPV.forEach((v, i) => {
+    const x = pad.l + (i / (cumNPV.length - 1)) * chartW;
+    const y = yScale(v);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  // Close fill to zero line
+  ctx.lineTo(pad.l + chartW, zeroY);
+  ctx.lineTo(pad.l, zeroY);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(22,135,54,0.08)';
+  ctx.fill();
+
+  // Line
+  ctx.beginPath(); ctx.strokeStyle = '#168736'; ctx.lineWidth = 2;
+  cumNPV.forEach((v, i) => {
+    const x = pad.l + (i / (cumNPV.length - 1)) * chartW;
+    const y = yScale(v);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Dots + labels
+  cumNPV.forEach((v, i) => {
+    const x = pad.l + (i / (cumNPV.length - 1)) * chartW;
+    const y = yScale(v);
+    ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = v >= 0 ? '#168736' : '#C5003E'; ctx.fill();
+    ctx.fillStyle = '#2E2E38'; ctx.font = 'bold 9px Inter, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(fmt(v, '$m'), x, y + (v >= 0 ? -8 : 12));
+    ctx.fillStyle = '#555'; ctx.font = '8px Inter, sans-serif';
+    ctx.fillText(i === 0 ? 'Invest' : 'Yr ' + i, x, H - pad.b + 11);
+  });
+
+  // Payback marker
+  const payback = WATERFALL.payback || 0;
+  if (payback > 0 && payback < yearly.length * 12) {
+    const paybackYr = payback / 12;
+    const px = pad.l + (paybackYr / (cumNPV.length - 1)) * chartW;
+    ctx.strokeStyle = '#FF980088'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, H - pad.b); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#FF9800'; ctx.font = 'bold 8px Inter, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Payback ' + payback.toFixed(1) + ' mo', px, pad.t - 3);
+  }
 }
 
 function drawFTEWaterfallChart() {
@@ -2338,7 +2618,7 @@ function drawFTEWaterfallChart() {
   if (!canvas) return;
 }
 
-// CR-002: Compact FTE Waterfall for Executive Summary (replaces health gauge)
+// CR-002 + v4.4-#1/#2: FTE Waterfall — enlarged canvas, totalReduction as single source of truth
 function drawExecFTEWaterfall() {
   const canvas = document.getElementById('execFTEWaterfall');
   if (!canvas) return;
@@ -2347,12 +2627,21 @@ function drawExecFTEWaterfall() {
   ctx.clearRect(0, 0, W, H);
 
   const baseline = DEMO.totalFTE;
-  const layerFTE = WATERFALL.layerFTE || {};
-  const aiRed = Math.round(layerFTE['AI & Automation'] || 0);
-  const omRed = Math.round(layerFTE['Operating Model'] || 0);
-  const locRed = Math.round(layerFTE['Location Strategy'] || 0);
-  const totalRed = aiRed + omRed + locRed;
-  const finalFTE = Math.max(0, baseline - totalRed);
+  // v4.4-#2: Use totalReduction (post-ramp, post-netting) as single source of truth
+  // Layer proportions come from gross layerFTE, scaled to match totalReduction
+  const grossLayerFTE = WATERFALL.layerFTE || {};
+  const grossAI = grossLayerFTE['AI & Automation'] || 0;
+  const grossOM = grossLayerFTE['Operating Model'] || 0;
+  const grossLoc = grossLayerFTE['Location Strategy'] || 0;
+  const grossTotal = grossAI + grossOM + grossLoc;
+  const netTotal = WATERFALL.totalReduction || 0;
+  // Proportional scaling: each layer's share of totalReduction
+  const scale = grossTotal > 0 ? netTotal / grossTotal : 0;
+  const aiRed = Math.round(grossAI * scale);
+  const omRed = Math.round(grossOM * scale);
+  // Assign remainder to Location to avoid rounding drift
+  const locRed = Math.round(netTotal) - aiRed - omRed;
+  const finalFTE = Math.max(0, baseline - Math.round(netTotal));
 
   const bars = [
     { label: 'Baseline', value: baseline, color: '#2E2E38', type: 'total' },
@@ -2362,13 +2651,22 @@ function drawExecFTEWaterfall() {
     { label: 'Target', value: finalFTE, color: '#4CAF50', type: 'total' },
   ];
 
-  const pad = { top: 14, bottom: 28, left: 10, right: 10 };
+  // v4.4-#1: Expanded padding and bar sizing for readability
+  const pad = { top: 22, bottom: 34, left: 16, right: 16 };
   const chartW = W - pad.left - pad.right;
   const chartH = H - pad.top - pad.bottom;
-  const barW = chartW / bars.length * 0.6;
+  const barW = chartW / bars.length * 0.55;
   const gap = chartW / bars.length;
-  const maxVal = baseline * 1.08;
+  const maxVal = baseline * 1.10;
   function yScale(v) { return pad.top + chartH - (v / maxVal) * chartH; }
+
+  // Light grid lines
+  ctx.strokeStyle = '#E8E8ED'; ctx.lineWidth = 0.5;
+  for (let g = 0; g <= 3; g++) {
+    const gv = (maxVal / 3) * g;
+    const gy = yScale(gv);
+    ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(W - pad.right, gy); ctx.stroke();
+  }
 
   let running = 0;
   bars.forEach((bar, i) => {
@@ -2399,14 +2697,21 @@ function drawExecFTEWaterfall() {
         ctx.setLineDash([]);
       }
     }
-    // Value label
-    ctx.fillStyle = bar.color; ctx.font = 'bold 9px Inter, sans-serif'; ctx.textAlign = 'center';
-    const labelVal = bar.type === 'total' ? bar.value : -Math.abs(bar.value);
-    ctx.fillText((bar.type === 'total' ? '' : '') + Math.abs(labelVal), x + barW/2, barTop - 3);
+    // Value label — above bar with breathing room
+    ctx.fillStyle = bar.color; ctx.font = 'bold 11px Inter, sans-serif'; ctx.textAlign = 'center';
+    const labelVal = bar.type === 'total' ? bar.value : Math.abs(bar.value);
+    const prefix = bar.type === 'decrease' ? '−' : '';
+    ctx.fillText(prefix + labelVal, x + barW/2, barTop - 6);
     // X label
-    ctx.fillStyle = '#888'; ctx.font = '8px Inter, sans-serif';
-    ctx.fillText(bar.label, x + barW/2, H - 4);
+    ctx.fillStyle = '#666'; ctx.font = '10px Inter, sans-serif';
+    ctx.fillText(bar.label, x + barW/2, H - 8);
   });
+
+  // Reconciliation check (console only)
+  const barSum = aiRed + omRed + locRed;
+  if (Math.abs(barSum - Math.round(netTotal)) > 1) {
+    console.warn('v4.4 FTE Waterfall reconciliation drift:', barSum, 'vs', Math.round(netTotal));
+  }
 }
 
 function drawFTEWaterfallChart_legacy() {
@@ -3807,6 +4112,17 @@ function generateInitiatives() {
     init.cxRisk = init.csatImpact < 0 ? Math.min(5, Math.ceil(Math.abs(init.csatImpact) * 20)) : 1;
     init.opsRisk = Math.min(5, Math.ceil(init.ramp / 4));
     init.overallRisk = +(init.implRisk * 0.4 + init.cxRisk * 0.3 + init.opsRisk * 0.3).toFixed(1);
+
+    // V4.10-#11: Auto-populate multi-lever object
+    if (!init.levers || typeof init.levers !== 'object') {
+      const primary = init.lever || 'aht_reduction';
+      const levers = {};
+      levers[primary] = true;
+      // Infer secondary levers from impact fields
+      if (Math.abs(init.ahtImpact || 0) >= 0.03 && primary !== 'aht_reduction') levers['aht_reduction'] = true;
+      if ((init.fcrImpact || 0) >= 0.03 && primary !== 'repeat_reduction') levers['repeat_reduction'] = true;
+      init.levers = levers;
+    }
   });
 
   return lib;
@@ -4093,7 +4409,13 @@ function runWaterfall() {
                         init.complexity === 'complex' ? 'complex' : 'moderate';
 
     // Apply diminishing returns per lever
+    // V4.10-#11: Track ALL levers from init.levers for multi-lever diminishing returns
     const lever = init.lever || 'aht_reduction';
+    const activeLevers = (init.levers && typeof init.levers === 'object')
+      ? Object.keys(init.levers).filter(l => init.levers[l])
+      : [lever];
+    
+    // Primary lever drives main FTE impact
     const leverKey = `${lever}_${complexBand}`;
     if (!leverAccum[leverKey]) leverAccum[leverKey] = 0;
 
@@ -4105,6 +4427,19 @@ function runWaterfall() {
     const effectiveAfter = cap * (1 - Math.exp(-k * rawCumAfter / cap));
     const effectiveImpact = effectiveAfter - effectiveBefore;
     leverAccum[leverKey] = rawCumAfter;
+    
+    // V4.10-#11: Also accumulate secondary levers' impact for correct diminishing returns
+    // This ensures later initiatives sharing secondary levers get properly diminished
+    activeLevers.forEach(sl => {
+      if (sl === lever) return; // primary already accumulated
+      const slKey = `${sl}_${complexBand}`;
+      if (!leverAccum[slKey]) leverAccum[slKey] = 0;
+      // Secondary lever accumulation at 50% weight (matching backend SECONDARY_WEIGHT)
+      const secImpact = sl === 'aht_reduction' ? Math.abs(init.ahtImpact || 0)
+                       : sl === 'repeat_reduction' ? (init.fcrImpact || 0)
+                       : init.impact * 0.3;
+      leverAccum[slKey] += secImpact * 0.5;
+    });
 
     const fteReduction = totalAffectedFTE * effectiveImpact * init.adoption;
 
@@ -4263,6 +4598,11 @@ function runWaterfall() {
       }
       const lever = init.lever || '';
       if (lever in buPoolUtil) buPoolUtil[lever].consumed += buFTE;
+      // V4.10-#11: Also track secondary levers
+      const secLevers = (init.levers && typeof init.levers === 'object')
+        ? Object.keys(init.levers).filter(l => init.levers[l] && l !== lever)
+        : [];
+      secLevers.forEach(sl => { if (sl in buPoolUtil) buPoolUtil[sl].consumed += buFTE * 0.5; });
     });
     
     // Build yearly projections by BU share of yearly totals
@@ -5462,7 +5802,7 @@ function renderPage9() {
           <div class="table-wrap" style="max-height:300px; overflow-y:auto;">
             <table class="data-table" style="font-size:11px;">
               <thead style="position:sticky;top:0;z-index:2;">
-                <tr><th style="width:35px;">On</th><th>ID</th><th>Initiative</th><th>Score</th><th>Tier</th><th>Stage</th><th>Lever</th><th>Effort</th><th>Channels</th><th>Saving/yr</th><th>CSAT</th><th style="width:40px;">Edit</th></tr>
+                <tr><th style="width:35px;">On</th><th>ID</th><th>Initiative</th><th>Score</th><th>Tier</th><th>Stage</th><th>Levers</th><th>Effort</th><th>Channels</th><th>Saving/yr</th><th>CSAT</th><th style="width:40px;">Edit</th></tr>
               </thead>
               <tbody>
                 ${layerInits.map((init, i) => {
@@ -5478,7 +5818,11 @@ function renderPage9() {
                     <td><span style="font-weight:700;font-size:11px;color:${init.score >= 65 ? 'var(--ey-green)' : init.score >= 50 ? '#D97706' : 'var(--ey-red)'};">${(init.score||0).toFixed(0)}</span><span style="font-size:8px;color:var(--ey-text-light);">/100</span></td>
                     <td><span style="font-size:9px;font-weight:700;color:${tierColors[init.matchTier]||'#888'};">${(init.matchTier||'—').replace('_',' ')}</span></td>
                     <td><span style="font-size:9px;padding:1px 5px;border-radius:8px;background:${stageColors[init.stage]||'#eee'}20;color:${stageColors[init.stage]||'#888'};">${init.stage||'—'}</span></td>
-                    <td style="font-size:10px;">${init.lever.replace(/_/g,' ')}</td>
+                    <td style="font-size:10px;">${(() => {
+                      const leverColors = {'deflection':'#2196F3','aht_reduction':'#FF9800','escalation_reduction':'#9C27B0','cost_reduction':'#4CAF50','shrinkage_reduction':'#00BCD4','repeat_reduction':'#E91E63'};
+                      const activeLevers = init.levers ? Object.keys(init.levers).filter(l => init.levers[l]) : [init.lever];
+                      return activeLevers.map(l => '<span style="display:inline-block;padding:1px 4px;border-radius:3px;font-size:8px;margin:1px;background:'+(leverColors[l]||'#888')+'18;color:'+(leverColors[l]||'#888')+';font-weight:600;white-space:nowrap;">'+(l===init.lever?'★ ':'')+l.replace(/_/g,' ').substring(0,12)+'</span>').join('');
+                    })()}</td>
                     <td><span class="badge badge-${init.effort==='low'?'low':init.effort==='medium'?'medium':'high'}">${init.effort}</span></td>
                     <td style="font-size:10px;">${init.channels.slice(0,2).join(', ')}${init.channels.length>2?'…':''}</td>
                     <td style="color:var(--ey-green);font-weight:700;">${init._annualSaving ? fmt(init._annualSaving,'$k') : '—'}</td>
@@ -5640,7 +5984,7 @@ function openInitEditor(idx) {
 
     <div class="init-field-row">
       <div class="init-field">
-        <label>Lever</label>
+        <label>Primary Lever</label>
         <select id="ie_lever">${allLevers.map(l => `<option value="${l}" ${l===init.lever?'selected':''}>${l.replace(/_/g,' ')}</option>`).join('')}</select>
       </div>
       <div class="init-field">
@@ -5651,6 +5995,19 @@ function openInitEditor(idx) {
           <option value="moderate" ${init.complexity==='moderate'?'selected':''}>Moderate</option>
           <option value="complex" ${init.complexity==='complex'?'selected':''}>Complex</option>
         </select>
+      </div>
+    </div>
+
+    <!-- V4.10-#11: Multi-lever checkboxes -->
+    <div class="init-field" style="margin-bottom:12px;">
+      <label>Active Levers <span style="font-size:10px;color:var(--ey-text-light);font-weight:400;">(primary + secondary impacts)</span></label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+        ${allLevers.map(l => {
+          const isActive = init.levers && init.levers[l];
+          const isPrimary = l === init.lever;
+          const leverColors = {'deflection':'#2196F3','aht_reduction':'#FF9800','escalation_reduction':'#9C27B0','cost_reduction':'#4CAF50','shrinkage_reduction':'#00BCD4','repeat_reduction':'#E91E63'};
+          return '<label style="display:flex;align-items:center;gap:4px;font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer;border:1px solid '+(isActive ? leverColors[l]||'#888' : '#ddd')+';background:'+(isActive ? (leverColors[l]||'#888')+'15' : '#fafafa')+';"><input type="checkbox" class="ie_lever_cb" data-lever="'+l+'" '+(isActive?'checked':'')+' '+(isPrimary?'disabled title="Primary lever — always active"':'')+' style="margin:0;">' + l.replace(/_/g,' ') + (isPrimary ? ' ★' : '') + '</label>';
+        }).join('')}
       </div>
     </div>
 
@@ -5977,6 +6334,14 @@ function saveInitEditor(idx) {
   fields.channels = init.channels; // channels may have been toggled via chips
   fields.roles = init.roles;
   
+  // V4.10-#11: Collect multi-lever checkboxes
+  const leverCbs = document.querySelectorAll('.ie_lever_cb');
+  const levers = {};
+  leverCbs.forEach(cb => { if (cb.checked) levers[cb.dataset.lever] = true; });
+  // Ensure primary lever is always included
+  levers[fields.lever] = true;
+  fields.levers = levers;
+  
   // Apply locally
   Object.assign(init, fields);
   closeInitEditor();
@@ -6020,6 +6385,7 @@ function addCustomInitiative() {
     implRisk: 2, cxRisk: 1, opsRisk: 2, overallRisk: 1.7,
     targetBUs: [...DEMO.bus],
     relevanceScore: 100, relevanceReasons: ['Custom initiative — user-defined'],
+    levers: { 'aht_reduction': true },
     _fteImpact: 0, _annualSaving: 0, _linkedQueues: 0
   };
   INITIATIVES.push(newInit);
@@ -6143,7 +6509,7 @@ function openInitLibrary() {
   if (window._libLayer !== 'all') filtered = filtered.filter(i => i.layer === window._libLayer);
   if (window._libSearch) {
     const q = window._libSearch.toLowerCase();
-    filtered = filtered.filter(i => i.name.toLowerCase().includes(q) || i.id.toLowerCase().includes(q) || i.lever.toLowerCase().includes(q));
+    filtered = filtered.filter(i => i.name.toLowerCase().includes(q) || i.id.toLowerCase().includes(q) || i.lever.toLowerCase().includes(q) || (i.levers && Object.keys(i.levers).some(l => l.toLowerCase().includes(q))));
   }
   if (window._libSort === 'relevance') filtered.sort((a,b) => (b.relevanceScore||0) - (a.relevanceScore||0));
   else if (window._libSort === 'impact') filtered.sort((a,b) => b.impact - a.impact);
@@ -6616,6 +6982,13 @@ function renderPage10() {
     <div class="card" style="margin-bottom:16px;">
       <div class="card-title">Channel Migration Flow — Intent Level</div>
       <div style="font-size:11px;color:var(--ey-text-light);margin-bottom:8px;">Derived from ${enabledInits.length} enabled initiatives. Toggle initiatives on Roadmap to update.</div>
+      
+      <!-- V4.11-#12: Sankey / Alluvial Visualization -->
+      ${mergedFlows.length > 0 ? `
+      <div style="margin-bottom:16px;position:relative;">
+        <canvas id="migrationSankey" width="720" height="${Math.max(260, Math.max(new Set(mergedFlows.map(f=>f.from)).size, new Set(mergedFlows.map(f=>f.to)).size) * 52 + 60)}" style="width:100%;max-height:400px;"></canvas>
+      </div>` : ''}
+      
       ${mergedFlows.length > 0 ? `
       <table class="data-table" style="font-size:11px;">
         <thead><tr><th>Intent</th><th>From Channel</th><th>To Channel</th><th>Monthly Volume</th><th>Annual Saving</th></tr></thead>
@@ -6666,6 +7039,204 @@ function renderPage10() {
       </div>
     </div>
   `;
+  // V4.11-#12: Draw migration Sankey after DOM update
+  if (mergedFlows.length > 0) {
+    window._p10MergedFlows = mergedFlows;
+    window._p10ChannelStats = channelStats;
+    setTimeout(() => drawP10MigrationSankey(), 50);
+  }
+}
+
+// V4.11-#12: Canvas Sankey/alluvial diagram for P10 migration flows
+function drawP10MigrationSankey() {
+  const canvas = document.getElementById('migrationSankey');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const flows = window._p10MergedFlows || [];
+  const chStats = window._p10ChannelStats || {};
+  if (flows.length === 0) return;
+
+  // Build left (source) and right (target) node lists
+  const sourceMap = {}, targetMap = {};
+  flows.forEach(f => {
+    sourceMap[f.from] = (sourceMap[f.from] || 0) + f.volume;
+    targetMap[f.to] = (targetMap[f.to] || 0) + f.volume;
+  });
+
+  // Include retained volume on source channels for full-width nodes
+  Object.keys(sourceMap).forEach(ch => {
+    const totalVol = (chStats[ch] || {}).vol || sourceMap[ch];
+    sourceMap[ch] = Math.max(sourceMap[ch], totalVol);
+  });
+
+  const sources = Object.entries(sourceMap).sort((a,b) => b[1] - a[1]);
+  const targets = Object.entries(targetMap).sort((a,b) => b[1] - a[1]);
+  const maxNodeVol = Math.max(...sources.map(s => s[1]), ...targets.map(t => t[1]), 1);
+  const totalMigrated = flows.reduce((s,f) => s + f.volume, 0);
+
+  // Layout parameters
+  const nodeW = 130, padTop = 30, padBot = 20;
+  const usableH = H - padTop - padBot;
+  const leftX = 20, rightX = W - nodeW - 20;
+
+  // Compute node positions with proportional height
+  const totalSourceVol = sources.reduce((s,n) => s + n[1], 0) || 1;
+  const totalTargetVol = targets.reduce((s,n) => s + n[1], 0) || 1;
+  const minNodeH = 28;
+  const nodeGap = 8;
+  const sourceAvailH = usableH - (sources.length - 1) * nodeGap;
+  const targetAvailH = usableH - (targets.length - 1) * nodeGap;
+
+  const sourceNodes = {};
+  let sy = padTop;
+  sources.forEach(([name, vol]) => {
+    const h = Math.max(minNodeH, (vol / totalSourceVol) * sourceAvailH);
+    sourceNodes[name] = { x: leftX, y: sy, w: nodeW, h, vol, name, outOffset: 0 };
+    sy += h + nodeGap;
+  });
+
+  const targetNodes = {};
+  let ty = padTop;
+  targets.forEach(([name, vol]) => {
+    const h = Math.max(minNodeH, (vol / totalTargetVol) * targetAvailH);
+    targetNodes[name] = { x: rightX, y: ty, w: nodeW, h, vol, name, inOffset: 0 };
+    ty += h + nodeGap;
+  });
+
+  // Channel colours
+  const chColors = {
+    'Voice': '#C5003E', 'Email': '#E65100', 'Retail/Walk-in': '#B71C1C',
+    'Chat': '#1A73E8', 'App/Self-Service': '#168736', 'IVR': '#0097A7',
+    'SMS/WhatsApp': '#7B1FA2', 'Social Media': '#00897B'
+  };
+
+  // Sort flows by volume (draw thicker bands last so they're on top)
+  const sortedFlows = [...flows].sort((a,b) => a.volume - b.volume);
+
+  // Draw flow bands
+  const linkMeta = [];
+  sortedFlows.forEach(f => {
+    const s = sourceNodes[f.from], t = targetNodes[f.to];
+    if (!s || !t) return;
+    const bandW = Math.max(2, (f.volume / totalMigrated) * (usableH * 0.6));
+
+    const sy0 = s.y + s.outOffset + bandW / 2;
+    const ty0 = t.y + t.inOffset + bandW / 2;
+    s.outOffset += bandW + 1;
+    t.inOffset += bandW + 1;
+
+    const sx = s.x + s.w, tx = t.x;
+    const cp1x = sx + (tx - sx) * 0.40;
+    const cp2x = sx + (tx - sx) * 0.60;
+
+    // Band with gradient
+    const grad = ctx.createLinearGradient(sx, 0, tx, 0);
+    const sColor = chColors[f.from] || '#C5003E';
+    const tColor = chColors[f.to] || '#1A73E8';
+    grad.addColorStop(0, sColor + '55');
+    grad.addColorStop(1, tColor + '55');
+
+    ctx.beginPath();
+    ctx.moveTo(sx, sy0 - bandW/2);
+    ctx.bezierCurveTo(cp1x, sy0 - bandW/2, cp2x, ty0 - bandW/2, tx, ty0 - bandW/2);
+    ctx.lineTo(tx, ty0 + bandW/2);
+    ctx.bezierCurveTo(cp2x, ty0 + bandW/2, cp1x, sy0 + bandW/2, sx, sy0 + bandW/2);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Volume label on band center
+    if (f.volume > totalMigrated * 0.08) {
+      const midX = (sx + tx) / 2;
+      const midY = (sy0 + ty0) / 2;
+      ctx.fillStyle = '#2E2E38';
+      ctx.font = 'bold 10px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(f.volume.toLocaleString() + '/mo', midX, midY + 3);
+    }
+
+    linkMeta.push({ from: f.from, to: f.to, volume: f.volume, sx, sy: sy0, tx, ty: ty0, bandW });
+  });
+
+  // Draw source nodes (left)
+  Object.values(sourceNodes).forEach(n => {
+    const color = chColors[n.name] || '#2E2E38';
+    // Node bar (with fallback for roundRect compatibility)
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    if (ctx.roundRect) { ctx.roundRect(n.x, n.y, n.w, n.h, 4); } else { ctx.rect(n.x, n.y, n.w, n.h); }
+    ctx.fill();
+    // Label
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(n.name, n.x + n.w / 2, n.y + n.h / 2 - 6);
+    ctx.font = '9px Inter, system-ui, sans-serif';
+    ctx.fillText((n.vol/1000).toFixed(1) + 'K/mo', n.x + n.w / 2, n.y + n.h / 2 + 8);
+  });
+
+  // Draw target nodes (right)
+  Object.values(targetNodes).forEach(n => {
+    const color = chColors[n.name] || '#1A73E8';
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    if (ctx.roundRect) { ctx.roundRect(n.x, n.y, n.w, n.h, 4); } else { ctx.rect(n.x, n.y, n.w, n.h); }
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(n.name, n.x + n.w / 2, n.y + n.h / 2 - 6);
+    ctx.font = '9px Inter, system-ui, sans-serif';
+    ctx.fillText((n.vol/1000).toFixed(1) + 'K absorb', n.x + n.w / 2, n.y + n.h / 2 + 8);
+  });
+
+  // Title
+  ctx.fillStyle = '#2E2E38';
+  ctx.font = 'bold 12px Inter, system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Source Channels', leftX, padTop - 10);
+  ctx.textAlign = 'right';
+  ctx.fillText('Target Channels', rightX + nodeW, padTop - 10);
+  ctx.textAlign = 'center';
+  ctx.font = '10px Inter, system-ui, sans-serif';
+  ctx.fillStyle = '#747480';
+  ctx.fillText(totalMigrated.toLocaleString() + ' contacts/mo migrating', W / 2, padTop - 10);
+
+  // Hover tooltip
+  let tooltip = document.getElementById('migSankeyTip');
+  if (!tooltip) {
+    tooltip = document.createElement('div');
+    tooltip.id = 'migSankeyTip';
+    tooltip.style.cssText = 'position:absolute;display:none;background:#2E2E38;color:#fff;padding:8px 12px;border-radius:6px;font-size:10px;max-width:260px;z-index:100;pointer-events:none;line-height:1.5;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+    canvas.parentElement.appendChild(tooltip);
+  }
+  canvas.onmousemove = function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width, scaleY = H / rect.height;
+    const cx = (e.clientX - rect.left) * scaleX;
+    const cy = (e.clientY - rect.top) * scaleY;
+    let hit = null;
+    for (const lk of linkMeta) {
+      const midX = (lk.sx + lk.tx) / 2, midY = (lk.sy + lk.ty) / 2;
+      if (Math.abs(cx - midX) < 80 && Math.abs(cy - midY) < lk.bandW + 12) { hit = lk; break; }
+    }
+    if (hit) {
+      tooltip.innerHTML = `<strong>${hit.from} → ${hit.to}</strong><br>${hit.volume.toLocaleString()} contacts/mo migrated`;
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
+      tooltip.style.top = (e.clientY - rect.top - 10) + 'px';
+      canvas.style.cursor = 'pointer';
+    } else {
+      tooltip.style.display = 'none';
+      canvas.style.cursor = 'default';
+    }
+  };
+  canvas.onmouseleave = function() { if (tooltip) tooltip.style.display = 'none'; };
 }
 
 function drawChannelSankey() {
@@ -7380,6 +7951,68 @@ function renderPage14() {
       </div>
     </div>
 
+    <!-- ─── V4.6-#17: OPERATIONAL KPI IMPROVEMENT DASHBOARD ─── -->
+    <div class="card" style="margin-bottom:16px;border:2px solid var(--ey-blue);">
+      <div class="card-title">Operational KPI Improvement <span style="font-size:11px;font-weight:400;color:var(--ey-text-light);">Current → Projected → Benchmark with RAG indicators</span></div>
+      ${(() => {
+        const kpis = wf.kpiProjections || {};
+        const kpiOrder = ['AHT','FCR','CSAT','CPC','Escalation','Repeat','CES'];
+        const ragColors = {green:'var(--ey-green)',amber:'var(--ey-amber)',red:'var(--ey-red)'};
+        const ragBg = {green:'var(--ey-green-bg)',amber:'var(--ey-amber-bg)',red:'var(--ey-red-bg)'};
+        if (!Object.keys(kpis).length) return '<div style="color:var(--ey-text-light);padding:12px;">KPI projections not available — run waterfall first.</div>';
+        
+        // Format helpers
+        const fmtKPI = (v, unit, key) => {
+          if (unit === '%') return (v * 100).toFixed(1) + '%';
+          if (unit === '/5') return v.toFixed(2);
+          if (unit === '$') return '$' + v.toFixed(2);
+          if (unit === 'min') return v.toFixed(1) + ' min';
+          return v;
+        };
+        
+        return '<table class="data-table" style="font-size:12px;">' +
+          '<thead><tr>' +
+            '<th>KPI</th><th style="text-align:center;">Current</th><th style="text-align:center;">Projected</th>' +
+            '<th style="text-align:center;">Benchmark</th><th style="text-align:center;">Delta</th>' +
+            '<th style="text-align:center;">Δ%</th><th style="text-align:center;">RAG</th>' +
+            '<th>Top Contributors</th>' +
+          '</tr></thead><tbody>' +
+          kpiOrder.filter(k => kpis[k]).map(k => {
+            const kp = kpis[k];
+            const rc = ragColors[kp.rag] || 'var(--ey-text-light)';
+            const rb = ragBg[kp.rag] || '#f5f5f5';
+            const isGood = (kp.direction === 'higher' && kp.delta > 0) || (kp.direction === 'lower' && kp.delta < 0);
+            const deltaColor = isGood ? 'var(--ey-green)' : 'var(--ey-red)';
+            const deltaArrow = isGood ? '▲' : '▼';
+            const contribs = (kp.contributors || []).slice(0, 3).map(c => c.name.split(' ').slice(0,3).join(' ')).join(', ');
+            return '<tr>' +
+              '<td><strong>' + kp.label + '</strong></td>' +
+              '<td style="text-align:center;">' + fmtKPI(kp.current, kp.unit, k) + '</td>' +
+              '<td style="text-align:center;font-weight:700;color:' + deltaColor + ';">' + fmtKPI(kp.projected, kp.unit, k) + '</td>' +
+              '<td style="text-align:center;color:var(--ey-text-light);font-style:italic;">' + fmtKPI(kp.benchmark, kp.unit, k) + '</td>' +
+              '<td style="text-align:center;color:' + deltaColor + ';font-weight:600;">' + deltaArrow + ' ' + Math.abs(kp.delta < 1 && kp.unit === '%' ? kp.delta * 100 : kp.delta).toFixed(kp.unit === '%' ? 1 : 2) + (kp.unit === '%' ? 'pp' : '') + '</td>' +
+              '<td style="text-align:center;color:' + deltaColor + ';">' + Math.abs(kp.deltaPct).toFixed(1) + '%</td>' +
+              '<td style="text-align:center;"><span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:' + rc + ';"></span></td>' +
+              '<td style="font-size:10px;color:var(--ey-text-light);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (contribs || '<em>Derived</em>') + '</td>' +
+            '</tr>';
+          }).join('') +
+          '</tbody></table>';
+      })()}
+      <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap;">
+        ${(() => {
+          const kpis = wf.kpiProjections || {};
+          const ragColors = {green:'#4CAF50',amber:'#FF9800',red:'#F44336'};
+          const counts = {green:0,amber:0,red:0};
+          Object.values(kpis).forEach(k => counts[k.rag] = (counts[k.rag]||0)+1);
+          return Object.entries(counts).filter(([_,c])=>c>0).map(([rag,ct]) =>
+            '<span style="font-size:11px;padding:4px 10px;border-radius:12px;background:'+ragColors[rag]+'18;color:'+ragColors[rag]+';font-weight:600;">' +
+            ct + ' ' + rag.charAt(0).toUpperCase()+rag.slice(1) + '</span>'
+          ).join('');
+        })()}
+        <span style="font-size:10px;color:var(--ey-text-light);padding:4px 0;">Green = meets/exceeds benchmark | Amber = within 10% | Red = >10% gap</span>
+      </div>
+    </div>
+
     <!-- ─── SITUATION: Where we are today ─── -->
     <div class="card" style="border-left:5px solid var(--ey-blue);margin-bottom:16px;">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ey-blue);margin-bottom:8px;font-weight:700;">Situation — Current State</div>
@@ -7873,7 +8506,8 @@ function renderPage16() {
       desc: 'Same work at lower cost through nearshore, offshore, or WFH models',
       poolKey: 'cost_reduction',
       levers: ['cost_reduction'],
-      isFTE: true,
+      isFTE: false,
+      isDollar: true,  // V4.6-#7: Location = cost saving, not FTE reduction
     },
     {
       name: 'Customer Experience & Retention',
@@ -7892,7 +8526,7 @@ function renderPage16() {
     if (b.poolKey === 'csat_experience') {
       // CSAT bucket: revenue-denominated, not FTE
       const cp = pools['csat_experience'] || {};
-      b.ceiling = cp.ceiling_total_value || 0;
+      b.ceiling = cp.ceiling_total_value || cp.ceiling_revenue || 0;
       b.consumed = cp.consumed_revenue || 0;
       b.remaining = Math.max(0, b.ceiling - b.consumed);
       b.utilPct = b.ceiling > 0 ? Math.min(100, (b.consumed / b.ceiling) * 100) : 0;
@@ -7906,6 +8540,20 @@ function renderPage16() {
       b.initiatives = enabled.filter(i => (i.csatImpact || 0) > 0);
       // CSAT breakdown for worst gaps
       b.csatBreakdown = (cp.breakdown || []).slice(0, 5);
+    } else if (b.isDollar) {
+      // V4.6-#7: Location/Cost Arbitrage — dollar-denominated (cost saving, not FTE reduction)
+      const p = pools[b.poolKey] || pools['location'] || {};
+      b.ceiling = p.ceiling_saving || 0;
+      b.consumed = p.consumed_saving || 0;
+      b.remaining = Math.max(0, b.ceiling - b.consumed);
+      b.utilPct = b.ceiling > 0 ? Math.min(100, (b.consumed / b.ceiling) * 100) : 0;
+      b.migratedFTE = p.ceiling_fte || 0;
+      b.consumedFTE = p.consumed_fte || 0;
+      b.arbitrage = p.cost_arbitrage || 0.35;
+      b.initiatives = enabled.filter(i => b.levers.includes(i.lever));
+      b.topInits = b.initiatives.sort((a,c) => (c._annualSaving||0) - (a._annualSaving||0)).slice(0, 3);
+      totalCeiling += (p.ceiling_fte || 0);  // Use FTE for total summary
+      totalConsumed += (p.consumed_fte || 0);
     } else {
       let ceil = 0, cons = 0;
       b.levers.forEach(lev => {
@@ -7952,10 +8600,10 @@ function renderPage16() {
     <!-- v12-#17: KPI Term Definitions -->
     <div class="card" style="background:var(--ey-light-gray);border:1px solid var(--ey-mid-gray);margin-bottom:16px;padding:10px 16px;">
       <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:10px;color:var(--ey-text);">
-        <div><strong style="color:var(--ey-yellow);">FTE Pool Ceiling</strong> = maximum addressable FTE reduction per bucket (volume × eligibility × feasibility); not all FTE are in scope</div>
-        <div><strong style="color:#4CAF50;">FTE Captured</strong> = FTE reduction from currently enabled initiatives, after pool netting</div>
-        <div><strong style="color:#FF9800;">FTE Untapped</strong> = Pool Ceiling − Captured; remaining opportunity to unlock</div>
-        <div><strong style="color:var(--ey-dark);">FTE Untapped Value</strong> = Untapped FTE × weighted-average cost per FTE (${fmt(wtdCost,'$k')}/FTE)</div>
+        <div><strong style="color:var(--ey-yellow);">Theoretical Ceiling</strong> = maximum addressable FTE reduction per bucket (volume × eligibility × feasibility); not all FTE are in scope or desirable to capture</div>
+        <div><strong style="color:#4CAF50;">FTE Captured</strong> = FTE reduction from currently enabled Phase 1 initiatives, after pool netting</div>
+        <div><strong style="color:rgba(100,100,100,0.8);">Phase 2+ Headroom</strong> = Ceiling − Captured; requires further adoption readiness, CX safeguards, and operational assessment before pursuit</div>
+        <div><strong style="color:var(--ey-dark);">Captured Value</strong> = Captured FTE × weighted-average cost per FTE (${fmt(wtdCost,'$k')}/FTE)</div>
         <div><strong style="color:#00BCD4;">CX Revenue Opp</strong> = revenue at risk from CSAT gap vs benchmark (industry benchmarks: 10% CSAT → 2-3% revenue)</div>
       </div>
     </div>
@@ -7991,15 +8639,18 @@ function renderPage16() {
       <div style="display:flex;align-items:center;gap:16px;">
         <div style="font-size:36px;">📐</div>
         <div style="flex:1;">
-          <div style="font-size:16px;font-weight:800;color:var(--ey-yellow);margin-bottom:4px;">Size the Prize — Total Transformation Opportunity</div>
+          <div style="font-size:16px;font-weight:800;color:var(--ey-yellow);margin-bottom:4px;">Size the Prize — Phase 1 Programme</div>
           <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;">
-            <div><div style="font-size:28px;font-weight:800;color:var(--ey-yellow);">${totalCeiling.toFixed(0)}<span style="font-size:14px;opacity:0.7;"> FTE</span></div><div style="font-size:10px;opacity:0.7;">FTE Pool Ceiling</div></div>
-            <div><div style="font-size:28px;font-weight:800;color:#4CAF50;">${totalConsumed.toFixed(0)}<span style="font-size:14px;opacity:0.7;"> FTE</span></div><div style="font-size:10px;opacity:0.7;">FTE Captured</div></div>
-            <div><div style="font-size:28px;font-weight:800;color:#FF9800;">${totalRemaining.toFixed(0)}<span style="font-size:14px;opacity:0.7;"> FTE</span></div><div style="font-size:10px;opacity:0.7;">FTE Untapped</div></div>
-            <div><div style="font-size:28px;font-weight:800;color:white;">${fmt(totalRemaining * wtdCost, '$m')}<span style="font-size:14px;opacity:0.7;">/yr</span></div><div style="font-size:10px;opacity:0.7;">FTE Untapped Value</div></div>
+            <div><div style="font-size:28px;font-weight:800;color:#4CAF50;">${totalConsumed.toFixed(0)}<span style="font-size:14px;opacity:0.7;"> FTE</span></div><div style="font-size:10px;opacity:0.7;">FTE Captured (Phase 1)</div></div>
+            <div><div style="font-size:28px;font-weight:800;color:#4CAF50;">${fmt(totalConsumed * wtdCost, '$m')}<span style="font-size:14px;opacity:0.7;">/yr</span></div><div style="font-size:10px;opacity:0.7;">Captured Value</div></div>
+            <div><div style="font-size:28px;font-weight:800;color:var(--ey-yellow);">${totalCeiling.toFixed(0)}<span style="font-size:14px;opacity:0.7;"> FTE</span></div><div style="font-size:10px;opacity:0.7;">Theoretical Ceiling</div></div>
+            <div><div style="font-size:28px;font-weight:800;color:rgba(255,255,255,0.5);">${totalRemaining.toFixed(0)}<span style="font-size:14px;opacity:0.7;"> FTE</span></div><div style="font-size:10px;opacity:0.5;">Phase 2+ Headroom</div></div>
             <div style="border-left:2px solid rgba(255,255,255,0.2);padding-left:16px;"><div style="font-size:28px;font-weight:800;color:#00BCD4;">${fmt(csatBucket ? csatBucket.ceiling : 0, '$m')}<span style="font-size:14px;opacity:0.7;">/yr</span></div><div style="font-size:10px;opacity:0.7;">CX Revenue Opportunity</div></div>
           </div>
         </div>
+      </div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.15);font-size:10px;opacity:0.7;line-height:1.6;">
+        <strong style="color:var(--ey-yellow);">Why not 100% capture?</strong> Pool ceilings represent mathematical maximums before CX safeguards, realistic adoption curves, and service continuity requirements. Phase 1 targets the highest-confidence initiatives; Phase 2+ headroom requires deeper operational readiness assessment.
       </div>
     </div>
 
@@ -8050,7 +8701,7 @@ function renderPage16() {
                 </div>
                 <div style="background:#FF980015;padding:6px;border-radius:4px;text-align:center;">
                   <div style="font-weight:800;color:#FF9800;">${fmt(b.remaining,'$m')}/yr</div>
-                  <div style="font-size:9px;color:var(--ey-text-light);">Untapped Value</div>
+                  <div style="font-size:9px;color:var(--ey-text-light);">Phase 2+ Headroom</div>
                 </div>
               </div>
               ${b.retainedCustomers > 0 ? '<div style="margin-top:6px;font-size:10px;color:var(--ey-text-light);">Retained customers: <strong>' + b.retainedCustomers.toLocaleString() + '</strong>/yr via churn reduction</div>' : ''}
@@ -8079,6 +8730,49 @@ function renderPage16() {
       </div>
     </div>`;
       }
+      // V4.6-#7: Location / Dollar-denominated bucket (cost arbitrage, not FTE reduction)
+      if (b.isDollar) {
+        return `
+    <div class="card" style="border-left:4px solid ${b.color};margin-bottom:12px;">
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="font-size:28px;">${b.icon}</div>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <div style="font-size:14px;font-weight:800;">${b.name}</div>
+            <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${b.color}22;color:${b.color};font-weight:600;">${b.initiatives.length} initiatives</span>
+            <span style="font-size:9px;padding:2px 6px;border-radius:10px;background:#4CAF5022;color:#4CAF50;font-weight:600;">Cost arbitrage — ${Math.round((b.arbitrage||0.35)*100)}% saving per migrated FTE</span>
+          </div>
+          <div style="font-size:11px;color:var(--ey-text-light);margin-bottom:8px;">${b.desc}</div>
+          
+          <div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;">
+            <div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;">
+                <div><div style="font-size:18px;font-weight:800;color:${b.color};">${fmt(b.ceiling,'$m')}</div><div style="font-size:9px;color:var(--ey-text-light);">Pool Ceiling (Saving)</div></div>
+                <div><div style="font-size:18px;font-weight:800;color:var(--ey-green);">${fmt(b.consumed,'$m')}</div><div style="font-size:9px;color:var(--ey-text-light);">Captured Saving</div></div>
+                <div><div style="font-size:18px;font-weight:800;color:var(--ey-text-light);">${(b.migratedFTE||0).toFixed(0)}</div><div style="font-size:9px;color:var(--ey-text-light);">Migratable FTE</div></div>
+                <div><div style="font-size:18px;font-weight:800;">${fmt(b.remaining,'$m')}</div><div style="font-size:9px;color:var(--ey-text-light);">Phase 2+ Headroom</div></div>
+              </div>
+              <div style="margin-top:8px;background:var(--ey-border);border-radius:4px;height:16px;overflow:hidden;">
+                <div style="background:${b.color};height:100%;width:${b.utilPct}%;border-radius:4px;"></div>
+              </div>
+              <div style="font-size:9px;color:var(--ey-text-light);margin-top:2px;">${b.utilPct.toFixed(0)}% captured — ${fmt(b.consumed,'$k')} of ${fmt(b.ceiling,'$k')}/yr</div>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;margin-bottom:4px;">Top Contributors</div>
+              ${b.topInits.length > 0 ? b.topInits.map((init, idx) => `
+                <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--ey-border);font-size:10px;">
+                  <span style="font-weight:700;color:${b.color};">${idx+1}.</span>
+                  <span style="flex:1;">${init.name}</span>
+                  <span style="font-weight:700;color:var(--ey-green);">${fmt(init._annualSaving||0,'$k')}/yr</span>
+                  <span style="color:var(--ey-text-light);">${(init._poolConsumed||0).toFixed(0)} FTE migrated</span>
+                </div>
+              `).join('') : '<div style="font-size:10px;color:var(--ey-text-light);font-style:italic;">No location initiatives enabled</div>'}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+      }
       // ── Standard FTE bucket ──
       return `
     <div class="card" style="border-left:4px solid ${b.color};margin-bottom:12px;">
@@ -8096,8 +8790,8 @@ function renderPage16() {
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;">
                 <div><div style="font-size:18px;font-weight:800;color:${b.color};">${b.ceiling.toFixed(0)}</div><div style="font-size:9px;color:var(--ey-text-light);">Pool Ceiling (FTE)</div></div>
                 <div><div style="font-size:18px;font-weight:800;color:var(--ey-green);">${b.consumed.toFixed(0)}</div><div style="font-size:9px;color:var(--ey-text-light);">Captured (FTE)</div></div>
-                <div><div style="font-size:18px;font-weight:800;color:var(--ey-amber);">${b.remaining.toFixed(0)}</div><div style="font-size:9px;color:var(--ey-text-light);">Untapped (FTE)</div></div>
-                <div><div style="font-size:18px;font-weight:800;">${fmt(b.remaining * wtdCost, '$k')}</div><div style="font-size:9px;color:var(--ey-text-light);">Untapped Value</div></div>
+                <div><div style="font-size:18px;font-weight:800;color:var(--ey-text-light);">${b.remaining.toFixed(0)}</div><div style="font-size:9px;color:var(--ey-text-light);">Phase 2+ Headroom</div></div>
+                <div><div style="font-size:18px;font-weight:800;">${fmt(b.remaining * wtdCost, '$k')}</div><div style="font-size:9px;color:var(--ey-text-light);">Headroom Value</div></div>
               </div>
               <div style="margin-top:8px;background:var(--ey-border);border-radius:4px;height:16px;overflow:hidden;">
                 <div style="background:${b.color};height:100%;width:${b.utilPct}%;border-radius:4px;"></div>
@@ -8901,6 +9595,11 @@ function renderPage20() {
       ]
     };
   }
+  // V4.9-#10: Store baseline location mix once at init so slider comparisons are stable
+  if (!window._baselineLocMix) {
+    window._baselineLocMix = { onshore: currOnsh, nearshore: currNear, offshore: currOff };
+  }
+  const baseline = window._baselineLocMix;
   const tgt = window._targetOpModel;
   tgt.offshore = Math.max(0, 100 - tgt.onshore - tgt.nearshore);
 
@@ -8910,12 +9609,38 @@ function renderPage20() {
   const gapFTE = futureFTE; // same headcount, different cost structure
   const tierColors = ['var(--ey-purple)', 'var(--ey-blue)', 'var(--ey-amber)', 'var(--ey-red)'];
 
-  // Find which Location Strategy initiatives are needed
+  // V4.9-#10: Initiative metadata for location direction matching
+  // Each LS initiative declares which location direction it supports
+  const _locInitMeta = {
+    'LS01': { direction: 'nearshore_increase', desc: 'Nearshore hub build-out' },
+    'LS02': { direction: 'offshore_increase', desc: 'Offshore expansion' },
+    'LS03': { direction: 'cost_reduction_general', desc: 'WFH cost arbitrage — location-neutral' },
+    'LS04': { direction: 'offshore_increase', desc: 'BPO — typically offshore/nearshore partners' },
+    'LS05': { direction: 'offshore_increase', desc: 'Gig model — typically low-cost locations' },
+    'LS06': { direction: 'onshore_consolidation', desc: 'Shared services consolidation' },
+    'LS07': { direction: 'onshore_consolidation', desc: 'Site consolidation — reduce onshore footprint' },
+    'LS08': { direction: 'offshore_increase', desc: 'Follow-the-sun requires offshore presence' },
+    'LS09': { direction: 'nearshore_increase', desc: 'Regional language hubs — nearshore' },
+    'LS10': { direction: 'cost_reduction_general', desc: 'Automation CoE — location-neutral' },
+    'LS11': { direction: 'cost_reduction_general', desc: 'Cloud migration — location-neutral' },
+    'LS12': { direction: 'cost_reduction_general', desc: 'Vendor rationalisation — location-neutral' },
+  };
+
+  // Find which Location Strategy initiatives are needed using metadata + baseline comparison
   const locInits = (INITIATIVES||[]).filter(i => i.layer === 'Location Strategy');
   const neededInits = locInits.filter(i => {
-    if (tgt.offshore > currOff + 5 && i.name.toLowerCase().includes('offshore')) return true;
-    if (tgt.nearshore > currNear + 5 && i.name.toLowerCase().includes('nearshore')) return true;
-    if (tgt.onshore < currOnsh - 10 && i.name.toLowerCase().includes('migration')) return true;
+    const meta = _locInitMeta[i.id];
+    if (!meta) return false;
+    const dir = meta.direction;
+    // Compare target vs stored baseline (not re-computed current which drifts)
+    const offDelta = tgt.offshore - baseline.offshore;
+    const nearDelta = tgt.nearshore - baseline.nearshore;
+    const onDelta = tgt.onshore - baseline.onshore;
+    if (dir === 'offshore_increase' && offDelta > 3) return true;
+    if (dir === 'nearshore_increase' && nearDelta > 3) return true;
+    if (dir === 'onshore_consolidation' && onDelta < -5) return true;
+    // General cost reduction initiatives needed if any meaningful location shift occurs
+    if (dir === 'cost_reduction_general' && (Math.abs(offDelta) > 5 || Math.abs(nearDelta) > 5)) return true;
     return false;
   });
 
@@ -9008,16 +9733,21 @@ function renderPage20() {
       </div>
       <div style="font-size:11px;color:var(--ey-text-light);margin-bottom:8px;">Location Strategy initiatives linked to your target model. Use Auto-Enable to activate initiatives flagged as needed and trigger a full recalculation.</div>
       <table class="data-table" style="font-size:11px;">
-        <thead><tr><th>Initiative</th><th>Layer</th><th>Status</th><th>Start</th><th>Ramp</th><th>Annual Saving</th><th>Rationale</th></tr></thead>
+        <thead><tr><th>Initiative</th><th>Layer</th><th>Direction</th><th>Status</th><th>Start</th><th>Ramp</th><th>Annual Saving</th><th>Rationale</th></tr></thead>
         <tbody>
-          ${locInits.map(i => '<tr style="background:'+(neededInits.includes(i)?'#FFF8E1':'')+';">' +
+          ${locInits.map(i => {
+            const meta = _locInitMeta[i.id] || {};
+            const dirLabel = (meta.direction||'').replace(/_/g,' ');
+            const dirColor = {'nearshore_increase':'#D97706','offshore_increase':'#168736','onshore_consolidation':'#1A73E8','cost_reduction_general':'#747480'}[meta.direction||''] || '#888';
+            return '<tr style="background:'+(neededInits.includes(i)?'#FFF8E1':'')+';">' +
             '<td><strong>' + i.id + '</strong> ' + i.name + '</td>' +
             '<td><span class="badge badge-low">' + i.layer + '</span></td>' +
+            '<td><span style="font-size:9px;padding:2px 6px;border-radius:8px;background:' + dirColor + '15;color:' + dirColor + ';font-weight:600;">' + dirLabel + '</span></td>' +
             '<td>' + (i.enabled ? '<span style="color:var(--ey-green);font-weight:700;">✅ Enabled</span>' : '<span style="color:#E65100;font-weight:700;">Not enabled</span>') + '</td>' +
             '<td>M' + i.startMonth + '</td><td>' + i.ramp + 'mo</td>' +
             '<td style="font-weight:600;color:var(--ey-green);">' + ((i._annualSaving||0) > 0 ? fmt(i._annualSaving,'$k') + '/yr' : '—') + '</td>' +
-            '<td style="font-size:10px;">' + (neededInits.includes(i) ? '<span style="background:#FFF3CD;color:#B45309;padding:1px 6px;border-radius:4px;font-weight:700;">⚠ Needed for target mix</span>' : '<span style="color:var(--ey-text-light);">Available</span>') + '</td></tr>'
-          ).join('') || '<tr><td colspan="7" style="color:var(--ey-text-light);">No Location Strategy initiatives in roadmap</td></tr>'}
+            '<td style="font-size:10px;">' + (neededInits.includes(i) ? '<span style="background:#FFF3CD;color:#B45309;padding:1px 6px;border-radius:4px;font-weight:700;">⚠ Needed for target mix</span>' : '<span style="color:var(--ey-text-light);">Available</span>') + '</td></tr>';
+          }).join('') || '<tr><td colspan="8" style="color:var(--ey-text-light);">No Location Strategy initiatives in roadmap</td></tr>'}
         </tbody>
       </table>
     </div>
@@ -9028,8 +9758,9 @@ function renderPage20() {
         <div style="font-size:28px;">💡</div>
         <div style="font-size:12px;line-height:1.6;">
           <div style="font-weight:800;font-size:14px;margin-bottom:4px;">Operating Model Recommendation</div>
-          Shift from current ${currOnsh.toFixed(0)}/${currNear.toFixed(0)}/${currOff.toFixed(0)} (On/Near/Off) to
-          <strong>${tgt.onshore}/${tgt.nearshore}/${tgt.offshore}</strong> target.
+          Shift from baseline ${baseline.onshore.toFixed(0)}/${baseline.nearshore.toFixed(0)}/${baseline.offshore.toFixed(0)} (On/Near/Off) to
+          <strong>${tgt.onshore}/${tgt.nearshore}/${tgt.offshore}</strong> target
+          (Δ ${tgt.onshore - baseline.onshore > 0 ? '+' : ''}${(tgt.onshore - baseline.onshore).toFixed(0)}/${tgt.nearshore - baseline.nearshore > 0 ? '+' : ''}${(tgt.nearshore - baseline.nearshore).toFixed(0)}/${tgt.offshore - baseline.offshore > 0 ? '+' : ''}${(tgt.offshore - baseline.offshore).toFixed(0)}pp).
           Combined with ${reduction.toFixed(0)} FTE reduction, this delivers
           <strong>${fmt(reduction * currentBlended + locationSaving,'$m')}/yr</strong> total savings.
           ${neededInits.length > 0 ? '<br><strong>' + neededInits.length + ' initiative(s)</strong> need enabling: ' + neededInits.map(i=>i.id).join(', ') + '.' : ''}
@@ -9274,14 +10005,34 @@ function renderPage21() {
   h += '<div class="card" style="padding:20px;margin-bottom:16px;border-left:4px solid #9C27B0;">';
   h += '<h3 style="font-size:15px;font-weight:700;color:var(--ey-dark);margin-bottom:4px;">Custom Scenario Builder</h3>';
   h += '<div style="font-size:11px;color:var(--ey-text-light);margin-bottom:12px;">Select a subset of initiatives to create your own scenario. Click "Apply" to add it to the comparison above.</div>';
-  h += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">';
-  h += '<button onclick="enabled.forEach(i=>{window._customScenario.selected.add(i.id)});renderPage21();" style="padding:4px 12px;border:1px solid var(--ey-mid-gray);border-radius:4px;background:white;font-size:11px;cursor:pointer;">Select All</button>';
-  h += '<button onclick="window._customScenario.selected.clear();renderPage21();" style="padding:4px 12px;border:1px solid var(--ey-mid-gray);border-radius:4px;background:white;font-size:11px;cursor:pointer;">Clear All</button>';
-  // Layer quick-selects
+  // CR-014 fix: Register global handlers so onclick attributes work correctly
+  // (avoids JSON.stringify double-quote escaping issue and local-var scope loss)
+  window._scenarioSelectAll = function() {
+    enabled.forEach(i => { window._customScenario.selected.add(i.id); });
+    renderPage21();
+  };
+  window._scenarioClearAll = function() {
+    window._customScenario.selected.clear();
+    renderPage21();
+  };
   const layers = [...new Set(enabled.map(i => i.layer))];
+  // Store layer→IDs mapping on window for button access
+  window._scenarioLayerIds = {};
   layers.forEach(layer => {
-    const layerInits = enabled.filter(i => i.layer === layer);
-    h += '<button onclick="'+JSON.stringify(layerInits.map(i=>i.id))+'.forEach(id=>window._customScenario.selected.add(id));renderPage21();" style="padding:4px 12px;border:1px solid var(--ey-mid-gray);border-radius:4px;background:white;font-size:11px;cursor:pointer;">+ '+layer+'</button>';
+    window._scenarioLayerIds[layer] = enabled.filter(i => i.layer === layer).map(i => i.id);
+  });
+  window._scenarioAddLayer = function(layer) {
+    (window._scenarioLayerIds[layer] || []).forEach(id => window._customScenario.selected.add(id));
+    renderPage21();
+  };
+
+  h += '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">';
+  h += '<button onclick="_scenarioSelectAll()" style="padding:4px 12px;border:1px solid var(--ey-mid-gray);border-radius:4px;background:white;font-size:11px;cursor:pointer;">Select All</button>';
+  h += '<button onclick="_scenarioClearAll()" style="padding:4px 12px;border:1px solid var(--ey-mid-gray);border-radius:4px;background:white;font-size:11px;cursor:pointer;">Clear All</button>';
+  // Layer quick-selects
+  layers.forEach(layer => {
+    const safeLayer = layer.replace(/'/g, "\\'");
+    h += '<button onclick="_scenarioAddLayer(\''+safeLayer+'\')" style="padding:4px 12px;border:1px solid var(--ey-mid-gray);border-radius:4px;background:white;font-size:11px;cursor:pointer;">+ '+layer+'</button>';
   });
   h += '</div>';
 
