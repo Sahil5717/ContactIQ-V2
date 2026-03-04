@@ -2148,7 +2148,7 @@ function renderPage1() {
           const kp = kpis[k]; if (!kp) return '';
           const rc = ragColors[kp.rag] || '#666';
           const isGood = (kp.direction === 'higher' && kp.delta > 0) || (kp.direction === 'lower' && kp.delta < 0);
-          const arrow = isGood ? '▲' : '▼';
+          const arrow = kp.delta >= 0 ? '▲' : '▼';  // V4.12: arrow = direction, color = good/bad
           const dc = isGood ? '#4CAF50' : '#F44336';
           const fv = (v, u) => u === '%' ? (v*100).toFixed(1)+'%' : u === '/5' ? v.toFixed(2) : u === '$' ? '$'+v.toFixed(2) : v.toFixed(1)+(u==='min'?' min':'');
           return '<div style="text-align:center;padding:6px 4px;background:white;border-radius:6px;border-left:3px solid '+rc+';">' +
@@ -2301,44 +2301,75 @@ function renderPage1() {
       </div>
     </div>
 
-    <!-- (7) Recommended Path — Top 10 balanced across all 3 layers + rationale -->
-    <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div class="card-title" style="margin:0;">Resolution — Top 10 Priority Initiatives</div>
-        <div style="display:flex;gap:8px;">
-          ${Object.entries(layerCounts).map(([layer,ct]) =>
-            '<span style="font-size:10px;padding:3px 10px;border-radius:12px;background:'+layerBg[layer]+';color:'+layerColors[layer]+';font-weight:600;">'+layer.split(' ')[0]+': '+ct+'</span>'
-          ).join('')}
+    <!-- (7) V4.12: Before & After Transformation View -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title" style="margin-bottom:12px;">Transformation Impact — Before & After</div>
+      <div style="display:grid;grid-template-columns:1fr 40px 1fr;gap:0;align-items:stretch;">
+        <!-- BEFORE (Current State) -->
+        <div style="background:#FFF5F5;border-radius:10px 0 0 10px;padding:16px;border:1px solid #FFCDD2;border-right:none;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ey-red);font-weight:700;margin-bottom:12px;">Current State</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div><div style="font-size:9px;color:var(--ey-text-light);text-transform:uppercase;">Headcount</div><div style="font-size:18px;font-weight:800;color:var(--ey-dark);">${fmt(DEMO.totalFTE,'int')}</div><div style="font-size:9px;color:var(--ey-text-light);">FTE</div></div>
+            <div><div style="font-size:9px;color:var(--ey-text-light);text-transform:uppercase;">Annual Cost</div><div style="font-size:18px;font-weight:800;color:var(--ey-dark);">${fmt(annualBaseCost,'$m')}</div><div style="font-size:9px;color:var(--ey-text-light);">/yr</div></div>
+            ${(() => {
+              const kpis = WATERFALL.kpiProjections || {};
+              const items = [
+                { key: 'AHT', label: 'AHT' }, { key: 'FCR', label: 'FCR' },
+                { key: 'CSAT', label: 'CSAT' }, { key: 'CPC', label: 'CPC' },
+                { key: 'Escalation', label: 'Escalation' }, { key: 'CES', label: 'CES' },
+              ];
+              const fv = (v, u) => u === '%' ? (v*100).toFixed(1)+'%' : u === '/5' ? v.toFixed(2) : u === '$' ? '$'+v.toFixed(2) : v.toFixed(1)+(u==='min'?' min':'');
+              return items.map(it => {
+                const kp = kpis[it.key];
+                if (!kp) return '';
+                return '<div><div style="font-size:9px;color:var(--ey-text-light);text-transform:uppercase;">'+it.label+'</div><div style="font-size:15px;font-weight:700;color:var(--ey-dark);">'+fv(kp.current, kp.unit)+'</div></div>';
+              }).join('');
+            })()}
+          </div>
+        </div>
+        <!-- ARROW -->
+        <div style="display:flex;align-items:center;justify-content:center;background:linear-gradient(90deg,#FFF5F5,#F0FFF4);z-index:1;">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--ey-green);color:white;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,0.15);">→</div>
+        </div>
+        <!-- AFTER (Projected State) -->
+        <div style="background:#F0FFF4;border-radius:0 10px 10px 0;padding:16px;border:1px solid #C8E6C9;border-left:none;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ey-green);font-weight:700;margin-bottom:12px;">Projected State</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div><div style="font-size:9px;color:var(--ey-text-light);text-transform:uppercase;">Headcount</div><div style="font-size:18px;font-weight:800;color:var(--ey-green);">${fmt(DEMO.totalFTE - projFTEReduction,'int')}</div><div style="font-size:9px;color:var(--ey-green);font-weight:600;">↓ ${projFTEReduction} FTE</div></div>
+            <div><div style="font-size:9px;color:var(--ey-text-light);text-transform:uppercase;">Annual Cost</div><div style="font-size:18px;font-weight:800;color:var(--ey-green);">${fmt(annualBaseCost - projSavings,'$m')}</div><div style="font-size:9px;color:var(--ey-green);font-weight:600;">↓ ${fmt(projSavings,'$m')}/yr</div></div>
+            ${(() => {
+              const kpis = WATERFALL.kpiProjections || {};
+              const items = [
+                { key: 'AHT', label: 'AHT' }, { key: 'FCR', label: 'FCR' },
+                { key: 'CSAT', label: 'CSAT' }, { key: 'CPC', label: 'CPC' },
+                { key: 'Escalation', label: 'Escalation' }, { key: 'CES', label: 'CES' },
+              ];
+              const ragColors = {green:'var(--ey-green)',amber:'var(--ey-amber)',red:'var(--ey-red)'};
+              const fv = (v, u) => u === '%' ? (v*100).toFixed(1)+'%' : u === '/5' ? v.toFixed(2) : u === '$' ? '$'+v.toFixed(2) : v.toFixed(1)+(u==='min'?' min':'');
+              return items.map(it => {
+                const kp = kpis[it.key];
+                if (!kp) return '';
+                const isGood = (kp.direction === 'higher' && kp.delta > 0) || (kp.direction === 'lower' && kp.delta < 0);
+                const dc = isGood ? 'var(--ey-green)' : 'var(--ey-red)';
+                const rc = ragColors[kp.rag] || '#888';
+                return '<div><div style="font-size:9px;color:var(--ey-text-light);text-transform:uppercase;">'+it.label+' <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+rc+';vertical-align:middle;"></span></div><div style="font-size:15px;font-weight:700;color:'+dc+';">'+fv(kp.projected, kp.unit)+'</div></div>';
+              }).join('');
+            })()}
+          </div>
         </div>
       </div>
-      <div class="table-wrap"><table class="data-table" style="font-size:11px;">
-        <thead><tr><th>#</th><th>Initiative</th><th>Layer</th><th>Lever</th><th>Annual Saving</th><th>Why Top 10</th></tr></thead>
-        <tbody>
-          ${top10Inits.map((init,i) => {
-            // Build rationale based on which diagnostic signals this init addresses
-            const lever = init.lever||'';
-            let reason = '';
-            if (lever.includes('aht') && themeMap['AHT']) reason = 'Closes AHT gap across '+themeMap['AHT'].queues.length+' queues';
-            else if (lever.includes('fcr') || lever.includes('repeat')) reason = 'Addresses FCR/repeat contact driver';
-            else if (lever.includes('deflection') || lever.includes('self_service')) reason = 'Deflects volume from high-cost channels';
-            else if (lever.includes('cost') || init.layer === 'Location Strategy') reason = 'Structural cost reduction via location/model';
-            else if (lever.includes('escalation')) reason = 'Reduces escalation friction on red queues';
-            else reason = 'Cross-cutting '+init.layer.toLowerCase()+' improvement';
-            return `<tr style="cursor:pointer;" onclick="openInitEditor(${INITIATIVES.indexOf(init)})">
-              <td style="font-weight:700;color:var(--ey-text-light);">${i+1}</td>
-              <td><strong>${init.id}</strong> — ${init.name}</td>
-              <td><span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:10px;background:${layerBg[init.layer]};color:${layerColors[init.layer]};font-weight:600;">${init.layer}</span></td>
-              <td style="font-size:10px;">${(() => {
-                const lc = {'deflection':'#2196F3','aht_reduction':'#FF9800','escalation_reduction':'#9C27B0','cost_reduction':'#4CAF50','shrinkage_reduction':'#00BCD4','repeat_reduction':'#E91E63'};
-                const al = init.levers ? Object.keys(init.levers).filter(l => init.levers[l]) : [init.lever];
-                return al.map(l => '<span style="padding:1px 4px;border-radius:3px;font-size:8px;background:'+(lc[l]||'#888')+'18;color:'+(lc[l]||'#888')+';font-weight:600;">'+(l===init.lever?'★ ':'')+l.replace(/_/g,' ').substring(0,12)+'</span>').join(' ');
-              })()}</td>
-              <td style="font-weight:700;color:var(--ey-green);">${fmt(init._annualSaving,'$k')}/yr</td>
-              <td style="font-size:10px;color:var(--ey-text-light);">${reason}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table></div>
+      <!-- Compact initiative summary by layer -->
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+        ${Object.entries(layerCounts).map(([layer,ct]) => {
+          const layerInits = top10Inits.filter(i => i.layer === layer);
+          const layerSav = layerInits.reduce((s,i) => s + (i._annualSaving||0), 0);
+          return '<div style="flex:1;min-width:200px;padding:10px;border-radius:8px;background:'+layerBg[layer]+';border:1px solid '+layerColors[layer]+'25;">' +
+            '<div style="font-size:10px;font-weight:700;color:'+layerColors[layer]+';text-transform:uppercase;letter-spacing:0.5px;">'+layer+'</div>' +
+            '<div style="font-size:16px;font-weight:800;color:var(--ey-dark);">'+fmt(layerSav,'$k')+'/yr</div>' +
+            '<div style="font-size:10px;color:var(--ey-text-light);margin-top:2px;">'+ct+' initiatives: '+layerInits.map(i=>i.id).join(', ')+'</div>' +
+          '</div>';
+        }).join('')}
+      </div>
     </div>
 
     <!-- (8) Year-over-Year Projection -->
@@ -4434,7 +4465,10 @@ function runWaterfall() {
       if (sl === lever) return; // primary already accumulated
       const slKey = `${sl}_${complexBand}`;
       if (!leverAccum[slKey]) leverAccum[slKey] = 0;
-      // Secondary lever accumulation at 50% weight (matching backend SECONDARY_WEIGHT)
+      // Secondary lever accumulation at 50% weight (backend SECONDARY_WEIGHT = 0.50 in waterfall.py).
+      // NOTE: Frontend applies weight to saturation accumulation rate; backend applies it as
+      // a cap on net FTE (sec_net ≤ abs_cap × SECONDARY_WEIGHT). Slight divergence when
+      // frontend fallback runs — see A-06 banner for user visibility.
       const secImpact = sl === 'aht_reduction' ? Math.abs(init.ahtImpact || 0)
                        : sl === 'repeat_reduction' ? (init.fcrImpact || 0)
                        : init.impact * 0.3;
@@ -6363,6 +6397,9 @@ function saveInitEditor(idx) {
     console.log(`[OK] Initiative ${init.id} saved to backend`);
   }).catch(err => {
     console.warn('Backend save failed, using client fallback:', err);
+    // A-06 fix: Surface that frontend approximate engine is running
+    const toast = document.getElementById('dmToast');
+    if (toast) { toast.textContent = '⚠ Using simplified calculation — server unavailable'; toast.style.display = 'block'; toast.style.background = '#C5003E'; setTimeout(() => toast.style.display = 'none', 4000); }
     recalculateAll();
   });
 }
@@ -6986,7 +7023,7 @@ function renderPage10() {
       <!-- V4.11-#12: Sankey / Alluvial Visualization -->
       ${mergedFlows.length > 0 ? `
       <div style="margin-bottom:16px;position:relative;">
-        <canvas id="migrationSankey" width="720" height="${Math.max(260, Math.max(new Set(mergedFlows.map(f=>f.from)).size, new Set(mergedFlows.map(f=>f.to)).size) * 52 + 60)}" style="width:100%;max-height:400px;"></canvas>
+        <canvas id="migrationSankey" width="720" height="${Math.max(260, Math.max(new Set(mergedFlows.map(f=>f.from)).size, new Set(mergedFlows.map(f=>f.to)).size) * 52 + 60)}" style="width:100%;"></canvas>
       </div>` : ''}
       
       ${mergedFlows.length > 0 ? `
@@ -7107,9 +7144,14 @@ function drawP10MigrationSankey() {
   });
 
   // Channel colours
+  // A-14 fix: Channel colors for canvas (can't use CSS vars directly).
+  // Cross-reference: Voice=var(--ey-red), Chat=var(--ey-blue), App=var(--ey-green), IVR=var(--ey-teal)
+  // If CSS variables are updated during rebrand, update these hex values to match.
+  const _cs = getComputedStyle(document.documentElement);
+  const _cv = (v, fb) => { const c = _cs.getPropertyValue(v).trim(); return c || fb; };
   const chColors = {
-    'Voice': '#C5003E', 'Email': '#E65100', 'Retail/Walk-in': '#B71C1C',
-    'Chat': '#1A73E8', 'App/Self-Service': '#168736', 'IVR': '#0097A7',
+    'Voice': _cv('--ey-red', '#C5003E'), 'Email': _cv('--ey-orange', '#E65100'), 'Retail/Walk-in': '#B71C1C',
+    'Chat': _cv('--ey-blue', '#1A73E8'), 'App/Self-Service': _cv('--ey-green', '#168736'), 'IVR': _cv('--ey-teal', '#0097A7'),
     'SMS/WhatsApp': '#7B1FA2', 'Social Media': '#00897B'
   };
 
@@ -7215,15 +7257,24 @@ function drawP10MigrationSankey() {
     tooltip.style.cssText = 'position:absolute;display:none;background:#2E2E38;color:#fff;padding:8px 12px;border-radius:6px;font-size:10px;max-width:260px;z-index:100;pointer-events:none;line-height:1.5;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
     canvas.parentElement.appendChild(tooltip);
   }
+  // A-09 fix: Store band paths for accurate hit testing
   canvas.onmousemove = function(e) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = W / rect.width, scaleY = H / rect.height;
     const cx = (e.clientX - rect.left) * scaleX;
     const cy = (e.clientY - rect.top) * scaleY;
     let hit = null;
+    // Test each band path using canvas isPointInPath for bezier accuracy
     for (const lk of linkMeta) {
-      const midX = (lk.sx + lk.tx) / 2, midY = (lk.sy + lk.ty) / 2;
-      if (Math.abs(cx - midX) < 80 && Math.abs(cy - midY) < lk.bandW + 12) { hit = lk; break; }
+      const path = new Path2D();
+      const cp1x = lk.sx + (lk.tx - lk.sx) * 0.40;
+      const cp2x = lk.sx + (lk.tx - lk.sx) * 0.60;
+      path.moveTo(lk.sx, lk.sy - lk.bandW/2);
+      path.bezierCurveTo(cp1x, lk.sy - lk.bandW/2, cp2x, lk.ty - lk.bandW/2, lk.tx, lk.ty - lk.bandW/2);
+      path.lineTo(lk.tx, lk.ty + lk.bandW/2);
+      path.bezierCurveTo(cp2x, lk.ty + lk.bandW/2, cp1x, lk.sy + lk.bandW/2, lk.sx, lk.sy + lk.bandW/2);
+      path.closePath();
+      if (ctx.isPointInPath(path, cx, cy)) { hit = lk; break; }
     }
     if (hit) {
       tooltip.innerHTML = `<strong>${hit.from} → ${hit.to}</strong><br>${hit.volume.toLocaleString()} contacts/mo migrated`;
@@ -7983,7 +8034,8 @@ function renderPage14() {
             const rb = ragBg[kp.rag] || '#f5f5f5';
             const isGood = (kp.direction === 'higher' && kp.delta > 0) || (kp.direction === 'lower' && kp.delta < 0);
             const deltaColor = isGood ? 'var(--ey-green)' : 'var(--ey-red)';
-            const deltaArrow = isGood ? '▲' : '▼';
+            // V4.12 fix: Arrow shows direction of actual change, color shows good/bad
+            const deltaArrow = kp.delta >= 0 ? '▲' : '▼';
             const contribs = (kp.contributors || []).slice(0, 3).map(c => c.name.split(' ').slice(0,3).join(' ')).join(', ');
             return '<tr>' +
               '<td><strong>' + kp.label + '</strong></td>' +
@@ -8626,11 +8678,28 @@ function renderPage16() {
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">
         ${(DEMO.roles||[]).map(r => {
-          const inScope = Math.min(r.headcount, r.headcount * (PER_ROLE_MAX_REDUCTION||0.5));
+          // V4.12 fix: Per-role addressability rates based on automation & transformation potential
+          const roleAddressability = {
+            'Agent L1': 0.65, 'Agent L1 / Frontline': 0.65,
+            'Agent L2 / Specialist': 0.45,
+            'Agent L3 / Expert': 0.25,
+            'Back-Office / Processing': 0.60,
+            'Supervisor / Team Lead': 0.30,
+            'QA Analyst': 0.40,
+            'Trainer': 0.20,
+            'WFM Analyst': 0.25,
+            'Reporting / Analytics': 0.35,
+            'Knowledge Manager': 0.30,
+          };
+          // Match role name (partial match for flexibility)
+          const rateKey = Object.keys(roleAddressability).find(k => r.role.includes(k) || k.includes(r.role));
+          const rate = rateKey ? roleAddressability[rateKey] : PER_ROLE_MAX_REDUCTION;
+          const inScope = Math.round(r.headcount * rate);
+          const protectedFTE = r.headcount - inScope;
           return '<div style="font-size:10px;padding:4px 10px;border-radius:6px;background:var(--ey-light-gray);border:1px solid var(--ey-mid-gray);">' +
             '<strong>' + r.role + '</strong>: ' + r.headcount + ' FTE, ' +
-            '<span style="color:var(--ey-green);">' + inScope.toFixed(0) + ' addressable</span>, ' +
-            '<span style="color:var(--ey-text-light);">' + (r.headcount - inScope).toFixed(0) + ' protected</span></div>';
+            '<span style="color:var(--ey-green);">' + inScope + ' addressable</span>, ' +
+            '<span style="color:var(--ey-text-light);">' + protectedFTE + ' protected</span></div>';
         }).join('')}
       </div>
     </div>
@@ -9064,7 +9133,7 @@ function handleBUFilterChange(val) {
     sel.style.background = val === 'all' ? 'white' : '#E3F2FD';
   }
   // Invalidate all pages that depend on BU filter
-  [1, 2, 4, 5, 6, 7, 8, 9, 10, 12, 14, 17, 18, 19].forEach(p => { rendered[p] = false; });
+  [1, 2, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 17, 18, 19, 20, 21].forEach(p => { rendered[p] = false; });
   // Re-render current page
   renderPage(currentPage);
 }
@@ -9546,13 +9615,87 @@ let _omSliderTimer = null;
 function _omSliderDebounce() {
   clearTimeout(_omSliderTimer);
   _omSliderTimer = setTimeout(() => {
-    // Invalidate pages that show location data so they pick up target OM state
-    [10, 12, 17].forEach(p => { rendered[p] = false; });
-    // Toast
-    const toast = document.getElementById('dmToast');
-    if (toast) { toast.textContent = '✓ Location target updated — BU Impact synced'; toast.style.display = 'block'; toast.style.background = '#168736'; setTimeout(() => toast.style.display = 'none', 2000); }
-  }, 500);
+    // Invalidate ALL pages that show location or initiative data
+    [1, 2, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 17, 18, 19, 20, 21].forEach(p => { rendered[p] = false; });
+
+    // V4.12 fix: Auto-enable/disable Location Strategy initiatives based on slider target
+    const baseline = window._baselineLocMix || {};
+    const tgt = window._targetOpModel || {};
+    const offDelta = (tgt.offshore||0) - (baseline.offshore||0);
+    const nearDelta = (tgt.nearshore||0) - (baseline.nearshore||0);
+    const onDelta = (tgt.onshore||0) - (baseline.onshore||0);
+    const _locInitMeta = {
+      'LS01': 'nearshore_increase', 'LS02': 'offshore_increase', 'LS03': 'cost_reduction_general',
+      'LS04': 'offshore_increase', 'LS05': 'offshore_increase', 'LS06': 'onshore_consolidation',
+      'LS07': 'onshore_consolidation', 'LS08': 'offshore_increase', 'LS09': 'nearshore_increase',
+      'LS10': 'cost_reduction_general', 'LS11': 'cost_reduction_general', 'LS12': 'cost_reduction_general',
+    };
+    let changed = 0;
+    (INITIATIVES || []).filter(i => i.layer === 'Location Strategy').forEach(i => {
+      const dir = _locInitMeta[i.id];
+      if (!dir) return;
+      let needed = false;
+      if (dir === 'offshore_increase' && offDelta > 3) needed = true;
+      if (dir === 'nearshore_increase' && nearDelta > 3) needed = true;
+      if (dir === 'onshore_consolidation' && onDelta < -5) needed = true;
+      if (dir === 'cost_reduction_general' && (Math.abs(offDelta) > 5 || Math.abs(nearDelta) > 5)) needed = true;
+      if (needed && !i.enabled) { i.enabled = true; changed++; }
+    });
+
+    // Persist target to backend
+    const om = window._targetOpModel;
+    fetch('/api/operating-model/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ operatingModel: { onshore: om.onshore, nearshore: om.nearshore, offshore: om.offshore, tiers: om.tiers } })
+    }).then(r => r.json()).then(resp => {
+      // After save, trigger full recalculation so waterfall/financials update
+      if (changed > 0) {
+        fetch('/api/recalculate', { method: 'POST' }).then(r => r.json()).then(d => {
+          if (d.waterfall) WATERFALL = d.waterfall;
+          if (d.initiatives) INITIATIVES = d.initiatives;
+          [1, 2, 8, 9, 10, 12, 14, 17, 20].forEach(p => { rendered[p] = false; });
+          renderCurrentPage();
+          const toast = document.getElementById('dmToast');
+          if (toast) { toast.textContent = '✓ ' + changed + ' initiative(s) auto-enabled + recalculated'; toast.style.display = 'block'; toast.style.background = '#168736'; setTimeout(() => toast.style.display = 'none', 3000); }
+        }).catch(() => {
+          recalculateAll();
+          renderCurrentPage();
+        });
+      } else {
+        renderCurrentPage();
+        const toast = document.getElementById('dmToast');
+        if (toast) { toast.textContent = '✓ Operating model saved'; toast.style.display = 'block'; toast.style.background = '#168736'; setTimeout(() => toast.style.display = 'none', 2000); }
+      }
+    }).catch(err => {
+      console.warn('Operating model save failed:', err);
+      if (changed > 0) { recalculateAll(); renderCurrentPage(); }
+      const toast = document.getElementById('dmToast');
+      if (toast) { toast.textContent = '⚠ Location target updated locally (save failed)'; toast.style.display = 'block'; toast.style.background = '#D97706'; setTimeout(() => toast.style.display = 'none', 2000); }
+    });
+  }, 600);
 }
+
+// A-05 fix: Load persisted operating model on startup
+(function _loadSavedOperatingModel() {
+  fetch('/api/operating-model/load').then(r => r.json()).then(resp => {
+    const om = resp.operatingModel;
+    if (om && om.onshore != null) {
+      window._targetOpModel = {
+        onshore: om.onshore,
+        nearshore: om.nearshore,
+        offshore: om.offshore != null ? om.offshore : Math.max(0, 100 - om.onshore - om.nearshore),
+        tiers: om.tiers || window._targetOpModel?.tiers || [
+          { name: 'Tier 0 — Self-Service', pct: 35, desc: 'AI chatbots, IVR, knowledge base, app', location: 'Cloud-based', roles: 'Content Manager, AI Engineer' },
+          { name: 'Tier 1 — Frontline', pct: 40, desc: 'AI-assisted agents handling routine', location: 'Nearshore + Offshore', roles: 'CSR, Chat Agent' },
+          { name: 'Tier 2 — Specialist', pct: 20, desc: 'Complex resolution, retention, technical', location: 'Onshore + Nearshore', roles: 'Senior CSR, Technical' },
+          { name: 'Tier 3 — Expert', pct: 5, desc: 'Escalations, complaints, VIP', location: 'Onshore only', roles: 'Team Lead, QA, WFM' },
+        ],
+      };
+      console.log('[OK] Loaded saved operating model:', om.onshore + '/' + om.nearshore + '/' + (om.offshore || (100 - om.onshore - om.nearshore)));
+    }
+  }).catch(() => { /* no saved OM — use defaults */ });
+})();
 
 function renderPage20() {
   const el = document.getElementById('page-20');
@@ -9645,6 +9788,9 @@ function renderPage20() {
   });
 
   function renderOM() {
+    // A-10 fix: Compute normalization factor for tier percentages
+    const tierSum = tgt.tiers.reduce((s,t)=>s+t.pct,0) || 100;
+    const tierNorm = tierSum > 0 ? 100 / tierSum : 1;
     el.innerHTML = `
     <!-- v12-#37: Operating Model as INPUT -->
     <div class="card" style="background:linear-gradient(135deg,#1a1a2e,#2E2E38);color:white;margin-bottom:16px;border:2px solid var(--ey-yellow);">
@@ -9706,7 +9852,7 @@ function renderPage20() {
       <div style="font-size:11px;color:var(--ey-text-light);margin-bottom:12px;">Edit tier volume share below. Must sum to 100%.</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">
       ${tgt.tiers.map((t, idx) => {
-        const tierFTE = Math.round(futureFTE * t.pct / 100);
+        const tierFTE = Math.round(futureFTE * (t.pct * tierNorm) / 100);
         return '<div style="border:1px solid var(--ey-mid-gray);border-left:4px solid '+tierColors[idx]+';border-radius:8px;padding:14px;">' +
           '<div style="font-size:13px;font-weight:700;color:var(--ey-dark);">'+t.name+'</div>' +
           '<div style="font-size:11px;color:var(--ey-text-light);margin:4px 0 8px;">'+t.desc+'</div>' +

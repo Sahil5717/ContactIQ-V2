@@ -8,6 +8,7 @@ import os
 import tempfile
 import copy
 import traceback
+import threading
 from flask import Flask, jsonify, request, render_template, send_file, session, redirect, g
 from engines.data_loader import run_etl, set_path_overrides
 from engines.diagnostic import run_diagnostic
@@ -27,7 +28,13 @@ from infrastructure.file_manager import (
 )
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'contactiq-dev-key-change-in-prod')
+# A-07 fix: Require SECRET_KEY in production, generate random key for dev only
+_secret = os.environ.get('SECRET_KEY')
+if not _secret:
+    import secrets
+    _secret = secrets.token_hex(32)
+    print("[WARN] SECRET_KEY not set — using random key (sessions won't survive restart)")
+app.config['SECRET_KEY'] = _secret
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB upload limit
 
 STATE = {
@@ -37,9 +44,31 @@ STATE = {
     'overrides': {}, 'loaded': False,
 }
 
+# A-08 fix: Lock for STATE mutations to prevent concurrent request interleaving
+STATE_LOCK = threading.Lock()
+
 # ── Initialize Infrastructure ────────────────────────────────
 init_db()
 init_auth(app)
+
+# A-02 fix: Session check for all API data routes
+@app.before_request
+def _check_api_auth():
+    """Require a valid session for all /api/ routes except health and auth."""
+    path = request.path
+    if path.startswith('/api/') and not path.startswith('/api/auth/') and path != '/api/health':
+        user = get_current_user()
+        if not user:
+            # Allow unauthenticated access in dev when no users exist
+            from infrastructure.database import get_db
+            db = get_db()
+            try:
+                count = db.execute("SELECT COUNT(*) as c FROM users").fetchone()['c']
+                if count == 0:
+                    return  # No users configured — allow access (initial setup)
+            except Exception:
+                return  # DB not ready — allow access
+            return jsonify({'error': 'Authentication required'}), 401
 
 
 def _sanitize_for_json(obj):
@@ -61,44 +90,55 @@ def _apply_file_overrides():
 
 
 def _run_all():
-    _apply_file_overrides()
-    data = run_etl()
-    if 'totalCost' not in data:
-        data['totalCost'] = sum(r['headcount'] * r['costPerFTE'] for r in data['roles'])
-    if 'avgCPC' not in data:
-        annual_vol = data.get('totalVolumeAnnual', data.get('totalVolume', 1))
-        data['avgCPC'] = round(data['totalCost'] / max(annual_vol, 1), 2)
-    STATE['data'] = data
-    STATE['diagnostic'] = run_diagnostic(data)
-    STATE['maturity'] = run_maturity(data, STATE['diagnostic'])
-    STATE['readiness'] = compute_readiness(data, STATE['diagnostic'], STATE['maturity'])
-    STATE['initiatives'] = score_initiatives(data, STATE['diagnostic'], STATE['readiness'])
-    _apply_all_overrides()
-    STATE['waterfall'] = run_waterfall(data, STATE['initiatives'])
-    STATE['risk'] = run_risk(STATE['initiatives'], data)
-    STATE['workforce'] = run_workforce(data, STATE['waterfall'], STATE['initiatives'])
-    STATE['channelStrategy'] = run_channel_strategy(data, STATE['diagnostic'], STATE['initiatives'])
-    STATE['subIntentAnalysis'] = STATE['diagnostic'].get('subIntentAnalysis', [])
-    STATE['loaded'] = True
-    return True
+    with STATE_LOCK:
+        _apply_file_overrides()
+        data = run_etl()
+        if 'totalCost' not in data:
+            data['totalCost'] = sum(r['headcount'] * r['costPerFTE'] for r in data['roles'])
+        if 'avgCPC' not in data:
+            annual_vol = data.get('totalVolumeAnnual', data.get('totalVolume', 1))
+            data['avgCPC'] = round(data['totalCost'] / max(annual_vol, 1), 2)
+        STATE['data'] = data
+        STATE['diagnostic'] = run_diagnostic(data)
+        STATE['maturity'] = run_maturity(data, STATE['diagnostic'])
+        STATE['readiness'] = compute_readiness(data, STATE['diagnostic'], STATE['maturity'])
+        STATE['initiatives'] = score_initiatives(data, STATE['diagnostic'], STATE['readiness'])
+        _apply_all_overrides()
+        STATE['waterfall'] = run_waterfall(data, STATE['initiatives'])
+        STATE['risk'] = run_risk(STATE['initiatives'], data)
+        STATE['workforce'] = run_workforce(data, STATE['waterfall'], STATE['initiatives'])
+        STATE['channelStrategy'] = run_channel_strategy(data, STATE['diagnostic'], STATE['initiatives'])
+        STATE['subIntentAnalysis'] = STATE['diagnostic'].get('subIntentAnalysis', [])
+        STATE['loaded'] = True
+        return True
 
 
 def _recompute_downstream():
+    with STATE_LOCK:
+        data = STATE['data']
+        STATE['waterfall'] = run_waterfall(data, STATE['initiatives'])
+        STATE['risk'] = run_risk(STATE['initiatives'], data)
+        STATE['workforce'] = run_workforce(data, STATE['waterfall'], STATE['initiatives'])
+
+
+def _recompute_all_from_diagnostic():
+    with STATE_LOCK:
+        data = STATE['data']
+        STATE['diagnostic'] = run_diagnostic(data)
+        STATE['maturity'] = run_maturity(data, STATE['diagnostic'])
+        STATE['readiness'] = compute_readiness(data, STATE['diagnostic'], STATE['maturity'])
+        STATE['initiatives'] = score_initiatives(data, STATE['diagnostic'], STATE['readiness'])
+        _apply_all_overrides()
+        _recompute_downstream_unlocked()
+        STATE['channelStrategy'] = run_channel_strategy(data, STATE['diagnostic'], STATE['initiatives'])
+
+
+def _recompute_downstream_unlocked():
+    """Internal helper — called from within STATE_LOCK, no re-acquire."""
     data = STATE['data']
     STATE['waterfall'] = run_waterfall(data, STATE['initiatives'])
     STATE['risk'] = run_risk(STATE['initiatives'], data)
     STATE['workforce'] = run_workforce(data, STATE['waterfall'], STATE['initiatives'])
-
-
-def _recompute_all_from_diagnostic():
-    data = STATE['data']
-    STATE['diagnostic'] = run_diagnostic(data)
-    STATE['maturity'] = run_maturity(data, STATE['diagnostic'])
-    STATE['readiness'] = compute_readiness(data, STATE['diagnostic'], STATE['maturity'])
-    STATE['initiatives'] = score_initiatives(data, STATE['diagnostic'], STATE['readiness'])
-    _apply_all_overrides()
-    _recompute_downstream()
-    STATE['channelStrategy'] = run_channel_strategy(data, STATE['diagnostic'], STATE['initiatives'])
 
 
 def _apply_all_overrides():
@@ -351,6 +391,7 @@ def api_download_template(category):
 
 
 @app.route('/api/data-management/recalculate', methods=['POST'])
+@require_role('supervisor')
 def api_data_recalculate():
     try:
         STATE['loaded'] = False
@@ -441,7 +482,6 @@ def api_data():
         return jsonify({'error': 'Data not loaded', 'reason': STATE.get('_load_error', 'Unknown')}), 503
     bu = request.args.get('bu')
     if bu and bu != 'all':
-        import copy
         demo = copy.deepcopy(_build_demo_object())
         if 'queues' in demo:
             demo['queues'] = [q for q in demo['queues'] if q.get('bu') == bu]
@@ -458,7 +498,6 @@ def api_diagnostic():
     if not STATE['loaded']: return jsonify({'error':'Not loaded'}), 503
     bu = request.args.get('bu')
     if bu and bu != 'all':
-        import copy
         diag = copy.deepcopy(STATE['diagnostic'])
         # Filter queue-level data by BU
         if 'queueScores' in diag:
@@ -503,7 +542,6 @@ def api_waterfall():
     if not STATE['loaded']: return jsonify({'error':'Not loaded'}), 503
     bu = request.args.get('bu')
     if bu and bu != 'all':
-        import copy
         wf = copy.deepcopy(STATE['waterfall'])
         # Scope to BU summary if available
         bu_data = wf.get('buSummary', {}).get(bu, {})
@@ -523,7 +561,6 @@ def api_workforce():
     if not STATE['loaded']: return jsonify({'error':'Not loaded'}), 503
     bu = request.args.get('bu')
     if bu and bu != 'all':
-        import copy
         wk = copy.deepcopy(STATE['workforce'])
         # Filter byBU to scoped BU
         if 'byBU' in wk and isinstance(wk['byBU'], dict):
@@ -534,6 +571,7 @@ def api_workforce():
     return jsonify(STATE['workforce'])
 
 @app.route('/api/refresh', methods=['POST'])
+@require_role('supervisor')
 def api_refresh():
     try:
         STATE['overrides'] = {}; STATE['loaded'] = False; STATE['_load_error'] = None
@@ -544,6 +582,7 @@ def api_refresh():
         return jsonify({'status':'error','message':str(e)}), 500
 
 @app.route('/api/recalculate', methods=['POST'])
+@require_role('supervisor')
 def api_recalculate():
     try:
         body = request.get_json(force=True) if request.is_json else {}
@@ -619,6 +658,7 @@ def api_override():
                     'initiatives':STATE['initiatives'],'waterfall':STATE['waterfall']})
 
 @app.route('/api/maturity/override', methods=['POST'])
+@require_role('supervisor')
 def api_maturity_override():
     body = request.get_json(force=True)
     dimension = body.get('dimension'); score = body.get('score')
@@ -661,6 +701,25 @@ def api_benchmark_overrides_get():
     """Retrieve saved benchmark overrides."""
     bm_overrides = {k.replace('benchmark_', ''): v for k, v in STATE['overrides'].items() if k.startswith('benchmark_')}
     return jsonify({'benchmarks': bm_overrides})
+
+
+@app.route('/api/operating-model/save', methods=['POST'])
+@require_role('supervisor')
+def api_operating_model_save():
+    """A-05 fix: Persist target operating model to STATE overrides."""
+    body = request.get_json(force=True)
+    om = body.get('operatingModel', {})
+    if not om:
+        return jsonify({'error': 'operatingModel object required'}), 400
+    STATE['overrides']['operating_model'] = om
+    return jsonify({'status': 'ok', 'message': 'Operating model saved'})
+
+
+@app.route('/api/operating-model/load', methods=['GET'])
+def api_operating_model_load():
+    """A-05 fix: Load persisted target operating model."""
+    om = STATE['overrides'].get('operating_model', {})
+    return jsonify({'operatingModel': om})
 
 @app.route('/api/investment')
 def api_investment():
@@ -716,9 +775,11 @@ def api_export():
         ])
         # ── Initiatives ──
         ws5 = wb.create_sheet('Initiatives')
-        ws_write(ws5, ['ID','Name','Layer','Lever','Enabled','Score','Annual Saving',
+        ws_write(ws5, ['ID','Name','Layer','Lever','Levers (All)','Enabled','Score','Annual Saving',
                        'Impl Risk','CX Risk','Ops Risk','Overall Risk','Rating'], [
-            [i['id'],i['name'],i['layer'],i['lever'],'Yes' if i.get('enabled') else 'No',
+            [i['id'],i['name'],i['layer'],i['lever'],
+             ', '.join(sorted(i.get('levers', {i.get('lever',''):True}).keys())),
+             'Yes' if i.get('enabled') else 'No',
              f"{i.get('matchScore',0):.1f}",f"${i.get('_annualSaving',0):,.0f}",
              i.get('implRisk',''),i.get('cxRisk',''),i.get('opsRisk',''),
              i.get('overallRisk',''),i.get('riskRating','')]
@@ -1109,6 +1170,39 @@ def api_export_pdf():
         ]
         for item in diag_text_items:
             pdf.cell(0, 6, item, ln=True)
+
+        # ── A-11 fix: Channel Migration Summary ──
+        migrations = STATE.get('channelStrategy', {}).get('migrations', [])
+        if migrations:
+            pdf.ln(10)
+            pdf.set_font('Helvetica', 'B', 14)
+            pdf.set_text_color(46, 46, 56)
+            pdf.cell(0, 10, 'Channel Migration Summary', ln=True)
+            pdf.set_font('Helvetica', 'B', 9)
+            mig_widths = [50, 50, 30, 50]
+            for h, w in zip(['From', 'To', 'Volume', 'Intent'], mig_widths):
+                pdf.cell(w, 7, h, border=1, align='C')
+            pdf.ln()
+            pdf.set_font('Helvetica', '', 9)
+            for m in migrations[:15]:
+                pdf.cell(mig_widths[0], 7, str(m.get('from', '')), border=1)
+                pdf.cell(mig_widths[1], 7, str(m.get('to', '')), border=1)
+                pdf.cell(mig_widths[2], 7, f"{m.get('volume', 0):,}", border=1, align='C')
+                pdf.cell(mig_widths[3], 7, str(m.get('intent', ''))[:20], border=1)
+                pdf.ln()
+
+        # ── A-11 fix: Operating Model Target ──
+        om = STATE['overrides'].get('operating_model', {})
+        if om:
+            pdf.ln(10)
+            pdf.set_font('Helvetica', 'B', 14)
+            pdf.set_text_color(46, 46, 56)
+            pdf.cell(0, 10, 'Target Operating Model', ln=True)
+            pdf.set_font('Helvetica', '', 9)
+            pdf.cell(0, 6, f"Onshore: {om.get('onshore', '?')}%  |  Nearshore: {om.get('nearshore', '?')}%  |  Offshore: {om.get('offshore', '?')}%", ln=True)
+            tiers = om.get('tiers', [])
+            for t in tiers:
+                pdf.cell(0, 6, f"  {t.get('name', '?')} — {t.get('pct', '?')}% volume share", ln=True)
 
         # ── Disclaimer ──
         pdf.ln(6)

@@ -108,6 +108,11 @@ LEVER_ORDER = ['deflection', 'aht_reduction', 'repeat_reduction', 'transfer_redu
 # V4.10-#11: All known levers for multi-lever support
 ALL_LEVERS = set(LEVER_ORDER)
 
+# V4.10-#11: Weight applied to secondary lever impacts.
+# Used in two places: (1) cap on secondary FTE = abs_cap × SECONDARY_WEIGHT,
+# (2) frontend diminishing returns accumulation at same weight.
+SECONDARY_WEIGHT = 0.50
+
 # V4.10-#11: Secondary lever inference thresholds from initiative impact fields
 SECONDARY_LEVER_INFERENCE = {
     'ahtImpact':  ('aht_reduction',        0.03),   # |ahtImpact| > 3% → aht_reduction lever
@@ -859,8 +864,8 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
                 except Exception:
                     sec_net = sec_gross
                     sec_capped = False
-                # Cap secondary at half the absolute cap (secondary is subordinate)
-                sec_net = min(sec_net, abs_cap * 0.5)
+                # Cap secondary at SECONDARY_WEIGHT of the absolute cap (secondary is subordinate)
+                sec_net = min(sec_net, abs_cap * SECONDARY_WEIGHT)
                 if sec_net > 0.1:
                     secondary_results.append({
                         'lever': sec_lever, 'fte': round(sec_net, 1),
@@ -1058,7 +1063,11 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
             init['_csatRevenueShare'] = 0
     
     # CSAT-gap based prioritisation boost (v10)
-    # Intents with worst CSAT gaps get higher relevance for their initiatives
+    # NOTE (A-13): This boost is applied AFTER the waterfall cascade has already processed
+    # pool consumption in the original score order. The boosted matchScore is for DISPLAY
+    # PRIORITY ONLY (UI ordering on Roadmap page). It does NOT affect the waterfall's
+    # processing sequence or financial projections. This is intentional: CSAT relevance
+    # should inform the consultant's attention, not retroactively change pool allocation.
     if csat_gap > 0 and csat_pool.get('breakdown'):
         intent_csat_gaps = {}
         for entry in csat_pool['breakdown']:
