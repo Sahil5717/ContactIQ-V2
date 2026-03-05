@@ -610,11 +610,19 @@ def _compute_projected_kpis(enabled_inits, queues, data, params, pools, wf_total
     fcr_ces_effect = eff_fcr_uplift * 1.5
     proj_ces = round(max(1.0, avg_ces - aht_ces_effect - fcr_ces_effect), 2)
     
-    # ── RAG: green=meets benchmark, amber=within 10%, red=>10% gap ──
-    def _rag(projected, benchmark, direction='higher'):
+    # ── RAG: green=meets benchmark, amber=within 10% or worsening, red=>10% gap ──
+    def _rag(projected, benchmark, direction='higher', current=None):
         if benchmark == 0: return 'green'
         gap_pct = ((benchmark - projected) / benchmark * 100) if direction == 'higher' else ((projected - benchmark) / benchmark * 100)
-        return 'green' if gap_pct <= 0 else ('amber' if gap_pct <= 10 else 'red')
+        # Base RAG on projected vs benchmark gap
+        base_rag = 'green' if gap_pct <= 0 else ('amber' if gap_pct <= 10 else 'red')
+        # v4.13: Downgrade RAG if metric is worsening significantly from current
+        if current is not None and base_rag == 'green':
+            if direction == 'higher' and projected < current * 0.95:
+                base_rag = 'amber'  # Projected worse than current by >5% (for higher-is-better)
+            elif direction == 'lower' and projected > current * 1.15:
+                base_rag = 'amber'  # Projected worse than current by >15% (for lower-is-better)
+        return base_rag
     
     def _kpi(label, unit, direction, current, projected, benchmark, contribs, extra=None):
         d = {
@@ -622,7 +630,7 @@ def _compute_projected_kpis(enabled_inits, queues, data, params, pools, wf_total
             'current': current, 'projected': projected, 'benchmark': benchmark,
             'delta': round(projected - current, 4),
             'deltaPct': round((projected - current) / max(abs(current), 0.001) * 100, 1),
-            'rag': _rag(projected, benchmark, direction),
+            'rag': _rag(projected, benchmark, direction, current),
             'contributors': contribs[:5],
         }
         if extra: d.update(extra)
@@ -1181,7 +1189,12 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         kpi_projections['CPC']['delta'] = round(proj_cpc - current_cpc, 2)
         kpi_projections['CPC']['deltaPct'] = round((proj_cpc - current_cpc) / max(current_cpc, 0.01) * 100, 1)
         bm_cpc_val = kpi_projections['CPC']['benchmark']
-        kpi_projections['CPC']['rag'] = 'green' if proj_cpc <= bm_cpc_val else ('amber' if (proj_cpc - bm_cpc_val) / max(bm_cpc_val, 0.01) <= 0.10 else 'red')
+        cpc_gap_pct = (proj_cpc - bm_cpc_val) / max(bm_cpc_val, 0.01)
+        cpc_rag = 'green' if proj_cpc <= bm_cpc_val else ('amber' if cpc_gap_pct <= 0.10 else 'red')
+        # v4.13: If CPC worsened significantly from current despite being under benchmark, flag amber
+        if cpc_rag == 'green' and proj_cpc > current_cpc * 1.15:
+            cpc_rag = 'amber'
+        kpi_projections['CPC']['rag'] = cpc_rag
     
     # Gross FTE reduction (sum of all _fteImpact, pre-ramp) vs Net (waterfall Year-N, post-ramp)
     gross_fte_reduction = round(sum(i.get('_fteImpact', 0) for i in enabled), 1)

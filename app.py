@@ -750,93 +750,251 @@ def api_export():
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         wb = openpyxl.Workbook()
-        hf = Font(bold=True, color='FFFFFF', size=11)
-        hfill = PatternFill(start_color='2E2E38', end_color='2E2E38', fill_type='solid')
-        tb = Border(left=Side(style='thin'),right=Side(style='thin'),top=Side(style='thin'),bottom=Side(style='thin'))
-        def ws_write(ws, headers, rows):
+
+        # ── Style definitions ──
+        ey_dark = '2E2E38'
+        ey_yellow = 'FFE600'
+        ey_green = '168736'
+        ey_red = 'C5003E'
+        ey_amber = 'D97706'
+
+        hf = Font(bold=True, color='FFFFFF', size=11, name='Calibri')
+        hfill = PatternFill(start_color=ey_dark, end_color=ey_dark, fill_type='solid')
+        title_font = Font(bold=True, color=ey_dark, size=14, name='Calibri')
+        subtitle_font = Font(bold=False, color='747480', size=10, name='Calibri')
+        data_font = Font(color=ey_dark, size=10, name='Calibri')
+        bold_font = Font(bold=True, color=ey_dark, size=10, name='Calibri')
+        tb = Border(left=Side(style='thin', color='E0E0E6'), right=Side(style='thin', color='E0E0E6'),
+                    top=Side(style='thin', color='E0E0E6'), bottom=Side(style='thin', color='E0E0E6'))
+        alt_fill = PatternFill(start_color='F6F6FA', end_color='F6F6FA', fill_type='solid')
+        green_fill = PatternFill(start_color='E8F5E9', end_color='E8F5E9', fill_type='solid')
+        red_fill = PatternFill(start_color='FFEBEE', end_color='FFEBEE', fill_type='solid')
+        amber_fill = PatternFill(start_color='FFF8E1', end_color='FFF8E1', fill_type='solid')
+        yellow_fill = PatternFill(start_color='FFFDE7', end_color='FFFDE7', fill_type='solid')
+        rag_fills = {'green': green_fill, 'amber': amber_fill, 'red': red_fill}
+
+        def ws_write(ws, headers, rows, start_row=1, col_widths=None):
+            # Headers
             for c, h in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=c, value=h)
-                cell.font=hf; cell.fill=hfill; cell.alignment=Alignment(horizontal='center'); cell.border=tb
-            for r, row in enumerate(rows, 2):
+                cell = ws.cell(row=start_row, column=c, value=h)
+                cell.font = hf; cell.fill = hfill; cell.alignment = Alignment(horizontal='center', vertical='center')
+                cell.border = tb
+            ws.row_dimensions[start_row].height = 26
+            # Data rows
+            for r, row in enumerate(rows, start_row + 1):
+                is_alt = (r - start_row) % 2 == 0
                 for c, val in enumerate(row, 1):
-                    cell = ws.cell(row=r, column=c, value=val); cell.border=tb
-            for col in ws.columns:
-                ml = max(len(str(cell.value or '')) for cell in col)
-                ws.column_dimensions[col[0].column_letter].width = min(ml+2, 40)
-        data=STATE['data']; diag=STATE['diagnostic']; wf=STATE['waterfall']
-        ws=wb.active; ws.title='Executive Summary'
-        ws_write(ws, ['Metric','Value'], [
-            ['Client', data['params'].get('clientName','')],['Industry', data['params'].get('industry','')],
-            ['Total Volume (raw)', data['totalVolume']],
-            ['Total Cost', f"${data['totalCost']:,.0f}"],['NPV', f"${wf.get('totalNPV',0):,.0f}"],
-            ['IRR', f"{wf.get('irr',0):.1f}%"],['Total Investment', f"${wf.get('totalInvestment',0):,.0f}"],
-            ['ROI', f"{wf.get('roi',0):.1f}%"],['Payback', f"{wf.get('payback',0):.1f} months"],
-            ['Annual Saving (Year 3)', f"${wf.get('yearly',[-1])[-1].get('annualSaving',0) if wf.get('yearly') else 0:,.0f}"],['Enabled Initiatives', len(wf.get('enabledInits',[]))],
-        ])
-        # ── Initiatives ──
+                    cell = ws.cell(row=r, column=c, value=val)
+                    cell.font = data_font; cell.border = tb
+                    cell.alignment = Alignment(vertical='center')
+                    if is_alt: cell.fill = alt_fill
+            # Auto-width
+            if col_widths:
+                for i, w in enumerate(col_widths):
+                    ws.column_dimensions[openpyxl.utils.get_column_letter(i+1)].width = w
+            else:
+                for col_cells in ws.columns:
+                    ml = max(len(str(cell.value or '')) for cell in col_cells)
+                    ws.column_dimensions[col_cells[0].column_letter].width = min(ml + 3, 45)
+            # Freeze panes
+            ws.freeze_panes = ws.cell(row=start_row+1, column=1)
+
+        def add_title(ws, title, subtitle='', row=1):
+            ws.cell(row=row, column=1, value=title).font = title_font
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=6)
+            if subtitle:
+                ws.cell(row=row+1, column=1, value=subtitle).font = subtitle_font
+                ws.merge_cells(start_row=row+1, start_column=1, end_row=row+1, end_column=6)
+                return row + 3
+            return row + 2
+
+        data = STATE['data']; diag = STATE['diagnostic']; wf = STATE['waterfall']
+        params = data['params']
+
+        # ══════ Sheet 1: Executive Summary ══════
+        ws = wb.active; ws.title = 'Executive Summary'
+        ws.sheet_properties.tabColor = ey_yellow
+        sr = add_title(ws, f"ContactIQ — {params.get('clientName','Client')}", f"{params.get('industry','')} | Generated Report")
+        summary_data = [
+            ['Total Annual Volume', data.get('totalVolumeAnnual', data['totalVolume'])],
+            ['Total FTE', data['totalFTE']],
+            ['Total Annual Cost', data['totalCost']],
+            ['Average Cost Per Contact', data.get('avgCPC', 0)],
+            ['', ''],
+            ['Net Present Value', wf.get('totalNPV', 0)],
+            ['Total 3-Year Saving', wf.get('totalSaving', 0)],
+            ['Total Investment', wf.get('totalInvestment', 0)],
+            ['ROI', wf.get('roi', 0)],
+            ['IRR', wf.get('irr', 0)],
+            ['Payback (months)', wf.get('payback', 0)],
+            ['Enabled Initiatives', sum(1 for i in STATE['initiatives'] if i.get('enabled'))],
+        ]
+        for r, (label, val) in enumerate(summary_data, sr):
+            ws.cell(row=r, column=1, value=label).font = bold_font
+            ws.cell(row=r, column=1).border = tb
+            cell = ws.cell(row=r, column=2, value=val)
+            cell.border = tb
+            if isinstance(val, (int, float)) and val > 1000:
+                cell.number_format = '#,##0'
+                if label.startswith(('Total Annual Cost', 'Net Present', 'Total 3-Year', 'Total Investment', 'Average Cost')):
+                    cell.number_format = '$#,##0'
+            if label in ('ROI', 'IRR'):
+                cell.number_format = '0.0"%"'
+        ws.column_dimensions['A'].width = 28
+        ws.column_dimensions['B'].width = 22
+
+        # ══════ Sheet 2: KPI Projections ══════
+        kpis = wf.get('kpiProjections', {})
+        if kpis:
+            wskpi = wb.create_sheet('KPI Projections')
+            wskpi.sheet_properties.tabColor = '1A73E8'
+            ksr = add_title(wskpi, 'Operational KPI Improvement', 'Current → Projected → Benchmark with RAG')
+            kpi_headers = ['KPI', 'Current', 'Projected', 'Benchmark', 'Delta', 'Delta %', 'RAG', 'Top Contributors']
+            kpi_rows = []
+            kpi_rags = []
+            for k in ['AHT', 'FCR', 'CSAT', 'CPC', 'Escalation', 'Repeat', 'CES']:
+                kp = kpis.get(k)
+                if not kp: continue
+                contribs = ', '.join(c.get('name','')[:25] for c in (kp.get('contributors') or [])[:3])
+                kpi_rows.append([kp['label'], kp['current'], kp['projected'], kp['benchmark'],
+                                 kp['delta'], kp['deltaPct'], kp.get('rag','').upper(), contribs or 'Derived'])
+                kpi_rags.append(kp.get('rag', ''))
+            ws_write(wskpi, kpi_headers, kpi_rows, start_row=ksr, col_widths=[24, 14, 14, 14, 12, 12, 10, 36])
+            # Apply RAG coloring
+            for i, rag in enumerate(kpi_rags):
+                if rag in rag_fills:
+                    for c in range(1, 9):
+                        wskpi.cell(row=ksr+1+i, column=c).fill = rag_fills[rag]
+
+        # ══════ Sheet 3: Initiatives ══════
         ws5 = wb.create_sheet('Initiatives')
-        ws_write(ws5, ['ID','Name','Layer','Lever','Levers (All)','Enabled','Score','Annual Saving',
-                       'Impl Risk','CX Risk','Ops Risk','Overall Risk','Rating'], [
-            [i['id'],i['name'],i['layer'],i['lever'],
-             ', '.join(sorted(i.get('levers', {i.get('lever',''):True}).keys())),
-             'Yes' if i.get('enabled') else 'No',
-             f"{i.get('matchScore',0):.1f}",f"${i.get('_annualSaving',0):,.0f}",
-             i.get('implRisk',''),i.get('cxRisk',''),i.get('opsRisk',''),
-             i.get('overallRisk',''),i.get('riskRating','')]
-            for i in STATE['initiatives']
-        ])
-        # ── Waterfall ──
+        ws5.sheet_properties.tabColor = ey_green
+        isr = add_title(ws5, 'Initiative Portfolio', f'{sum(1 for i in STATE["initiatives"] if i.get("enabled"))} enabled of {len(STATE["initiatives"])}')
+        init_rows = []
+        for i in STATE['initiatives']:
+            init_rows.append([
+                i['id'], i['name'], i['layer'], i['lever'],
+                ', '.join(sorted(i.get('levers', {i.get('lever', ''): True}).keys())),
+                'Yes' if i.get('enabled') else 'No',
+                round(i.get('matchScore', 0), 1),
+                round(i.get('_annualSaving', 0)),
+                round(i.get('_fteImpact', 0), 1),
+                i.get('implRisk', ''),
+                i.get('cxRisk', ''),
+                i.get('opsRisk', ''),
+                i.get('overallRisk', ''),
+                i.get('riskRating', ''),
+            ])
+        ws_write(ws5, ['ID', 'Name', 'Layer', 'Lever', 'Levers (All)', 'Enabled', 'Score',
+                        'Annual Saving ($)', 'FTE Impact', 'Impl Risk', 'CX Risk', 'Ops Risk', 'Overall Risk', 'Rating'],
+                 init_rows, start_row=isr, col_widths=[6, 34, 18, 18, 24, 10, 10, 18, 12, 10, 10, 10, 12, 10])
+        # Format savings column as currency + color enabled/disabled
+        for r in range(isr+1, isr+1+len(init_rows)):
+            ws5.cell(row=r, column=8).number_format = '$#,##0'
+            # Color enabled/disabled
+            en_cell = ws5.cell(row=r, column=6)
+            if en_cell.value == 'Yes':
+                en_cell.fill = green_fill
+            else:
+                en_cell.fill = red_fill
+
+        # ══════ Sheet 4: Waterfall ══════
         ws6 = wb.create_sheet('Waterfall')
-        ws_write(ws6, ['Year','Annual Saving','Cum Saving','NPV'], [
-            [y['year'],f"${y['annualSaving']:,.0f}",
-             f"${y['cumSaving']:,.0f}",f"${y['npv']:,.0f}"] for y in wf.get('yearly', [])
-        ])
-        # ── P2-6: BU Impact ──
+        ws6.sheet_properties.tabColor = '4CAF50'
+        wsr = add_title(ws6, 'Yearly Financial Projections')
+        wf_rows = [[y['year'], round(y['annualSaving']), round(y['cumSaving']), round(y['npv']),
+                     round(y.get('futureCost', 0)), y.get('finalFTE', 0)]
+                    for y in wf.get('yearly', [])]
+        ws_write(ws6, ['Year', 'Annual Saving ($)', 'Cumulative ($)', 'NPV ($)', 'Future Cost ($)', 'Final FTE'],
+                 wf_rows, start_row=wsr, col_widths=[10, 20, 20, 20, 20, 14])
+        for r in range(wsr+1, wsr+1+len(wf_rows)):
+            for c in [2,3,4,5]:
+                ws6.cell(row=r, column=c).number_format = '$#,##0'
+
+        # ══════ Sheet 5: Channel Mix ══════
+        ch_mix = _build_channel_mix(data['queues'])
+        if ch_mix:
+            wsch = wb.create_sheet('Channel Mix')
+            wsch.sheet_properties.tabColor = '0097A9'
+            csr = add_title(wsch, 'Channel Volume & Performance')
+            ch_rows = [[c['channel'], c['volume'], c['pct'], c.get('avgCSAT', 0), c.get('avgAHT_min', 0), c.get('avgCPC', 0)]
+                       for c in ch_mix]
+            ws_write(wsch, ['Channel', 'Volume', 'Share %', 'Avg CSAT', 'Avg AHT (min)', 'Avg CPC ($)'],
+                     ch_rows, start_row=csr, col_widths=[20, 14, 12, 12, 14, 14])
+            for r in range(csr+1, csr+1+len(ch_rows)):
+                wsch.cell(row=r, column=2).number_format = '#,##0'
+                wsch.cell(row=r, column=3).number_format = '0.0"%"'
+                wsch.cell(row=r, column=6).number_format = '$#,##0.00'
+
+        # ══════ Sheet 6: BU Impact ══════
         bu_summary = wf.get('buSummary', {})
         if bu_summary:
             wsbu = wb.create_sheet('BU Impact')
+            wsbu.sheet_properties.tabColor = ey_amber
+            bsr = add_title(wsbu, 'Business Unit Impact')
             bu_rows = []
             for bu, bd in bu_summary.items():
                 for yr_idx, yr_data in enumerate(bd.get('yearly', [])):
-                    bu_rows.append([bu, yr_idx+1,
-                                    f"${yr_data.get('annualSaving', 0):,.0f}"])
-            ws_write(wsbu, ['Business Unit','Year','Annual Saving'], bu_rows)
-        # ── P2-6: Risk Register ──
+                    bu_rows.append([bu, yr_idx+1, round(yr_data.get('annualSaving', 0))])
+            ws_write(wsbu, ['Business Unit', 'Year', 'Annual Saving ($)'], bu_rows, start_row=bsr, col_widths=[24, 10, 20])
+            for r in range(bsr+1, bsr+1+len(bu_rows)):
+                wsbu.cell(row=r, column=3).number_format = '$#,##0'
+
+        # ══════ Sheet 7: Risk Register ══════
         risk_data = STATE.get('risk', {})
         risk_inits = risk_data.get('initiatives', [])
         if risk_inits:
             wsrisk = wb.create_sheet('Risk Register')
-            ws_write(wsrisk, ['ID','Name','Layer','Impl Risk','CX Risk','Ops Risk','Overall','Rating',
-                              'Annual Saving','Mitigations'], [
-                [r['id'],r['name'],r['layer'],r['implRisk'],r['cxRisk'],r['opsRisk'],
-                 r['overallRisk'],r['rating'],f"${r['annualSaving']:,.0f}",
-                 '; '.join(r.get('mitigations',[])) ]
-                for r in risk_inits
-            ])
-        # ── P2-6: Workforce Transition ──
+            wsrisk.sheet_properties.tabColor = ey_red
+            rsr = add_title(wsrisk, 'Risk Assessment')
+            risk_rows = [[r['id'], r['name'], r['layer'], r['implRisk'], r['cxRisk'], r['opsRisk'],
+                          r['overallRisk'], r['rating'], round(r['annualSaving']),
+                          '; '.join(r.get('mitigations', []))]
+                         for r in risk_inits]
+            ws_write(wsrisk, ['ID', 'Name', 'Layer', 'Impl', 'CX', 'Ops', 'Overall', 'Rating', 'Saving ($)', 'Mitigations'],
+                     risk_rows, start_row=rsr, col_widths=[6, 30, 18, 8, 8, 8, 10, 10, 16, 40])
+            for r_idx in range(rsr+1, rsr+1+len(risk_rows)):
+                wsrisk.cell(row=r_idx, column=9).number_format = '$#,##0'
+                rating_cell = wsrisk.cell(row=r_idx, column=8)
+                rv = str(rating_cell.value).lower()
+                if rv == 'low': rating_cell.fill = green_fill
+                elif rv == 'medium': rating_cell.fill = amber_fill
+                elif rv == 'high': rating_cell.fill = red_fill
+
+        # ══════ Sheet 8: Workforce Transition ══════
         wkf = STATE.get('workforce', {})
         transitions = wkf.get('transitions', [])
         if transitions:
             wswf = wb.create_sheet('Workforce Transition')
-            ws_write(wswf, ['Role','Location','Sourcing','Year','Reduction','Attrited','Redeployed',
-                            'Separated','Contract Adj','Transition Cost'], [
-                [t.get('role',''),t.get('location',''),t.get('sourcing',''),
-                 t.get('year',0),f"{t.get('reduction',0):.1f}",f"{t.get('attrited',0):.1f}",f"{t.get('redeployed',0):.1f}",
-                 f"{t.get('separated',0):.1f}",f"{t.get('contractAdjustment',0):.1f}",
-                 f"${t.get('totalTransitionCost',0):,.0f}"]
-                for t in transitions
-            ])
-        # ── P2-6: Location Mix ──
+            wsr2 = add_title(wswf, 'Workforce Transition Plan')
+            wf_t_rows = [[t.get('role',''), t.get('location',''), t.get('sourcing',''),
+                          t.get('year',0), round(t.get('reduction',0),1), round(t.get('attrited',0),1),
+                          round(t.get('redeployed',0),1), round(t.get('separated',0),1),
+                          round(t.get('totalTransitionCost',0))]
+                         for t in transitions]
+            ws_write(wswf, ['Role', 'Location', 'Sourcing', 'Year', 'Reduction', 'Attrited', 'Redeployed', 'Separated', 'Transition Cost ($)'],
+                     wf_t_rows, start_row=wsr2, col_widths=[18, 14, 14, 8, 12, 12, 12, 12, 18])
+            for r in range(wsr2+1, wsr2+1+len(wf_t_rows)):
+                wswf.cell(row=r, column=9).number_format = '$#,##0'
+
+        # ══════ Sheet 9: Location Cost Matrix ══════
         loc_matrix = data.get('locationCostMatrix', {})
         if loc_matrix:
             wsloc = wb.create_sheet('Location Cost Matrix')
+            wsloc.sheet_properties.tabColor = '7B61FF'
+            lsr = add_title(wsloc, 'Location & Sourcing Cost Matrix')
             loc_rows = []
             for loc, srcs in loc_matrix.items():
                 for src, costs in srcs.items():
-                    loc_rows.append([loc, src, f"${costs.get('costPerFTE',0):,.0f}",
-                                     f"${costs.get('hiringCost',0):,.0f}",
-                                     f"{costs.get('attritionRate',0):.1%}"])
-            ws_write(wsloc, ['Location','Sourcing','Cost/FTE','Hiring Cost','Attrition Rate'], loc_rows)
+                    loc_rows.append([loc, src, costs.get('costPerFTE', 0),
+                                     costs.get('hiringCost', 0),
+                                     costs.get('attritionRate', 0)])
+            ws_write(wsloc, ['Location', 'Sourcing', 'Cost/FTE ($)', 'Hiring Cost ($)', 'Attrition Rate'],
+                     loc_rows, start_row=lsr, col_widths=[18, 18, 16, 16, 16])
+            for r in range(lsr+1, lsr+1+len(loc_rows)):
+                wsloc.cell(row=r, column=3).number_format = '$#,##0'
+                wsloc.cell(row=r, column=4).number_format = '$#,##0'
+                wsloc.cell(row=r, column=5).number_format = '0.0%'
 
         fd, export_path = tempfile.mkstemp(suffix='.xlsx')
         os.close(fd)
@@ -1135,8 +1293,8 @@ def api_export_pdf():
         pdf.set_draw_color(255, 230, 0)
         pdf.line(10, pdf.get_y(), 80, pdf.get_y())
         pdf.ln(8)
-        cs = STATE.get('channel_strategy', {})
-        channel_mix = cs.get('channelMix', [])
+        cs = STATE.get('channelStrategy', {})
+        channel_mix = _build_channel_mix(data.get('queues', []))
         if channel_mix:
             pdf.set_font('Helvetica', 'B', 9)
             ch_headers = ['Channel', 'Volume', 'Share %', 'Avg CSAT', 'Avg AHT', 'Avg CPC']

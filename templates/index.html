@@ -123,7 +123,7 @@ body {
   display: inline-flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; border-radius: 50%;
   background: rgba(255,255,255,0.1);
-  font-size: 10px; font-weight: 700; flex-shrink: 0;
+  font-size: 13px; flex-shrink: 0;
 }
 
 .nav-item.active .nav-num { background: var(--ey-yellow); color: var(--ey-dark); }
@@ -799,70 +799,70 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
   <nav id="sidebarNav">
     <div class="nav-phase">🔍 Diagnose</div>
     <div class="nav-item active" data-page="1">
-      <span class="nav-num">1</span><span>Executive Summary</span>
+      <span class="nav-num">📊</span><span>Executive Summary</span>
     </div>
     <div class="nav-item" data-page="2">
-      <span class="nav-num">2</span><span>Benchmarking</span>
+      <span class="nav-num">📏</span><span>Benchmarking</span>
     </div>
     <div class="nav-item" data-page="3">
-      <span class="nav-num">3</span><span>Maturity Assessment</span>
+      <span class="nav-num">🎯</span><span>Maturity Assessment</span>
     </div>
     <div class="nav-item" data-page="4">
-      <span class="nav-num">4</span><span>Performance Heatmap</span>
+      <span class="nav-num">🔥</span><span>Performance Heatmap</span>
     </div>
     <div class="nav-item" data-page="5" style="display:none;">
-      <span class="nav-num">5</span><span>Friction Map</span>
+      <span class="nav-num">⚡</span><span>Friction Map</span>
     </div>
     <div class="nav-item" data-page="6">
-      <span class="nav-num">6</span><span>Gap Analysis</span>
+      <span class="nav-num">📉</span><span>Gap Analysis</span>
     </div>
     <div class="nav-item" data-page="7">
-      <span class="nav-num">7</span><span>Cost Analysis</span>
+      <span class="nav-num">💲</span><span>Cost Analysis</span>
     </div>
     <div class="nav-item" data-page="19">
-      <span class="nav-num">19</span><span>Queue Analysis</span>
+      <span class="nav-num">📋</span><span>Queue Analysis</span>
     </div>
     <div class="nav-item" data-page="18">
-      <span class="nav-num">18</span><span>Sub-Intent Analysis</span>
+      <span class="nav-num">🌿</span><span>Sub-Intent Analysis</span>
     </div>
 
     <div class="nav-phase">📐 Size the Prize</div>
     <div class="nav-item" data-page="16">
-      <span class="nav-num">★</span><span>Opportunity Buckets</span>
+      <span class="nav-num">💎</span><span>Opportunity Buckets</span>
     </div>
     <div class="nav-item" data-page="8">
-      <span class="nav-num">8</span><span>Self-Service Feasibility</span>
+      <span class="nav-num">🤖</span><span>Self-Service Feasibility</span>
     </div>
     <div class="nav-item" data-page="20">
-      <span class="nav-num">20</span><span>Operating Model</span>
+      <span class="nav-num">🏢</span><span>Operating Model</span>
     </div>
 
     <div class="nav-phase">💡 Solve</div>
     <div class="nav-item" data-page="9">
-      <span class="nav-num">9</span><span>Initiative Roadmap</span>
+      <span class="nav-num">🗺️</span><span>Initiative Roadmap</span>
     </div>
     <div class="nav-item" data-page="10">
-      <span class="nav-num">10</span><span>Projected Channel Mix</span>
+      <span class="nav-num">🔀</span><span>Projected Channel Mix</span>
     </div>
     <div class="nav-item" data-page="11">
-      <span class="nav-num">11</span><span>Implementation Gantt</span>
+      <span class="nav-num">📅</span><span>Implementation Gantt</span>
     </div>
 
     <div class="nav-phase">🎯 Justify</div>
     <div class="nav-item" data-page="14">
-      <span class="nav-num">14</span><span>Impact Dashboard</span>
+      <span class="nav-num">📈</span><span>Impact Dashboard</span>
     </div>
     <div class="nav-item" data-page="17">
-      <span class="nav-num">17</span><span>BU Impact Views</span>
+      <span class="nav-num">🏗️</span><span>BU Impact Views</span>
     </div>
     <div class="nav-item" data-page="12">
-      <span class="nav-num">12</span><span>Risk Assessment</span>
+      <span class="nav-num">⚠️</span><span>Risk Assessment</span>
     </div>
     <div class="nav-item" data-page="13" style="display:none;">
-      <span class="nav-num">13</span><span>Workforce Transition</span>
+      <span class="nav-num">👥</span><span>Workforce Transition</span>
     </div>
     <div class="nav-item" data-page="21">
-      <span class="nav-num">21</span><span>Scenario Comparison</span>
+      <span class="nav-num">⚖️</span><span>Scenario Comparison</span>
     </div>
     <div class="nav-phase">⚙️ Administration</div>
     <div class="nav-item" data-page="dm" onclick="toggleDataPanel()" style="cursor:pointer;">
@@ -1793,7 +1793,7 @@ function renderPage(page) {
       4: 'heatmap', 5: 'friction_map', 6: 'gap_analysis',
       7: 'cost_analysis', 8: 'self_service', 10: 'channel_strategy',
       14: null, /* v4.3-#13: removed — Impact Dashboard is Justify phase, not Diagnose */
-      16: 'opportunity_sizing',
+      16: 'opportunity_sizing', 19: 'heatmap', 20: 'cost_analysis',
     };
     if (pageRecMap[page]) {
       // Inject a container at the top of the page content
@@ -1911,8 +1911,8 @@ function _buildDiagnosticInsight(findings) {
     </div>`;
 }
 
-// ─── Universal Recommendation Block ───
-// Fetches from /api/recommendations/{context} and renders at top of page
+// ─── Universal Insight Block ───
+// Fetches from /api/recommendations/{context} and renders page-specific insights at top
 async function renderRecommendationBlock(containerId, pageContext) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -1922,66 +1922,62 @@ async function renderRecommendationBlock(containerId, pageContext) {
     if (!resp.ok) return;
     const data = await resp.json();
 
-    if (!data.recommendations || data.recommendations.length === 0) return;
+    if (!data.key_findings || data.key_findings.length === 0) return;
 
-    // Compact table rows for recommendations
-    const recRows = data.recommendations.map((r, i) => {
-      const rankColors = ['var(--ey-green)','var(--ey-blue)','var(--ey-teal)','#6B7280','#9CA3AF'];
-      const rc = rankColors[i] || rankColors[4];
+    // Page-specific insight icons and accent colors
+    const pageStyle = {
+      executive_summary: { icon: '📊', accent: 'var(--ey-dark)', label: 'Executive Insight' },
+      benchmarking: { icon: '📏', accent: 'var(--ey-blue)', label: 'Benchmark Gaps' },
+      maturity: { icon: '🎯', accent: 'var(--ey-purple)', label: 'Maturity Gaps' },
+      heatmap: { icon: '🔥', accent: 'var(--ey-red)', label: 'Hotspot Findings' },
+      friction_map: { icon: '⚡', accent: 'var(--ey-amber)', label: 'Friction Signals' },
+      gap_analysis: { icon: '🎯', accent: 'var(--ey-red)', label: 'Gap Findings' },
+      cost_analysis: { icon: '💲', accent: 'var(--ey-amber)', label: 'Cost Drivers' },
+      self_service: { icon: '🤖', accent: 'var(--ey-teal)', label: 'Self-Service Opportunity' },
+      channel_strategy: { icon: '🔀', accent: 'var(--ey-blue)', label: 'Channel Intelligence' },
+      opportunity_sizing: { icon: '💎', accent: 'var(--ey-green)', label: 'Opportunity Assessment' },
+    };
+    const style = pageStyle[pageContext] || { icon: '💡', accent: 'var(--ey-blue)', label: 'Key Insights' };
+
+    // Build insight cards from key_findings
+    const findingsHtml = data.key_findings.slice(0, 4).map((f, i) => {
+      const sevColor = f.severity === 'high' ? 'var(--ey-red)' : 'var(--ey-amber)';
+      const sevBg = f.severity === 'high' ? 'var(--ey-red-bg)' : 'var(--ey-amber-bg)';
       return `
-        <tr style="border-bottom:1px solid var(--ey-mid-gray);">
-          <td style="padding:7px 8px;width:28px;vertical-align:middle;"><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${rc};color:white;font-size:11px;font-weight:700;">${i+1}</span></td>
-          <td style="padding:7px 8px;font-size:12px;font-weight:600;color:var(--ey-dark);vertical-align:middle;">${r.name}</td>
-          <td style="padding:7px 8px;font-size:11px;color:var(--ey-text-light);vertical-align:middle;max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${(r.rationale||'').split(String.fromCharCode(34)).join('')}">${r.rationale||''}</td>
-          <td style="padding:7px 8px;font-size:11px;font-weight:600;color:var(--ey-green);vertical-align:middle;white-space:nowrap;text-align:right;">${r.fte_impact > 0 ? '↓ '+r.fte_impact+' FTE' : '—'}</td>
-          <td style="padding:7px 8px;font-size:11px;font-weight:600;color:var(--ey-teal);vertical-align:middle;white-space:nowrap;text-align:right;">${r.annual_saving > 0 ? '$'+(r.annual_saving/1000).toFixed(0)+'K/yr' : '—'}</td>
-          <td style="padding:7px 8px;vertical-align:middle;"><span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${r.layer==='AI & Automation'?'var(--ey-green-bg)':r.layer==='Operating Model'?'var(--ey-blue-bg)':'#FFF3E0'};color:${r.layer==='AI & Automation'?'var(--ey-green)':r.layer==='Operating Model'?'var(--ey-blue)':'#E65100'};white-space:nowrap;">${r.layer}</span></td>
-        </tr>`;
+        <div style="flex:1;min-width:200px;background:${sevBg};border-radius:8px;padding:10px 14px;border-left:3px solid ${sevColor};">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:${sevColor};margin-bottom:4px;">${f.metric || 'Finding'}</div>
+          <div style="font-size:12px;color:var(--ey-dark);line-height:1.5;">${f.description}</div>
+          ${f.value ? '<div style="font-size:11px;color:var(--ey-text-light);margin-top:3px;">Current: <strong>' + f.value + '</strong></div>' : ''}
+        </div>`;
     }).join('');
 
-    // Inline findings as compact chips
-    const findingsHtml = data.key_findings?.slice(0, 3).map(f => `
-      <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:${f.severity==='high'?'#FDE8EE':'#FFF8E1'};border-radius:12px;font-size:11px;color:var(--ey-text);">
-        <span style="width:6px;height:6px;border-radius:50%;background:${f.severity==='high'?'var(--ey-red)':'var(--ey-amber)'};"></span>
-        ${f.description}
-      </span>
-    `).join('') || '';
-
+    // Opportunity size summary
     const opSize = data.opportunity_size || {};
+    const opHtml = opSize.annual_saving ? `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--ey-green-bg);border-radius:8px;border:1px solid #C8E6C9;margin-top:10px;">
+        <div style="font-size:20px;">💰</div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ey-green);letter-spacing:0.8px;">Addressable Opportunity</div>
+          <div style="font-size:14px;font-weight:800;color:var(--ey-green);">$${(opSize.annual_saving/1000).toFixed(0)}K/yr</div>
+        </div>
+        ${opSize.fte_impact ? '<div style="margin-left:auto;text-align:right;"><div style="font-size:10px;color:var(--ey-text-light);">FTE Impact</div><div style="font-size:14px;font-weight:700;color:var(--ey-dark);">↓ ' + opSize.fte_impact + ' FTE</div></div>' : ''}
+      </div>` : '';
 
     container.innerHTML = `
-      <div style="background:white;border-radius:10px;padding:16px 20px;margin-bottom:20px;box-shadow:var(--shadow);border:1px solid var(--ey-mid-gray);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <span style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--ey-yellow);background:var(--ey-dark);padding:3px 10px;border-radius:4px;">Key Insights & Recommendations</span>
-            <span style="font-size:13px;font-weight:600;color:var(--ey-dark);">${data.headline || ''}</span>
+      <div style="background:white;border-radius:10px;padding:16px 20px;margin-bottom:20px;box-shadow:var(--shadow);border:1px solid var(--ey-mid-gray);border-top:3px solid ${style.accent};">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <span style="font-size:18px;">${style.icon}</span>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:${style.accent};">${style.label}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--ey-dark);margin-top:2px;">${data.headline || ''}</div>
           </div>
-          ${opSize.annual_saving ? `
-          <div style="display:flex;align-items:baseline;gap:6px;">
-            <span style="font-size:18px;font-weight:700;color:var(--ey-green);">$${(opSize.annual_saving/1000).toFixed(0)}K</span>
-            <span style="font-size:10px;color:var(--ey-text-light);">addressable</span>
-          </div>` : ''}
         </div>
-
-        ${findingsHtml ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${findingsHtml}</div>` : ''}
-
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="border-bottom:2px solid var(--ey-mid-gray);">
-              <th style="padding:5px 8px;font-size:10px;font-weight:600;color:var(--ey-text-light);text-align:left;text-transform:uppercase;letter-spacing:0.5px;">#</th>
-              <th style="padding:5px 8px;font-size:10px;font-weight:600;color:var(--ey-text-light);text-align:left;text-transform:uppercase;letter-spacing:0.5px;">Solution</th>
-              <th style="padding:5px 8px;font-size:10px;font-weight:600;color:var(--ey-text-light);text-align:left;text-transform:uppercase;letter-spacing:0.5px;">Rationale</th>
-              <th style="padding:5px 8px;font-size:10px;font-weight:600;color:var(--ey-text-light);text-align:right;text-transform:uppercase;letter-spacing:0.5px;">FTE</th>
-              <th style="padding:5px 8px;font-size:10px;font-weight:600;color:var(--ey-text-light);text-align:right;text-transform:uppercase;letter-spacing:0.5px;">Savings</th>
-              <th style="padding:5px 8px;font-size:10px;font-weight:600;color:var(--ey-text-light);text-align:left;text-transform:uppercase;letter-spacing:0.5px;">Layer</th>
-            </tr>
-          </thead>
-          <tbody>${recRows}</tbody>
-        </table>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">${findingsHtml}</div>
+        ${opHtml}
       </div>
     `;
   } catch(e) {
-    console.warn('Recommendations load failed for', pageContext, e);
+    console.warn('Insights load failed for', pageContext, e);
   }
 }
 
@@ -7111,7 +7107,6 @@ function drawP10MigrationSankey() {
 
   const sources = Object.entries(sourceMap).sort((a,b) => b[1] - a[1]);
   const targets = Object.entries(targetMap).sort((a,b) => b[1] - a[1]);
-  const maxNodeVol = Math.max(...sources.map(s => s[1]), ...targets.map(t => t[1]), 1);
   const totalMigrated = flows.reduce((s,f) => s + f.volume, 0);
 
   // Layout parameters
@@ -7143,128 +7138,151 @@ function drawP10MigrationSankey() {
     ty += h + nodeGap;
   });
 
-  // Channel colours
-  // A-14 fix: Channel colors for canvas (can't use CSS vars directly).
-  // Cross-reference: Voice=var(--ey-red), Chat=var(--ey-blue), App=var(--ey-green), IVR=var(--ey-teal)
-  // If CSS variables are updated during rebrand, update these hex values to match.
-  const _cs = getComputedStyle(document.documentElement);
-  const _cv = (v, fb) => { const c = _cs.getPropertyValue(v).trim(); return c || fb; };
+  // Channel colours — solid, distinct palette
   const chColors = {
-    'Voice': _cv('--ey-red', '#C5003E'), 'Email': _cv('--ey-orange', '#E65100'), 'Retail/Walk-in': '#B71C1C',
-    'Chat': _cv('--ey-blue', '#1A73E8'), 'App/Self-Service': _cv('--ey-green', '#168736'), 'IVR': _cv('--ey-teal', '#0097A7'),
-    'SMS/WhatsApp': '#7B1FA2', 'Social Media': '#00897B'
+    'Voice': '#C5003E', 'Email': '#E65100', 'Retail/Walk-in': '#B71C1C',
+    'Chat': '#1565C0', 'App/Self-Service': '#2E7D32', 'IVR': '#00838F',
+    'SMS/WhatsApp': '#6A1B9A', 'Social Media': '#00695C'
   };
 
   // Sort flows by volume (draw thicker bands last so they're on top)
   const sortedFlows = [...flows].sort((a,b) => a.volume - b.volume);
 
-  // Draw flow bands
+  // Store band metadata for hover interaction
   const linkMeta = [];
-  sortedFlows.forEach(f => {
-    const s = sourceNodes[f.from], t = targetNodes[f.to];
-    if (!s || !t) return;
-    const bandW = Math.max(2, (f.volume / totalMigrated) * (usableH * 0.6));
 
-    const sy0 = s.y + s.outOffset + bandW / 2;
-    const ty0 = t.y + t.inOffset + bandW / 2;
-    s.outOffset += bandW + 1;
-    t.inOffset += bandW + 1;
+  // Function to draw all bands (with optional highlight)
+  function drawBands(highlightIdx) {
+    // Reset node offsets
+    Object.values(sourceNodes).forEach(n => n.outOffset = 0);
+    Object.values(targetNodes).forEach(n => n.inOffset = 0);
+    linkMeta.length = 0;
 
-    const sx = s.x + s.w, tx = t.x;
-    const cp1x = sx + (tx - sx) * 0.40;
-    const cp2x = sx + (tx - sx) * 0.60;
+    sortedFlows.forEach((f, idx) => {
+      const s = sourceNodes[f.from], t = targetNodes[f.to];
+      if (!s || !t) return;
+      const bandW = Math.max(2, (f.volume / totalMigrated) * (usableH * 0.6));
 
-    // Band with gradient
-    const grad = ctx.createLinearGradient(sx, 0, tx, 0);
-    const sColor = chColors[f.from] || '#C5003E';
-    const tColor = chColors[f.to] || '#1A73E8';
-    grad.addColorStop(0, sColor + '55');
-    grad.addColorStop(1, tColor + '55');
+      const sy0 = s.y + s.outOffset + bandW / 2;
+      const ty0 = t.y + t.inOffset + bandW / 2;
+      s.outOffset += bandW + 1;
+      t.inOffset += bandW + 1;
 
-    ctx.beginPath();
-    ctx.moveTo(sx, sy0 - bandW/2);
-    ctx.bezierCurveTo(cp1x, sy0 - bandW/2, cp2x, ty0 - bandW/2, tx, ty0 - bandW/2);
-    ctx.lineTo(tx, ty0 + bandW/2);
-    ctx.bezierCurveTo(cp2x, ty0 + bandW/2, cp1x, sy0 + bandW/2, sx, sy0 + bandW/2);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
+      const sx = s.x + s.w, tx = t.x;
+      const cp1x = sx + (tx - sx) * 0.40;
+      const cp2x = sx + (tx - sx) * 0.60;
 
-    // Volume label on band center
-    if (f.volume > totalMigrated * 0.08) {
-      const midX = (sx + tx) / 2;
-      const midY = (sy0 + ty0) / 2;
-      ctx.fillStyle = '#2E2E38';
+      // Determine opacity: full if highlighted or no highlight active, dimmed otherwise
+      const isHighlighted = highlightIdx === null || highlightIdx === undefined;
+      const isThisBand = highlightIdx === idx;
+      const opacity = isHighlighted ? '70' : (isThisBand ? 'AA' : '18');
+
+      const grad = ctx.createLinearGradient(sx, 0, tx, 0);
+      const sColor = chColors[f.from] || '#C5003E';
+      const tColor = chColors[f.to] || '#1565C0';
+      grad.addColorStop(0, sColor + opacity);
+      grad.addColorStop(1, tColor + opacity);
+
+      ctx.beginPath();
+      ctx.moveTo(sx, sy0 - bandW/2);
+      ctx.bezierCurveTo(cp1x, sy0 - bandW/2, cp2x, ty0 - bandW/2, tx, ty0 - bandW/2);
+      ctx.lineTo(tx, ty0 + bandW/2);
+      ctx.bezierCurveTo(cp2x, ty0 + bandW/2, cp1x, sy0 + bandW/2, sx, sy0 + bandW/2);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Only show volume label on the highlighted band
+      if (isThisBand && f.volume > 0) {
+        const midX = (sx + tx) / 2;
+        const midY = (sy0 + ty0) / 2;
+        ctx.fillStyle = '#2E2E38';
+        ctx.font = 'bold 11px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(f.volume.toLocaleString() + '/mo', midX, midY + 3);
+      }
+
+      linkMeta.push({ from: f.from, to: f.to, volume: f.volume, sx, sy: sy0, tx, ty: ty0, bandW, idx });
+    });
+  }
+
+  // Function to draw nodes
+  function drawNodes() {
+    // Draw source nodes (left)
+    Object.values(sourceNodes).forEach(n => {
+      const color = chColors[n.name] || '#2E2E38';
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      if (ctx.roundRect) { ctx.roundRect(n.x, n.y, n.w, n.h, 6); } else { ctx.rect(n.x, n.y, n.w, n.h); }
+      ctx.fill();
+      ctx.fillStyle = '#fff';
       ctx.font = 'bold 10px Inter, system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(f.volume.toLocaleString() + '/mo', midX, midY + 3);
-    }
+      ctx.textBaseline = 'middle';
+      ctx.fillText(n.name, n.x + n.w / 2, n.y + n.h / 2 - 6);
+      ctx.font = '9px Inter, system-ui, sans-serif';
+      ctx.fillText((n.vol/1000).toFixed(1) + 'K/mo', n.x + n.w / 2, n.y + n.h / 2 + 8);
+    });
 
-    linkMeta.push({ from: f.from, to: f.to, volume: f.volume, sx, sy: sy0, tx, ty: ty0, bandW });
-  });
+    // Draw target nodes (right)
+    Object.values(targetNodes).forEach(n => {
+      const color = chColors[n.name] || '#1565C0';
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      if (ctx.roundRect) { ctx.roundRect(n.x, n.y, n.w, n.h, 6); } else { ctx.rect(n.x, n.y, n.w, n.h); }
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(n.name, n.x + n.w / 2, n.y + n.h / 2 - 6);
+      ctx.font = '9px Inter, system-ui, sans-serif';
+      ctx.fillText((n.vol/1000).toFixed(1) + 'K absorb', n.x + n.w / 2, n.y + n.h / 2 + 8);
+    });
+  }
 
-  // Draw source nodes (left)
-  Object.values(sourceNodes).forEach(n => {
-    const color = chColors[n.name] || '#2E2E38';
-    // Node bar (with fallback for roundRect compatibility)
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    if (ctx.roundRect) { ctx.roundRect(n.x, n.y, n.w, n.h, 4); } else { ctx.rect(n.x, n.y, n.w, n.h); }
-    ctx.fill();
-    // Label
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px Inter, system-ui, sans-serif';
+  // Function to draw title
+  function drawTitle() {
+    ctx.fillStyle = '#2E2E38';
+    ctx.font = 'bold 12px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Source Channels', leftX, padTop - 10);
+    ctx.textAlign = 'right';
+    ctx.fillText('Target Channels', rightX + nodeW, padTop - 10);
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(n.name, n.x + n.w / 2, n.y + n.h / 2 - 6);
-    ctx.font = '9px Inter, system-ui, sans-serif';
-    ctx.fillText((n.vol/1000).toFixed(1) + 'K/mo', n.x + n.w / 2, n.y + n.h / 2 + 8);
-  });
+    ctx.font = '10px Inter, system-ui, sans-serif';
+    ctx.fillStyle = '#747480';
+    ctx.fillText(totalMigrated.toLocaleString() + ' contacts/mo migrating', W / 2, padTop - 10);
+  }
 
-  // Draw target nodes (right)
-  Object.values(targetNodes).forEach(n => {
-    const color = chColors[n.name] || '#1A73E8';
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    if (ctx.roundRect) { ctx.roundRect(n.x, n.y, n.w, n.h, 4); } else { ctx.rect(n.x, n.y, n.w, n.h); }
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px Inter, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(n.name, n.x + n.w / 2, n.y + n.h / 2 - 6);
-    ctx.font = '9px Inter, system-ui, sans-serif';
-    ctx.fillText((n.vol/1000).toFixed(1) + 'K absorb', n.x + n.w / 2, n.y + n.h / 2 + 8);
-  });
+  // Full redraw function
+  function fullRedraw(highlightIdx) {
+    ctx.clearRect(0, 0, W, H);
+    drawBands(highlightIdx);
+    drawNodes();
+    drawTitle();
+  }
 
-  // Title
-  ctx.fillStyle = '#2E2E38';
-  ctx.font = 'bold 12px Inter, system-ui, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText('Source Channels', leftX, padTop - 10);
-  ctx.textAlign = 'right';
-  ctx.fillText('Target Channels', rightX + nodeW, padTop - 10);
-  ctx.textAlign = 'center';
-  ctx.font = '10px Inter, system-ui, sans-serif';
-  ctx.fillStyle = '#747480';
-  ctx.fillText(totalMigrated.toLocaleString() + ' contacts/mo migrating', W / 2, padTop - 10);
+  // Initial draw — no highlight
+  fullRedraw(null);
 
   // Hover tooltip
   let tooltip = document.getElementById('migSankeyTip');
   if (!tooltip) {
     tooltip = document.createElement('div');
     tooltip.id = 'migSankeyTip';
-    tooltip.style.cssText = 'position:absolute;display:none;background:#2E2E38;color:#fff;padding:8px 12px;border-radius:6px;font-size:10px;max-width:260px;z-index:100;pointer-events:none;line-height:1.5;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+    tooltip.style.cssText = 'position:absolute;display:none;background:#2E2E38;color:#fff;padding:10px 14px;border-radius:8px;font-size:11px;max-width:280px;z-index:100;pointer-events:none;line-height:1.6;box-shadow:0 4px 16px rgba(0,0,0,0.35);';
     canvas.parentElement.appendChild(tooltip);
   }
-  // A-09 fix: Store band paths for accurate hit testing
+
+  let lastHighlight = null;
   canvas.onmousemove = function(e) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = W / rect.width, scaleY = H / rect.height;
     const cx = (e.clientX - rect.left) * scaleX;
     const cy = (e.clientY - rect.top) * scaleY;
     let hit = null;
-    // Test each band path using canvas isPointInPath for bezier accuracy
+    // Test each band path using canvas isPointInPath
     for (const lk of linkMeta) {
       const path = new Path2D();
       const cp1x = lk.sx + (lk.tx - lk.sx) * 0.40;
@@ -7277,17 +7295,36 @@ function drawP10MigrationSankey() {
       if (ctx.isPointInPath(path, cx, cy)) { hit = lk; break; }
     }
     if (hit) {
-      tooltip.innerHTML = `<strong>${hit.from} → ${hit.to}</strong><br>${hit.volume.toLocaleString()} contacts/mo migrated`;
+      const pctSource = ((hit.volume / (sourceMap[hit.from] || 1)) * 100).toFixed(1);
+      const pctTarget = ((hit.volume / (targetMap[hit.to] || 1)) * 100).toFixed(1);
+      tooltip.innerHTML = `<strong>${hit.from} → ${hit.to}</strong><br>` +
+        `${hit.volume.toLocaleString()} contacts/mo<br>` +
+        `<span style="opacity:0.7;">${pctSource}% of ${hit.from} · ${pctTarget}% of ${hit.to}</span>`;
       tooltip.style.display = 'block';
-      tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
-      tooltip.style.top = (e.clientY - rect.top - 10) + 'px';
+      tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
+      tooltip.style.top = (e.clientY - rect.top - 12) + 'px';
       canvas.style.cursor = 'pointer';
+      // Redraw with highlight only if changed
+      if (lastHighlight !== hit.idx) {
+        lastHighlight = hit.idx;
+        fullRedraw(hit.idx);
+      }
     } else {
       tooltip.style.display = 'none';
       canvas.style.cursor = 'default';
+      if (lastHighlight !== null) {
+        lastHighlight = null;
+        fullRedraw(null);
+      }
     }
   };
-  canvas.onmouseleave = function() { if (tooltip) tooltip.style.display = 'none'; };
+  canvas.onmouseleave = function() {
+    if (tooltip) tooltip.style.display = 'none';
+    if (lastHighlight !== null) {
+      lastHighlight = null;
+      fullRedraw(null);
+    }
+  };
 }
 
 function drawChannelSankey() {
