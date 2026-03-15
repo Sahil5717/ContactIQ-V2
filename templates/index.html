@@ -7019,7 +7019,7 @@ function renderPage10() {
       <!-- V4.11-#12: Sankey / Alluvial Visualization -->
       ${mergedFlows.length > 0 ? `
       <div style="margin-bottom:16px;position:relative;">
-        <canvas id="migrationSankey" width="720" height="${Math.max(260, Math.max(new Set(mergedFlows.map(f=>f.from)).size, new Set(mergedFlows.map(f=>f.to)).size) * 52 + 60)}" style="width:100%;"></canvas>
+        <canvas id="migrationSankey" width="900" height="${Math.max(220, Math.max(new Set(mergedFlows.map(f=>f.from)).size, new Set(mergedFlows.map(f=>f.to)).size) * 40 + 50)}" style="width:100%;max-height:360px;"></canvas>
       </div>` : ''}
       
       ${mergedFlows.length > 0 ? `
@@ -7084,22 +7084,28 @@ function renderPage10() {
 function drawP10MigrationSankey() {
   const canvas = document.getElementById('migrationSankey');
   if (!canvas) return;
+
+  // ── HiDPI crisp rendering ──
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth;
+  const cssH = canvas.clientHeight;
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
   const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
+  ctx.scale(dpr, dpr);
+  // All drawing now uses CSS pixel coordinates — canvas handles the rest
+  const W = cssW, H = cssH;
 
   const flows = window._p10MergedFlows || [];
   const chStats = window._p10ChannelStats || {};
   if (flows.length === 0) return;
 
-  // Build left (source) and right (target) node lists
+  // Build source/target volumes
   const sourceMap = {}, targetMap = {};
   flows.forEach(f => {
     sourceMap[f.from] = (sourceMap[f.from] || 0) + f.volume;
     targetMap[f.to] = (targetMap[f.to] || 0) + f.volume;
   });
-
-  // Include retained volume on source channels for full-width nodes
   Object.keys(sourceMap).forEach(ch => {
     const totalVol = (chStats[ch] || {}).vol || sourceMap[ch];
     sourceMap[ch] = Math.max(sourceMap[ch], totalVol);
@@ -7109,16 +7115,15 @@ function drawP10MigrationSankey() {
   const targets = Object.entries(targetMap).sort((a,b) => b[1] - a[1]);
   const totalMigrated = flows.reduce((s,f) => s + f.volume, 0);
 
-  // Layout parameters
-  const nodeW = 130, padTop = 30, padBot = 20;
+  // ── Compact layout ──
+  const nodeW = 96, padTop = 26, padBot = 12, padL = 14, padR = 14;
   const usableH = H - padTop - padBot;
-  const leftX = 20, rightX = W - nodeW - 20;
+  const leftX = padL, rightX = W - nodeW - padR;
 
-  // Compute node positions with proportional height
   const totalSourceVol = sources.reduce((s,n) => s + n[1], 0) || 1;
   const totalTargetVol = targets.reduce((s,n) => s + n[1], 0) || 1;
-  const minNodeH = 28;
-  const nodeGap = 8;
+  const minNodeH = 22;
+  const nodeGap = 5;
   const sourceAvailH = usableH - (sources.length - 1) * nodeGap;
   const targetAvailH = usableH - (targets.length - 1) * nodeGap;
 
@@ -7138,22 +7143,18 @@ function drawP10MigrationSankey() {
     ty += h + nodeGap;
   });
 
-  // Channel colours — solid, distinct palette
+  // ── Channel colours ──
   const chColors = {
     'Voice': '#C5003E', 'Email': '#E65100', 'Retail/Walk-in': '#B71C1C',
     'Chat': '#1565C0', 'App/Self-Service': '#2E7D32', 'IVR': '#00838F',
     'SMS/WhatsApp': '#6A1B9A', 'Social Media': '#00695C'
   };
 
-  // Sort flows by volume (draw thicker bands last so they're on top)
   const sortedFlows = [...flows].sort((a,b) => a.volume - b.volume);
-
-  // Store band metadata for hover interaction
   const linkMeta = [];
 
-  // Function to draw all bands (with optional highlight)
+  // ── Draw bands ──
   function drawBands(highlightIdx) {
-    // Reset node offsets
     Object.values(sourceNodes).forEach(n => n.outOffset = 0);
     Object.values(targetNodes).forEach(n => n.inOffset = 0);
     linkMeta.length = 0;
@@ -7161,27 +7162,24 @@ function drawP10MigrationSankey() {
     sortedFlows.forEach((f, idx) => {
       const s = sourceNodes[f.from], t = targetNodes[f.to];
       if (!s || !t) return;
-      const bandW = Math.max(2, (f.volume / totalMigrated) * (usableH * 0.6));
+      const bandW = Math.max(1.5, (f.volume / totalMigrated) * (usableH * 0.55));
 
       const sy0 = s.y + s.outOffset + bandW / 2;
       const ty0 = t.y + t.inOffset + bandW / 2;
-      s.outOffset += bandW + 1;
-      t.inOffset += bandW + 1;
+      s.outOffset += bandW + 0.5;
+      t.inOffset += bandW + 0.5;
 
       const sx = s.x + s.w, tx = t.x;
-      const cp1x = sx + (tx - sx) * 0.40;
-      const cp2x = sx + (tx - sx) * 0.60;
+      const cp1x = sx + (tx - sx) * 0.35;
+      const cp2x = sx + (tx - sx) * 0.65;
 
-      // Determine opacity: full if highlighted or no highlight active, dimmed otherwise
-      const isHighlighted = highlightIdx === null || highlightIdx === undefined;
-      const isThisBand = highlightIdx === idx;
-      const opacity = isHighlighted ? '70' : (isThisBand ? 'AA' : '18');
+      const noHL = highlightIdx === null || highlightIdx === undefined;
+      const isThis = highlightIdx === idx;
+      const opacity = noHL ? '60' : (isThis ? 'BB' : '12');
 
       const grad = ctx.createLinearGradient(sx, 0, tx, 0);
-      const sColor = chColors[f.from] || '#C5003E';
-      const tColor = chColors[f.to] || '#1565C0';
-      grad.addColorStop(0, sColor + opacity);
-      grad.addColorStop(1, tColor + opacity);
+      grad.addColorStop(0, (chColors[f.from] || '#C5003E') + opacity);
+      grad.addColorStop(1, (chColors[f.to] || '#1565C0') + opacity);
 
       ctx.beginPath();
       ctx.moveTo(sx, sy0 - bandW/2);
@@ -7192,70 +7190,82 @@ function drawP10MigrationSankey() {
       ctx.fillStyle = grad;
       ctx.fill();
 
-      // Only show volume label on the highlighted band
-      if (isThisBand && f.volume > 0) {
-        const midX = (sx + tx) / 2;
-        const midY = (sy0 + ty0) / 2;
-        ctx.fillStyle = '#2E2E38';
-        ctx.font = 'bold 11px Inter, system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(f.volume.toLocaleString() + '/mo', midX, midY + 3);
+      // Highlighted band: add a thin edge + volume label
+      if (isThis) {
+        ctx.strokeStyle = (chColors[f.from] || '#C5003E') + '90';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        if (f.volume > 0) {
+          const midX = (sx + tx) / 2, midY = (sy0 + ty0) / 2;
+          // Label background pill
+          const label = f.volume.toLocaleString() + '/mo';
+          ctx.font = 'bold 9px Inter, system-ui, sans-serif';
+          const tw = ctx.measureText(label).width;
+          ctx.fillStyle = 'rgba(46,46,56,0.88)';
+          ctx.beginPath();
+          if (ctx.roundRect) ctx.roundRect(midX - tw/2 - 6, midY - 7, tw + 12, 14, 4);
+          else ctx.rect(midX - tw/2 - 6, midY - 7, tw + 12, 14);
+          ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(label, midX, midY);
+        }
       }
 
       linkMeta.push({ from: f.from, to: f.to, volume: f.volume, sx, sy: sy0, tx, ty: ty0, bandW, idx });
     });
   }
 
-  // Function to draw nodes
+  // ── Draw nodes ──
   function drawNodes() {
-    // Draw source nodes (left)
-    Object.values(sourceNodes).forEach(n => {
-      const color = chColors[n.name] || '#2E2E38';
+    const drawNode = (n, fallback) => {
+      const color = chColors[n.name] || fallback;
+      // Subtle shadow
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.12)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 1;
       ctx.fillStyle = color;
       ctx.beginPath();
-      if (ctx.roundRect) { ctx.roundRect(n.x, n.y, n.w, n.h, 6); } else { ctx.rect(n.x, n.y, n.w, n.h); }
+      if (ctx.roundRect) ctx.roundRect(n.x, n.y, n.w, n.h, 5);
+      else ctx.rect(n.x, n.y, n.w, n.h);
       ctx.fill();
+      ctx.restore();
+      // Text
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 10px Inter, system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(n.name, n.x + n.w / 2, n.y + n.h / 2 - 6);
-      ctx.font = '9px Inter, system-ui, sans-serif';
-      ctx.fillText((n.vol/1000).toFixed(1) + 'K/mo', n.x + n.w / 2, n.y + n.h / 2 + 8);
-    });
-
-    // Draw target nodes (right)
-    Object.values(targetNodes).forEach(n => {
-      const color = chColors[n.name] || '#1565C0';
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      if (ctx.roundRect) { ctx.roundRect(n.x, n.y, n.w, n.h, 6); } else { ctx.rect(n.x, n.y, n.w, n.h); }
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 10px Inter, system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(n.name, n.x + n.w / 2, n.y + n.h / 2 - 6);
-      ctx.font = '9px Inter, system-ui, sans-serif';
-      ctx.fillText((n.vol/1000).toFixed(1) + 'K absorb', n.x + n.w / 2, n.y + n.h / 2 + 8);
-    });
+      const cy = n.y + n.h / 2;
+      if (n.h >= 32) {
+        ctx.font = 'bold 9px Inter, system-ui, sans-serif';
+        ctx.fillText(n.name, n.x + n.w/2, cy - 5);
+        ctx.font = '8px Inter, system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.fillText((n.vol/1000).toFixed(1) + 'K', n.x + n.w/2, cy + 7);
+      } else {
+        ctx.font = 'bold 8px Inter, system-ui, sans-serif';
+        ctx.fillText(n.name + '  ' + (n.vol/1000).toFixed(1) + 'K', n.x + n.w/2, cy);
+      }
+    };
+    Object.values(sourceNodes).forEach(n => drawNode(n, '#2E2E38'));
+    Object.values(targetNodes).forEach(n => drawNode(n, '#1565C0'));
   }
 
-  // Function to draw title
+  // ── Draw header ──
   function drawTitle() {
-    ctx.fillStyle = '#2E2E38';
-    ctx.font = 'bold 12px Inter, system-ui, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('Source Channels', leftX, padTop - 10);
-    ctx.textAlign = 'right';
-    ctx.fillText('Target Channels', rightX + nodeW, padTop - 10);
-    ctx.textAlign = 'center';
-    ctx.font = '10px Inter, system-ui, sans-serif';
+    ctx.font = 'bold 10px Inter, system-ui, sans-serif';
+    ctx.textBaseline = 'top';
     ctx.fillStyle = '#747480';
-    ctx.fillText(totalMigrated.toLocaleString() + ' contacts/mo migrating', W / 2, padTop - 10);
+    ctx.textAlign = 'left';
+    ctx.fillText('Source', leftX, 4);
+    ctx.textAlign = 'right';
+    ctx.fillText('Target', rightX + nodeW, 4);
+    ctx.textAlign = 'center';
+    ctx.font = '9px Inter, system-ui, sans-serif';
+    ctx.fillText(totalMigrated.toLocaleString() + ' contacts/mo migrating', W/2, 6);
   }
 
-  // Full redraw function
   function fullRedraw(highlightIdx) {
     ctx.clearRect(0, 0, W, H);
     drawBands(highlightIdx);
@@ -7263,67 +7273,55 @@ function drawP10MigrationSankey() {
     drawTitle();
   }
 
-  // Initial draw — no highlight
   fullRedraw(null);
 
-  // Hover tooltip
+  // ── Tooltip ──
   let tooltip = document.getElementById('migSankeyTip');
   if (!tooltip) {
     tooltip = document.createElement('div');
     tooltip.id = 'migSankeyTip';
-    tooltip.style.cssText = 'position:absolute;display:none;background:#2E2E38;color:#fff;padding:10px 14px;border-radius:8px;font-size:11px;max-width:280px;z-index:100;pointer-events:none;line-height:1.6;box-shadow:0 4px 16px rgba(0,0,0,0.35);';
+    tooltip.style.cssText = 'position:absolute;display:none;background:#2E2E38;color:#fff;padding:8px 12px;border-radius:6px;font-size:10px;max-width:260px;z-index:100;pointer-events:none;line-height:1.5;box-shadow:0 4px 12px rgba(0,0,0,0.25);';
     canvas.parentElement.appendChild(tooltip);
   }
 
-  let lastHighlight = null;
+  let lastHL = null;
   canvas.onmousemove = function(e) {
     const rect = canvas.getBoundingClientRect();
-    const scaleX = W / rect.width, scaleY = H / rect.height;
-    const cx = (e.clientX - rect.left) * scaleX;
-    const cy = (e.clientY - rect.top) * scaleY;
+    // Use CSS coordinates (not canvas pixels) since we drew in CSS space
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    // But isPointInPath needs canvas-pixel coords, so scale by dpr
+    const pcx = cx * dpr, pcy = cy * dpr;
     let hit = null;
-    // Test each band path using canvas isPointInPath
     for (const lk of linkMeta) {
       const path = new Path2D();
-      const cp1x = lk.sx + (lk.tx - lk.sx) * 0.40;
-      const cp2x = lk.sx + (lk.tx - lk.sx) * 0.60;
-      path.moveTo(lk.sx, lk.sy - lk.bandW/2);
-      path.bezierCurveTo(cp1x, lk.sy - lk.bandW/2, cp2x, lk.ty - lk.bandW/2, lk.tx, lk.ty - lk.bandW/2);
-      path.lineTo(lk.tx, lk.ty + lk.bandW/2);
-      path.bezierCurveTo(cp2x, lk.ty + lk.bandW/2, cp1x, lk.sy + lk.bandW/2, lk.sx, lk.sy + lk.bandW/2);
+      const cp1x = lk.sx + (lk.tx - lk.sx) * 0.35;
+      const cp2x = lk.sx + (lk.tx - lk.sx) * 0.65;
+      path.moveTo(lk.sx * dpr, (lk.sy - lk.bandW/2) * dpr);
+      path.bezierCurveTo(cp1x * dpr, (lk.sy - lk.bandW/2) * dpr, cp2x * dpr, (lk.ty - lk.bandW/2) * dpr, lk.tx * dpr, (lk.ty - lk.bandW/2) * dpr);
+      path.lineTo(lk.tx * dpr, (lk.ty + lk.bandW/2) * dpr);
+      path.bezierCurveTo(cp2x * dpr, (lk.ty + lk.bandW/2) * dpr, cp1x * dpr, (lk.sy + lk.bandW/2) * dpr, lk.sx * dpr, (lk.sy + lk.bandW/2) * dpr);
       path.closePath();
-      if (ctx.isPointInPath(path, cx, cy)) { hit = lk; break; }
+      if (ctx.isPointInPath(path, pcx, pcy)) { hit = lk; break; }
     }
     if (hit) {
-      const pctSource = ((hit.volume / (sourceMap[hit.from] || 1)) * 100).toFixed(1);
-      const pctTarget = ((hit.volume / (targetMap[hit.to] || 1)) * 100).toFixed(1);
-      tooltip.innerHTML = `<strong>${hit.from} → ${hit.to}</strong><br>` +
-        `${hit.volume.toLocaleString()} contacts/mo<br>` +
-        `<span style="opacity:0.7;">${pctSource}% of ${hit.from} · ${pctTarget}% of ${hit.to}</span>`;
+      const pS = ((hit.volume / (sourceMap[hit.from] || 1)) * 100).toFixed(1);
+      const pT = ((hit.volume / (targetMap[hit.to] || 1)) * 100).toFixed(1);
+      tooltip.innerHTML = `<strong>${hit.from} → ${hit.to}</strong><br>${hit.volume.toLocaleString()} contacts/mo<br><span style="opacity:0.7;">${pS}% of ${hit.from} · ${pT}% of ${hit.to}</span>`;
       tooltip.style.display = 'block';
-      tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
-      tooltip.style.top = (e.clientY - rect.top - 12) + 'px';
+      tooltip.style.left = (cx + 14) + 'px';
+      tooltip.style.top = (cy - 12) + 'px';
       canvas.style.cursor = 'pointer';
-      // Redraw with highlight only if changed
-      if (lastHighlight !== hit.idx) {
-        lastHighlight = hit.idx;
-        fullRedraw(hit.idx);
-      }
+      if (lastHL !== hit.idx) { lastHL = hit.idx; fullRedraw(hit.idx); }
     } else {
       tooltip.style.display = 'none';
       canvas.style.cursor = 'default';
-      if (lastHighlight !== null) {
-        lastHighlight = null;
-        fullRedraw(null);
-      }
+      if (lastHL !== null) { lastHL = null; fullRedraw(null); }
     }
   };
   canvas.onmouseleave = function() {
     if (tooltip) tooltip.style.display = 'none';
-    if (lastHighlight !== null) {
-      lastHighlight = null;
-      fullRedraw(null);
-    }
+    if (lastHL !== null) { lastHL = null; fullRedraw(null); }
   };
 }
 
