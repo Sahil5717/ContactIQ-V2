@@ -323,7 +323,7 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
 /* Grid layouts */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-.grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.grid-2-1 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; }
 
 /* Health gauge */
@@ -1370,6 +1370,17 @@ function _getSubIntentsFlat(enrichedData) {
     return flat;
 }
 
+// CR-06/CR-11: Lookup top sub-intent(s) for a given parent intent
+function _getTopSubIntents(intent, maxCount) {
+    maxCount = maxCount || 1;
+    const siFlat = _getSubIntentsFlat(DEMO.subIntentEnriched || []);
+    return siFlat
+        .filter(si => si.parentIntent === intent)
+        .sort((a, b) => (b.volumeShare || 0) - (a.volumeShare || 0))
+        .slice(0, maxCount)
+        .map(si => si.subIntent || si.name || '—');
+}
+
 // v12-#41/#21: Compact recommendation table builder — themed per diagnostic context
 function _buildCompactRecTable(recs, triggerLabel, theme) {
   if (!recs || recs.length === 0) return '<em>No linked initiatives found.</em>';
@@ -1789,7 +1800,8 @@ function renderPage(page) {
 
     // Inject recommendation blocks at TOP of diagnostic pages (async, non-blocking)
     const pageRecMap = {
-      1: 'executive_summary', 2: 'benchmarking', 3: 'maturity',
+      /* CR-04: page 1 removed — Executive Insight duplicated health score, benchmark gaps, and KPI strip */
+      2: 'benchmarking', 3: 'maturity',
       4: 'heatmap', 5: 'friction_map', 6: 'gap_analysis',
       7: 'cost_analysis', 8: 'self_service', 10: 'channel_strategy',
       14: null, /* v4.3-#13: removed — Impact Dashboard is Justify phase, not Diagnose */
@@ -1951,17 +1963,7 @@ async function renderRecommendationBlock(containerId, pageContext) {
         </div>`;
     }).join('');
 
-    // Opportunity size summary
-    const opSize = data.opportunity_size || {};
-    const opHtml = opSize.annual_saving ? `
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--ey-green-bg);border-radius:8px;border:1px solid #C8E6C9;margin-top:10px;">
-        <div style="font-size:20px;">💰</div>
-        <div>
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ey-green);letter-spacing:0.8px;">Addressable Opportunity</div>
-          <div style="font-size:14px;font-weight:800;color:var(--ey-green);">$${(opSize.annual_saving/1000).toFixed(0)}K/yr</div>
-        </div>
-        ${opSize.fte_impact ? '<div style="margin-left:auto;text-align:right;"><div style="font-size:10px;color:var(--ey-text-light);">FTE Impact</div><div style="font-size:14px;font-weight:700;color:var(--ey-dark);">↓ ' + opSize.fte_impact + ' FTE</div></div>' : ''}
-      </div>` : '';
+    // CR-05: Opportunity banner removed — redundant with Business Case Summary (P1) and Size the Prize (P16)
 
     container.innerHTML = `
       <div style="background:white;border-radius:10px;padding:16px 20px;margin-bottom:20px;box-shadow:var(--shadow);border:1px solid var(--ey-mid-gray);border-top:3px solid ${style.accent};">
@@ -1973,7 +1975,6 @@ async function renderRecommendationBlock(containerId, pageContext) {
           </div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;">${findingsHtml}</div>
-        ${opHtml}
       </div>
     `;
   } catch(e) {
@@ -2277,7 +2278,7 @@ function renderPage1() {
         </div>
         <div>
           <div style="font-size:11px;font-weight:700;color:var(--ey-text-light);text-align:center;margin-bottom:4px;">Cumulative NPV Build</div>
-          <canvas id="p1NPVBuild" width="420" height="200"></canvas>
+          <canvas id="p1NPVBuild" width="420" height="240"></canvas>
         </div>
       </div>
     </div>
@@ -2561,7 +2562,7 @@ function drawP1NPVBuild() {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
-  const pad = {l:55, r:15, t:18, b:35};
+  const pad = {l:70, r:15, t:18, b:35};
   ctx.clearRect(0, 0, W, H);
 
   const yearly = WATERFALL.yearly || [];
@@ -2636,7 +2637,7 @@ function drawP1NPVBuild() {
     ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, H - pad.b); ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = '#FF9800'; ctx.font = 'bold 8px Inter, sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('Payback ' + payback.toFixed(1) + ' mo', px, pad.t - 3);
+    ctx.fillText('Payback ' + payback.toFixed(1) + ' mo', px, pad.t + 10);
   }
 }
 
@@ -5454,10 +5455,10 @@ function renderPage7() {
     <div class="card">
       <div class="card-title">Top 10 Most Expensive Queue Combinations</div>
       <div class="table-wrap"><table class="data-table" style="font-size:11px;">
-        <thead><tr><th>#</th><th>Intent</th><th>Channel</th><th>BU</th><th>Cost ($/mo)</th><th>% of Total</th><th>CPC ($/contact)</th><th>Volume (/mo)</th><th>Health (/100)</th></tr></thead>
+        <thead><tr><th>#</th><th>Intent</th><th>Sub-Intent</th><th>Channel</th><th>BU</th><th>Cost ($/mo)</th><th>% of Total</th><th>CPC ($/contact)</th><th>Volume (/mo)</th><th>Health (/100)</th></tr></thead>
         <tbody>
           ${topQueues.map((q,i) => `<tr>
-            <td>${i+1}</td><td>${q.intent}</td><td>${q.channel}</td><td>${q.bu}</td>
+            <td>${i+1}</td><td>${q.intent}</td><td style="font-size:10px;color:var(--ey-text-light);">${_getTopSubIntents(q.intent, 1).join(', ') || '—'}</td><td>${q.channel}</td><td>${q.bu}</td>
             <td style="font-weight:700;">${fmt(q.monthlyCost,'$k')}</td>
             <td>${(q.monthlyCost/totalCost*100).toFixed(1)}%</td>
             <td>${fmt(q.cpc,'$')}<span style="font-size:9px;color:var(--ey-text-light);">/contact</span></td>
@@ -5991,6 +5992,38 @@ function toggleInitiative(idx) {
 }
 
 // ─── Initiative Editor Panel (slide-out) ───
+
+// CR-10: Auto-enable location initiatives via toggle API so overrides persist through recalculate
+async function autoEnableLocInits(indices) {
+  const btn = event && event.target; if (btn) { btn.disabled = true; btn.textContent = '⏳ Enabling...'; }
+  try {
+    for (const idx of indices) {
+      const init = INITIATIVES[idx];
+      if (!init || init.enabled) continue;
+      init.enabled = true;
+      await fetch('/api/initiative/toggle', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ id: init.id, enabled: true })
+      });
+    }
+    // Now recalculate — overrides are persisted, so recalculate won't reset them
+    const resp = await fetch('/api/recalculate', { method: 'POST' }).then(r => r.json());
+    if (resp.waterfall) WATERFALL = resp.waterfall;
+    if (resp.initiatives) { INITIATIVES.length = 0; resp.initiatives.forEach(i => INITIATIVES.push(i)); }
+    _syncDemoFromBackend();
+    Object.keys(rendered).forEach(k => rendered[k] = false);
+    renderPage(currentPage);
+    const toast = document.getElementById('dmToast');
+    if (toast) { toast.textContent = '✓ ' + indices.length + ' initiative(s) auto-enabled + recalculated'; toast.style.display = 'block'; toast.style.background = '#168736'; setTimeout(() => toast.style.display = 'none', 3000); }
+  } catch(err) {
+    console.warn('Auto-enable failed:', err);
+    recalculateAll();
+    renderPage(currentPage);
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '⚡ Done'; }
+}
+
 function openInitEditor(idx) {
   const init = INITIATIVES[idx];
   if (!init) return;
@@ -7024,13 +7057,14 @@ function renderPage10() {
       
       ${mergedFlows.length > 0 ? `
       <table class="data-table" style="font-size:11px;">
-        <thead><tr><th>Intent</th><th>From Channel</th><th>To Channel</th><th>Monthly Volume</th><th>Annual Saving</th></tr></thead>
+        <thead><tr><th>Intent</th><th>Sub-Intents</th><th>From Channel</th><th>To Channel</th><th>Monthly Volume</th><th>Annual Saving</th></tr></thead>
         <tbody>
           ${mergedFlows.map(mf => {
             const saving = mf.volume * (avgCPCvoice - avgCPCdigital) * 12;
-            return '<tr><td><strong>'+mf.intent+'</strong></td><td style="color:var(--ey-red);">'+mf.from+'</td><td style="color:var(--ey-green);">'+mf.to+'</td><td style="text-align:right;">'+fmt(mf.volume,'int')+'</td><td style="text-align:right;color:var(--ey-green);font-weight:600;">'+fmt(saving,'$k')+'/yr</td></tr>';
+            const topSI = _getTopSubIntents(mf.intent, 2).join(', ') || '—';
+            return '<tr><td><strong>'+mf.intent+'</strong></td><td style="font-size:10px;color:var(--ey-text-light);">'+topSI+'</td><td style="color:var(--ey-red);">'+mf.from+'</td><td style="color:var(--ey-green);">'+mf.to+'</td><td style="text-align:right;">'+fmt(mf.volume,'int')+'</td><td style="text-align:right;color:var(--ey-green);font-weight:600;">'+fmt(saving,'$k')+'/yr</td></tr>';
           }).join('')}
-          <tr style="border-top:2px solid var(--ey-dark);font-weight:700;"><td colspan="3">Total</td><td style="text-align:right;">${fmt(totalMigVol,'int')}</td><td style="text-align:right;color:var(--ey-green);">${fmt(annualMigSaving,'$k')}/yr</td></tr>
+          <tr style="border-top:2px solid var(--ey-dark);font-weight:700;"><td colspan="4">Total</td><td style="text-align:right;">${fmt(totalMigVol,'int')}</td><td style="text-align:right;color:var(--ey-green);">${fmt(annualMigSaving,'$k')}/yr</td></tr>
         </tbody>
       </table>` : '<div style="padding:20px;text-align:center;color:var(--ey-text-light);font-size:12px;">No migration flows generated — enable deflection/channel initiatives on Roadmap</div>'}
     </div>
@@ -8553,7 +8587,7 @@ function renderPage16() {
   const pools = wf.poolUtilization || {};
   const enabled = INITIATIVES.filter(i => i.enabled);
   
-  // Define 6 opportunity buckets mapped to pool data (v10: added Customer Experience)
+  // Define opportunity buckets mapped to pool data — CR-13: covers all 7 backend pools
   const buckets = [
     {
       name: 'Self-Service Deflection',
@@ -8572,19 +8606,27 @@ function renderPage16() {
       isFTE: true,
     },
     {
-      name: 'Resolution & Repeat Reduction',
+      name: 'Resolution & Transfer Reduction',
       icon: '🔄', color: '#E91E63',
-      desc: 'FCR improvement reducing repeat contacts and rework',
+      desc: 'FCR improvement reducing repeat contacts, rework, and unnecessary transfers',
       poolKey: 'repeat_reduction',
-      levers: ['repeat_reduction'],
+      levers: ['repeat_reduction', 'transfer_reduction'],
       isFTE: true,
     },
     {
-      name: 'Workforce Optimization',
-      icon: '👥', color: '#9C27B0',
-      desc: 'FTE reduction through escalation prevention, shrinkage improvement, and operational restructuring',
+      name: 'Escalation Prevention',
+      icon: '🛡️', color: '#9C27B0',
+      desc: 'Demand-side reduction through better routing, agent empowerment, and L1 resolution',
       poolKey: 'escalation_reduction',
-      levers: ['escalation_reduction', 'shrinkage_reduction'],
+      levers: ['escalation_reduction'],
+      isFTE: true,
+    },
+    {
+      name: 'Workforce & Shrinkage',
+      icon: '👥', color: '#673AB7',
+      desc: 'Supply-side WFM improvement through adherence, schedule optimisation, and shrinkage reduction',
+      poolKey: 'shrinkage_reduction',
+      levers: ['shrinkage_reduction'],
       isFTE: true,
     },
     {
@@ -8677,7 +8719,7 @@ function renderPage16() {
           Captured value reflects enabled initiatives after pool-based netting (no double-counting) and safety caps
           (max ${Math.round(ABSOLUTE_SINGLE_INIT_CAP*100||30)}% per initiative, max ${Math.round(PER_ROLE_MAX_REDUCTION*100||50)}% per role — industry benchmarks).
           ${wf.poolSummary ? 'Total opportunity: ' + (wf.poolSummary.total_pool_fte||0).toFixed(0) + ' FTE across ' + (wf.poolSummary.total_volume||0).toLocaleString() + ' annual contacts.' : ''}
-          <br><strong>CX Bucket (6):</strong> CSAT gap computed per intent×channel vs industry benchmarks. Initiative csatImpact values aggregated with
+          <br><strong>CX Bucket (7):</strong> CSAT gap computed per intent×channel vs industry benchmarks. Initiative csatImpact values aggregated with
           logarithmic diminishing returns (saturation curve, k=1.5). Revenue impact: industry benchmarks (10% CSAT → 2-3% revenue).
           Retention: industry research (5% retention → 25-95% profit increase). ${csatData.saturationPct ? 'Currently at ' + csatData.saturationPct.toFixed(0) + '% saturation of the CSAT gap.' : ''}
         </div>
@@ -8758,7 +8800,7 @@ function renderPage16() {
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px;">
       ${buckets.map(b => `
         <div style="text-align:center;padding:8px;">
           <div style="position:relative;width:100%;background:var(--ey-border);border-radius:4px;height:120px;overflow:hidden;">
@@ -8949,23 +8991,76 @@ function renderPage16() {
       subs.sort((a,b) => (b.volumeShare||0) - (a.volumeShare||0));
       subs.forEach((si, idx) => {
         const parentVol = DEMO.queues.filter(q => q.intent === intent).reduce((s,q)=>s+q.volume,0);
-        const siVol = parentVol * (si.volumeShare||0);
-        const fteImpact = siVol * 12 / (DEMO.annualContactsPerFTE || 15000) * (si.automationPotential||0);
+        const volShare = si.volumeShare||0;
+        const siVol = parentVol * volShare;
+        // CR-08: Pool-aware FTE calc with adoption discount + CX safeguard
+        const annualSiVol = siVol * 12;
+        const contactsPerFTE = DEMO.annualContactsPerFTE || 15000;
+        const rawFTE = annualSiVol / contactsPerFTE * (si.automationPotential||0);
+        const ADOPTION_RATE = 0.75;
+        const CX_SAFEGUARD_CAP = 0.50;
         const lever = si.primaryLever || (si.complexity < 0.3 ? 'deflection' : si.complexity < 0.6 ? 'aht_reduction' : 'escalation_reduction');
+        const maxDeflectFTE = annualSiVol / contactsPerFTE * CX_SAFEGUARD_CAP;
+        const cappedFTE = Math.min(rawFTE, maxDeflectFTE);
+        // Check for manual FTE override
+        const fteImpact = si.fteOverride != null ? si.fteOverride : cappedFTE * ADOPTION_RATE;
         const deflectable = si.feasibilityScore > 40 || si.complexity < 0.4;
+        const siName = si.subIntent || si.name;
+        const escIntent = intent.replace(/'/g, "\\'");
+        const escSI = siName.replace(/'/g, "\\'");
         html += '<tr' + (idx === 0 ? ' style="border-top:2px solid var(--ey-mid-gray);"' : '') + '>' +
           '<td>' + (idx === 0 ? '<strong>' + intent + '</strong>' : '') + '</td>' +
-          '<td>' + (si.subIntent || si.name) + '</td>' +
-          '<td>' + ((si.volumeShare||0)*100).toFixed(0) + '%</td>' +
-          '<td>' + (si.complexity||0).toFixed(2) + '</td>' +
-          '<td><span class="badge badge-' + (lever==='deflection'?'low':lever==='aht_reduction'?'medium':'critical') + '">' + lever.replace(/_/g,' ') + '</span></td>' +
-          '<td>' + (deflectable ? '<span style="color:var(--ey-green);font-weight:700;">Yes</span>' : '<span style="color:var(--ey-text-light);">No</span>') + '</td>' +
-          '<td style="font-weight:600;color:var(--ey-green);">' + (fteImpact > 0.1 ? fteImpact.toFixed(1) + ' FTE' : '< 0.1') + '</td></tr>';
+          '<td>' + siName + '</td>' +
+          // CR-09: Editable Vol Share
+          '<td><input type="number" min="0" max="100" step="1" value="' + (volShare*100).toFixed(0) + '" style="width:48px;font-size:10px;border:1px solid var(--ey-border);border-radius:3px;padding:2px 4px;text-align:right;" onchange="_siOverride(\'' + escIntent + '\',\'' + escSI + '\',\'volShare\',this.value/100)">%</td>' +
+          // CR-09: Editable Complexity
+          '<td><input type="number" min="0" max="1" step="0.05" value="' + (si.complexity||0).toFixed(2) + '" style="width:52px;font-size:10px;border:1px solid var(--ey-border);border-radius:3px;padding:2px 4px;text-align:right;" onchange="_siOverride(\'' + escIntent + '\',\'' + escSI + '\',\'complexity\',parseFloat(this.value))"></td>' +
+          // CR-09: Editable Primary Lever dropdown
+          '<td><select style="font-size:10px;border:1px solid var(--ey-border);border-radius:3px;padding:2px;" onchange="_siOverride(\'' + escIntent + '\',\'' + escSI + '\',\'lever\',this.value)">' +
+            ['deflection','aht_reduction','repeat_reduction','transfer_reduction','escalation_reduction','shrinkage_reduction'].map(l =>
+              '<option value="' + l + '"' + (lever===l?' selected':'') + '>' + l.replace(/_/g,' ') + '</option>'
+            ).join('') + '</select></td>' +
+          // CR-09: Editable Deflectable checkbox
+          '<td style="text-align:center;"><input type="checkbox"' + (deflectable ? ' checked' : '') + ' onchange="_siOverride(\'' + escIntent + '\',\'' + escSI + '\',\'deflectable\',this.checked)"></td>' +
+          // CR-09: Editable FTE Impact
+          '<td><input type="number" min="0" step="0.1" value="' + fteImpact.toFixed(1) + '" style="width:56px;font-size:10px;border:1px solid var(--ey-border);border-radius:3px;padding:2px 4px;text-align:right;font-weight:600;color:var(--ey-green);" onchange="_siOverride(\'' + escIntent + '\',\'' + escSI + '\',\'fteOverride\',parseFloat(this.value))"> FTE</td></tr>';
       });
     });
     html += '</tbody></table>';
+    html += '<div style="font-size:10px;color:var(--ey-text-light);margin-top:6px;">CR-09: All fields are editable. Changes cascade into pool utilisation, waterfall, and workforce calculations.</div>';
     body.innerHTML = html;
   }, 100);
+}
+
+// CR-09: Debounced sub-intent override handler — POSTs to backend and triggers cascade
+let _siOverrideTimer = null;
+function _siOverride(intent, subintent, field, value) {
+  clearTimeout(_siOverrideTimer);
+  _siOverrideTimer = setTimeout(async () => {
+    try {
+      const payload = { intent, subintent };
+      payload[field] = value;
+      const resp = await fetch('/api/subintent/override', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const d = await resp.json();
+      if (d.waterfall) WATERFALL = d.waterfall;
+      if (d.initiatives) { INITIATIVES.length = 0; d.initiatives.forEach(i => INITIATIVES.push(i)); }
+      if (d.data) {
+        Object.keys(d.data).forEach(k => { DEMO[k] = d.data[k]; });
+      }
+      _syncDemoFromBackend();
+      // Re-render affected pages: opportunity sizing(16), workforce(13), waterfall/financials
+      [1, 13, 14, 16, 17].forEach(p => { rendered[p] = false; });
+      // Don't re-render current page fully to avoid losing focus — just update dependent sections
+      const toast = document.getElementById('dmToast');
+      if (toast) { toast.textContent = '✓ Sub-intent override applied'; toast.style.display = 'block'; toast.style.background = '#168736'; setTimeout(() => toast.style.display = 'none', 2000); }
+    } catch(err) {
+      console.warn('Sub-intent override failed:', err);
+    }
+  }, 500); // 500ms debounce
 }
 
 const ABSOLUTE_SINGLE_INIT_CAP = 0.30;
@@ -9908,9 +10003,9 @@ function renderPage20() {
     <div class="card" style="margin-bottom:16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <div class="card-title" style="margin-bottom:0;">Initiatives Required for Target Model</div>
-        ${neededInits.length > 0 ? '<button style="padding:6px 14px;background:var(--ey-yellow);color:var(--ey-dark);border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;" onclick="'+
-          neededInits.map((i,idx)=>'INITIATIVES['+INITIATIVES.indexOf(i)+'].enabled=true;').join('')+
-          'recalculateAll();">⚡ Auto-Enable '+neededInits.length+' Needed Initiative'+(neededInits.length>1?'s':'')+' + Recalculate</button>' : ''}
+        ${neededInits.length > 0 ? '<button style="padding:6px 14px;background:var(--ey-yellow);color:var(--ey-dark);border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;" onclick="autoEnableLocInits(['+
+          neededInits.map(i => INITIATIVES.indexOf(i)).join(',')+
+          '])">⚡ Auto-Enable '+neededInits.length+' Needed Initiative'+(neededInits.length>1?'s':'')+' + Recalculate</button>' : ''}
       </div>
       <div style="font-size:11px;color:var(--ey-text-light);margin-bottom:8px;">Location Strategy initiatives linked to your target model. Use Auto-Enable to activate initiatives flagged as needed and trigger a full recalculation.</div>
       <table class="data-table" style="font-size:11px;">

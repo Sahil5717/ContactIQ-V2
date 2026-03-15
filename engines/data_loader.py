@@ -734,6 +734,10 @@ def _etl_workforce(params):
         hc = max(1, round(ra['count']))
         cost_per = ra['cost_sum'] / max(ra['count'], 1)
         loc = max(ra['locations'], key=ra['locations'].get) if ra['locations'] else 'Onshore'
+        # CR-07: Validate location — channel names (IVR, Chat, App/Self-Service) sometimes leak into location field
+        _VALID_LOCATIONS = {'Onshore', 'Nearshore', 'Offshore', 'WFH', 'Hybrid'}
+        if loc not in _VALID_LOCATIONS:
+            loc = 'Onshore'
         src = max(ra['sourcing'], key=ra['sourcing'].get) if ra['sourcing'] else 'In-house'
         shared = len(ra['skills']) > 2
         roles.append({

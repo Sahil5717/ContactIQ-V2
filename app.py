@@ -657,6 +657,32 @@ def api_override():
     return jsonify({'status':'ok','data':_build_demo_object(),
                     'initiatives':STATE['initiatives'],'waterfall':STATE['waterfall']})
 
+@app.route('/api/subintent/override', methods=['POST'])
+@require_role('supervisor')
+def api_subintent_override():
+    """CR-09: Persist sub-intent level overrides and trigger full recalculation."""
+    body = request.get_json(force=True)
+    intent = body.get('intent'); subintent = body.get('subintent')
+    if not intent or not subintent:
+        return jsonify({'error': 'intent and subintent required'}), 400
+    okey = f"subintent_{intent}_{subintent}"
+    fields = {}
+    for f in ('volShare', 'complexity', 'lever', 'deflectable', 'fteOverride'):
+        if f in body:
+            fields[f] = body[f]
+    if not fields:
+        return jsonify({'error': 'no override fields provided'}), 400
+    if okey not in STATE['overrides']:
+        STATE['overrides'][okey] = {}
+    STATE['overrides'][okey].update(fields)
+    _recompute_all_from_diagnostic()
+    return jsonify({
+        'status': 'ok',
+        'data': _build_demo_object(),
+        'initiatives': STATE['initiatives'],
+        'waterfall': STATE['waterfall']
+    })
+
 @app.route('/api/maturity/override', methods=['POST'])
 @require_role('supervisor')
 def api_maturity_override():
@@ -1050,6 +1076,10 @@ def api_waterfall_by_layer():
 #  PDF EXPORT
 # ══════════════════════════════════════════════════════════════
 
+def _pdf_safe(text):
+    """Sanitize text for fpdf2 Helvetica (Latin-1 only) — replaces Unicode chars that cause crashes."""
+    return str(text).replace('\u2014', '-').replace('\u2013', '-').replace('\u2018', "'").replace('\u2019', "'").replace('\u201c', '"').replace('\u201d', '"').replace('\u2026', '...').replace('\u2192', '->').replace('\u2190', '<-').replace('\u2022', '*').replace('\u2713', 'Y').replace('\u2717', 'X').replace('\u2605', '*').replace('\u2714', 'Y').replace('\u2716', 'X').replace('\u25CF', '*').replace('\u2019', "'").replace('\u00a0', ' ')
+
 @app.route('/api/export/pdf')
 def api_export_pdf():
     """Generate PDF report of current analysis."""
@@ -1059,7 +1089,14 @@ def api_export_pdf():
         data = STATE['data']; wf = STATE['waterfall']; diag = STATE['diagnostic']
         params = data['params']
         
-        pdf = FPDF()
+        # CR-12: Wrap FPDF to auto-sanitize all text for Latin-1 Helvetica
+        class SafeFPDF(FPDF):
+            def cell(self, w=0, h=0, text='', *args, **kwargs):
+                return super().cell(w, h, _pdf_safe(text), *args, **kwargs)
+            def multi_cell(self, w, h=0, text='', *args, **kwargs):
+                return super().multi_cell(w, h, _pdf_safe(text), *args, **kwargs)
+        
+        pdf = SafeFPDF()
         pdf.set_auto_page_break(auto=True, margin=20)
         
         # ── Cover Page ──
@@ -1486,6 +1523,20 @@ def _enrich_sub_intents_for_downstream(sub_intent_analysis, initiatives, waterfa
             'totalDeflectable': intent_data.get('totalDeflectable', 0),
             'subIntents': sub_intents,
         })
+
+    # CR-09: Apply sub-intent overrides from STATE
+    overrides = STATE.get('overrides', {})
+    for e in enriched:
+        for si in e.get('subIntents', []):
+            okey = f"subintent_{e['intent']}_{si.get('name', si.get('subIntent', ''))}"
+            if okey in overrides:
+                ovr = overrides[okey]
+                if 'volShare' in ovr: si['volumeShare'] = ovr['volShare']
+                if 'complexity' in ovr: si['complexity'] = ovr['complexity']
+                if 'lever' in ovr: si['primaryLever'] = ovr['lever']
+                if 'deflectable' in ovr:
+                    si['feasibilityScore'] = 60 if ovr['deflectable'] else 10
+                if 'fteOverride' in ovr: si['fteOverride'] = ovr['fteOverride']
     return enriched
 
 def _build_cost_breakdown(data):
