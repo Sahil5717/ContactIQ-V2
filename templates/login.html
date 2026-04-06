@@ -136,14 +136,14 @@
   <div class="login-brand">
     <div class="brand-logo">
       <div class="ey-mark">EY</div>
-      <div class="ey-label">ContactIQ</div>
+      <div class="ey-label">ContactIQ<div style="font-size:10px;color:rgba(255,255,255,0.5);font-weight:400;margin-top:2px;">EY Contact Centre Opportunity Assessment</div></div>
     </div>
 
     <h1 class="brand-headline">
       Transform your contact centre from <span>cost centre</span> to <span>value engine</span>.
     </h1>
     <p class="brand-sub">
-      AI-powered diagnostic intelligence that turns interaction data into a defensible transformation roadmap — from opportunity sizing through business case to implementation.
+      AI-powered diagnostic intelligence that turns interaction data into a defensible transformation roadmap — from opportunity sizing through financial overview to implementation.
     </p>
 
     <div class="features">
@@ -171,7 +171,7 @@
       <div class="feature">
         <div class="feature-icon">💰</div>
         <div class="feature-text">
-          <strong>Justify the Case</strong>
+          <strong>Justify the Investment</strong>
           NPV, IRR, scenario comparison, custom what-if builder — C-suite ready.
         </div>
       </div>
@@ -201,7 +201,26 @@
   <div class="login-form-panel">
     <div class="form-header">
       <h2>Sign in</h2>
-      <p>Access your transformation workspace</p>
+      <p>EY Contact Centre Opportunity Assessment</p>
+    </div>
+
+    <!-- V6: Role selector (branding affordance, not access gate) -->
+    <div style="margin-bottom:20px;">
+      <label style="display:block;font-size:12px;font-weight:600;color:#2E2E38;margin-bottom:6px;">I am signing in as</label>
+      <div id="roleSelector" style="display:flex;gap:8px;">
+        <button type="button" class="role-sel-btn" data-role="gds" onclick="selectLoginRole(this)"
+          style="flex:1;padding:10px 8px;border:1.5px solid #E0E0E6;border-radius:8px;background:#F6F6FA;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:#747480;transition:all 0.2s;text-align:center;">
+          <div style="font-size:16px;margin-bottom:2px;">🔧</div>EY GDS
+        </button>
+        <button type="button" class="role-sel-btn active" data-role="eyus" onclick="selectLoginRole(this)"
+          style="flex:1;padding:10px 8px;border:1.5px solid #1A73E8;border-radius:8px;background:#EBF3FF;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:#1A73E8;transition:all 0.2s;text-align:center;">
+          <div style="font-size:16px;margin-bottom:2px;">📊</div>EY US
+        </button>
+        <button type="button" class="role-sel-btn" data-role="client" onclick="selectLoginRole(this)"
+          style="flex:1;padding:10px 8px;border:1.5px solid #E0E0E6;border-radius:8px;background:#F6F6FA;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:#747480;transition:all 0.2s;text-align:center;">
+          <div style="font-size:16px;margin-bottom:2px;">🏢</div>Client
+        </button>
+      </div>
     </div>
 
     <form id="loginForm" onsubmit="handleLogin(event)">
@@ -219,7 +238,9 @@
 
     <div class="demo-hint">
       <strong>Demo Access</strong><br>
-      Use <strong>admin / admin</strong> for full access, or <strong>analyst / analyst</strong> for read-only mode.
+      <strong>admin / admin123</strong> — EY GDS (full admin)<br>
+      <strong>supervisor / super123</strong> — EY US (consultant view)<br>
+      <strong>analyst / analyst123</strong> — Client (opportunity view)
     </div>
 
     <div class="login-footer">
@@ -233,6 +254,20 @@
 </div>
 
 <script>
+// V6: Role selector — branding affordance only (not an access gate)
+function selectLoginRole(btn) {
+  document.querySelectorAll('.role-sel-btn').forEach(b => {
+    b.style.border = '1.5px solid #E0E0E6';
+    b.style.background = '#F6F6FA';
+    b.style.color = '#747480';
+    b.classList.remove('active');
+  });
+  btn.style.border = '1.5px solid #1A73E8';
+  btn.style.background = '#EBF3FF';
+  btn.style.color = '#1A73E8';
+  btn.classList.add('active');
+}
+
 async function handleLogin(e) {
   e.preventDefault();
   const btn = document.getElementById('loginBtn');

@@ -9,7 +9,10 @@ from infrastructure.database import validate_session, create_session, destroy_se
 
 def init_auth(app):
     """Initialize auth on the Flask app."""
-    app.secret_key = app.config.get('SECRET_KEY', 'ey-serviceedge-dev-key-change-in-prod')
+    # F-19 fix: Do NOT override SECRET_KEY with a hardcoded fallback.
+    # app.py already generates a cryptographically random key if SECRET_KEY env var is unset.
+    if not app.config.get('SECRET_KEY'):
+        raise RuntimeError("SECRET_KEY must be set before init_auth is called")
 
     @app.before_request
     def _check_auth():

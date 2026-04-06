@@ -228,8 +228,16 @@ def enrich_intents(queues, params=None):
         transfer_class = _transfer_classification(transfer_rate, escalation_rate, complexity)
         eq['transfer_class'] = transfer_class
         
-        # ── Migration readiness ──
+        # ── Migration readiness (channel migration: voice→digital) ──
         eq['migration_readiness'] = _migration_readiness(channel, complexity, emotional_risk, auth_required)
+        
+        # ── CR-FIX-LOC: Location readiness (offshoring suitability) ──
+        # Separate concept from migration_readiness: how easily can THIS work be geographically relocated?
+        _loc_base = {'Email':0.85,'Chat':0.80,'SMS/WhatsApp':0.75,'Social Media':0.70,
+                     'App/Self-Service':0.60,'IVR':0.50,'Voice':0.55}.get(channel, 0.50)
+        _loc_base -= complexity * 0.25
+        _loc_base -= emotional_risk * 0.20
+        eq['location_readiness'] = round(max(0.05, min(1.0, _loc_base)), 3)
         
         enriched.append(eq)
     

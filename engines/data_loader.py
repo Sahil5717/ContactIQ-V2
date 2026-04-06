@@ -418,6 +418,7 @@ def load_queue_dimension_map():
                         'channel': str(r.get('Channel', '')).strip(),
                         'location': str(r.get('Location', 'Onshore')).strip() or 'Onshore',
                         'sourcing': str(r.get('Sourcing', 'In-house')).strip() or 'In-house',
+                        'team': str(r.get('Team', '')).strip(),
                     }
         except Exception:
             pass
@@ -449,19 +450,19 @@ def _build_cost_matrix_from_params(params):
 
 
 def _resolve_queue_location(queue_name, bu, intent, channel, queue_dim_map):
-    """Resolve location and sourcing for a queue using the dimension map.
-    Returns (location, sourcing). Defaults to Onshore/In-house if unmapped.
+    """Resolve location, sourcing, and team for a queue using the dimension map.
+    Returns (location, sourcing, team). Defaults to Onshore/In-house/'' if unmapped.
     """
     if queue_dim_map:
         if queue_name in queue_dim_map:
             dm = queue_dim_map[queue_name]
-            return dm.get('location', 'Onshore'), dm.get('sourcing', 'In-house')
+            return dm.get('location', 'Onshore'), dm.get('sourcing', 'In-house'), dm.get('team', '')
         # Try matching by BU|Intent|Channel composite
         composite = f"{bu}|{intent}|{channel}"
         for qn, dm in queue_dim_map.items():
             if f"{dm['bu']}|{dm['intent']}|{dm['channel']}" == composite:
-                return dm.get('location', 'Onshore'), dm.get('sourcing', 'In-house')
-    return 'Onshore', 'In-house'
+                return dm.get('location', 'Onshore'), dm.get('sourcing', 'In-house'), dm.get('team', '')
+    return 'Onshore', 'In-house', ''
 
 
 def run_etl():
@@ -483,7 +484,38 @@ def run_etl():
     if not queues:
         queues, bus, intents_set, channels_set = _generate_demo_queues()
     _etl_surveys(queues)
+    # CR-FIX-TAG: Build metric provenance dict early so CRM ETL can update it
+    _metric_sources = {
+        'volume':     {'source': 'ccaas', 'confidence': 'actual', 'note': 'From CCaaS interaction records'},
+        'aht':        {'source': 'ccaas', 'confidence': 'actual', 'note': 'From Total_Handle_Time_Sec in CCaaS records'},
+        'escalation': {'source': 'ccaas', 'confidence': 'actual', 'note': 'From Escalated_Flag in CCaaS records'},
+        'transfer':   {'source': 'ccaas', 'confidence': 'actual', 'note': 'From Transfer_Flag in CCaaS records'},
+        'abandon':    {'source': 'ccaas', 'confidence': 'actual', 'note': 'From Abandoned flag in CCaaS records'},
+        'repeat':     {'source': 'ccaas', 'confidence': 'actual', 'note': 'From customer contact frequency analysis'},
+        'cpc':        {'source': 'derived', 'confidence': 'derived', 'note': 'Derived from channel cost tier × complexity. Not from source data.'},
+        'fcr':        {'source': 'derived', 'confidence': 'derived', 'note': 'Derived from channel capability × complexity. Not from source data.'},
+        'csat':       {'source': 'survey', 'confidence': 'survey_backed', 'note': 'Initial: derived. Overwritten by survey at channel level.'},
+        'ces':        {'source': 'survey', 'confidence': 'survey_backed', 'note': 'Initial: derived. Overwritten by survey at channel level.'},
+    }
+    _etl_crm(queues, metric_sources=_metric_sources)  # CR-FIX-CRM: overlay real FCR/escalation/repeat from CRM
     roles = _etl_workforce(params)
+    _etl_wfm(params)  # CR-FIX-WFM: override shrinkage/occupancy with WFM actuals
+
+    # ── CR-FIX-CPC: Compute CPC from role cost × AHT, not heuristic ──
+    # CPC = cost_per_productive_minute × AHT_minutes
+    total_role_cost = sum(r['headcount'] * r['costPerFTE'] for r in roles)
+    total_role_fte = sum(r['headcount'] for r in roles) or 1
+    avg_cost_per_fte = total_role_cost / total_role_fte
+    gross_hrs = params.get('grossHoursPerYear', 2080)
+    shrinkage = params.get('shrinkage', 0.30)
+    productive_mins_per_year = gross_hrs * (1 - shrinkage) * 60
+    cost_per_productive_min = avg_cost_per_fte / max(productive_mins_per_year, 1)
+    for q in queues:
+        aht_min = q.get('aht', 5.0)  # already in minutes
+        q['cpc'] = round(cost_per_productive_min * aht_min, 2)
+        q['_cpc_source'] = 'role_cost'
+    _metric_sources['cpc'] = {'source': 'role_cost', 'confidence': 'actual',
+                               'note': f'CPC = avg cost/FTE (${avg_cost_per_fte:,.0f}) ÷ productive mins ({productive_mins_per_year:,.0f}/yr) × AHT'}
 
     # ── P2-1: Collect location/sourcing dimensions ──
     locations_set = set()
@@ -494,12 +526,50 @@ def run_etl():
     for r in roles:
         locations_set.add(r.get('location', 'Onshore'))
 
-    # ── CR-030: Volume calibration ──
-    # Raw CCaaS data is a small sample (~27K records). Scale to match FTE capacity
-    # at realistic occupancy so waterfall engine produces credible FTE reductions.
-    # Formula: required_monthly_vol = (FTE × net_prod_hrs × occupancy) / (avg_AHT_hrs × 12)
+    # ── CR-FIX-VALID: Pre-engine queue validation ──
+    from engines.constants import validate_queue_metrics
+    validation_issues = []
+    for q in queues:
+        issues = validate_queue_metrics(q)
+        if issues:
+            validation_issues.extend([{**iss, 'queue': q.get('queue', 'Unknown')} for iss in issues])
+    if validation_issues:
+        logging.warning(f'[VALIDATION] {len(validation_issues)} metric issues found across queues')
+        for iss in validation_issues[:5]:
+            logging.warning(f"  {iss['queue']}: {iss['field']}={iss['value']} — {iss['message']}")
+
+    # ── CR-FIX-N: Queue confidence model ──
+    # Each metric on each queue gets a confidence score based on source, sample size, mapping quality
+    for q in queues:
+        q_conf = {}
+        vol = q.get('rawVolume', q.get('volume', 0))
+        # Sample size factor: 100+ contacts = high, 20-100 = medium, <20 = low
+        sample_factor = 1.0 if vol >= 100 else (0.7 if vol >= 20 else 0.3)
+        
+        for metric in ['aht', 'fcr', 'escalation', 'repeat', 'csat', 'ces', 'cpc']:
+            source = q.get(f'_{metric}_source', '')
+            if source == 'crm':
+                base_conf = 0.95
+            elif source == 'survey':
+                base_conf = 0.75
+            elif source == 'role_cost':
+                base_conf = 0.70
+            elif metric in ('aht', 'escalation', 'transfer', 'abandon'):
+                base_conf = 0.85  # direct from CCaaS
+            else:
+                base_conf = 0.40  # derived/synthetic
+            q_conf[metric] = round(base_conf * sample_factor, 2)
+        
+        q['_confidence'] = q_conf
+        q['_overallConfidence'] = round(sum(q_conf.values()) / max(len(q_conf), 1), 2)
+
+    # ── CR-030v2: Dual-basis volume — NEVER silently inflate base case ──
+    # Compute both source and capacity-normalized volumes.
+    # Default: source. Normalized available as scenario option.
     total_fte_raw = sum(r['headcount'] for r in roles)
     raw_vol = sum(q['volume'] for q in queues)
+    vol_scale = 1.0
+    implied_monthly = raw_vol
     if raw_vol > 0 and total_fte_raw > 0:
         shrinkage = params.get('shrinkage', 0.30)
         gross_hrs = params.get('grossHoursPerYear', 2080)
@@ -507,12 +577,25 @@ def run_etl():
         avg_aht_hrs = sum(q['aht'] * q['volume'] for q in queues) / raw_vol / 60
         target_occupancy = params.get('targetOccupancy', 0.75)
         implied_monthly = (total_fte_raw * net_prod_hrs * target_occupancy) / (avg_aht_hrs * 12)
-        vol_scale = max(1.0, implied_monthly / raw_vol)  # never shrink
-        if vol_scale > 1.5:  # only apply if significant gap
-            for q in queues:
-                q['volume'] = round(q['volume'] * vol_scale)
-            logging.info(f"[CR-030] Volume scaled {vol_scale:.1f}x: {raw_vol:,} → {sum(q['volume'] for q in queues):,} monthly "
-                         f"(target {target_occupancy:.0%} occupancy for {total_fte_raw} FTE)")
+        vol_scale = max(1.0, implied_monthly / raw_vol)
+
+    # Store BOTH bases on every queue — volume stays as source (never overwritten)
+    for q in queues:
+        q['rawVolume'] = q['volume']  # source truth
+        q['normalizedVolume'] = round(q['volume'] * vol_scale) if vol_scale > 1.0 else q['volume']
+        q['volumeBasis'] = 'source'  # active basis — engines read this
+
+    # Determine active basis from params (consultant can switch)
+    active_basis = params.get('volumeBasis', 'source')
+    if active_basis == 'capacity_normalized' and vol_scale > 1.5:
+        for q in queues:
+            q['volume'] = q['normalizedVolume']
+            q['volumeBasis'] = 'capacity_normalized'
+        logging.info(f"[CR-030v2] Volume basis: CAPACITY-NORMALIZED ({vol_scale:.1f}x: {raw_vol:,} → {sum(q['volume'] for q in queues):,})")
+    else:
+        active_basis = 'source'
+        logging.info(f"[CR-030v2] Volume basis: SOURCE ({raw_vol:,}/mo). "
+                     f"Capacity-normalized would be {vol_scale:.1f}x ({round(implied_monthly):,}/mo)")
 
     intent_list = sorted(intents_set)
     channel_list = sorted(channels_set)
@@ -544,8 +627,9 @@ def run_etl():
         'channelCost': CHANNEL_COST_TIER,
         'kpiDirection': KPI_DIRECTION,
         'totalFTE': total_fte, 'totalMonthlyCost': total_monthly_cost,
-        'totalVolume': total_volume,  # raw (from source data)
-        'totalVolumeAnnual': total_volume_annual,  # annualized for financial calcs
+        'totalCost': total_annual_cost,
+        'totalVolume': total_volume,
+        'totalVolumeAnnual': total_volume_annual,
         'volumeAnnualizationFactor': ann_factor,
         'avgCSAT': avg_csat,
         'avgFCR': avg_fcr,
@@ -555,6 +639,50 @@ def run_etl():
         'locations': sorted(locations_set),
         'sourcingTypes': sorted(sourcing_set),
         'locationCostMatrix': location_cost_matrix,
+        # ── CR-FIX-VOL v2: Dual-basis volume metadata ──
+        'volumeScaling': {
+            'activeBasis': active_basis,
+            'factor': round(vol_scale, 1),
+            'rawMonthlyVolume': raw_vol,
+            'normalizedMonthlyVolume': round(implied_monthly),
+            'scaledMonthlyVolume': total_volume,  # whatever is active
+            'applied': active_basis == 'capacity_normalized',
+            'basisOptions': {
+                'source': {'volume': raw_vol, 'label': 'Source (CCaaS records)'},
+                'capacity_normalized': {'volume': round(implied_monthly), 'label': f'Capacity-normalized ({vol_scale:.1f}x)'},
+            },
+            'explanation': f'Source: {raw_vol:,}/mo from CCaaS. Normalized: {round(implied_monthly):,}/mo '
+                          f'({vol_scale:.1f}x to match {total_fte} FTE at '
+                          f'{params.get("targetOccupancy", 0.75):.0%} occupancy).',
+        },
+        # ── Calculation basis object ──
+        'calculationBasis': {
+            'volume': {'selected': active_basis, 'available': ['source', 'capacity_normalized']},
+            'cpc': {'selected': 'role_cost', 'available': ['role_cost', 'observed']},
+            'fcr': {'selected': 'crm_actual' if any(q.get('_fcr_source') == 'crm' for q in queues) else 'derived',
+                    'available': ['crm_actual', 'derived']},
+            'repeat': {'selected': 'crm_actual' if any(q.get('_repeat_source') == 'crm' for q in queues) else 'derived',
+                       'available': ['crm_actual', 'fcr_derived', 'ccaas_observed']},
+            'occupancy': {'selected': 'wfm_actual' if params.get('_wfmActuals') else 'parameter_default',
+                          'available': ['wfm_actual', 'parameter_default']},
+            'shrinkage': {'selected': 'wfm_actual' if params.get('_wfmActuals') else 'parameter_default',
+                          'available': ['wfm_actual', 'parameter_default']},
+        },
+        # ── CR-FIX-TAG v2: Metric provenance with honest confidence ──
+        'metricSources': dict(_metric_sources, volume={
+            'source': 'ccaas',
+            'basis': active_basis,
+            'confidence': 'actual' if active_basis == 'source' else 'actual_transformed',
+            'transformation': 'none' if active_basis == 'source' else 'capacity_implied_scaling',
+            'note': f'From CCaaS interaction records ({raw_vol:,}/mo)' + (
+                f' — capacity-normalized {vol_scale:.1f}x' if active_basis == 'capacity_normalized' else ''),
+        }, cpc={
+            'source': 'role_cost', 'confidence': 'derived',
+            'basis': 'modeled',
+            'note': f'Modeled: cost/FTE (${avg_cost_per_fte:,.0f}) ÷ productive mins ({productive_mins_per_year:,.0f}/yr) × AHT. Not observed transactional CPC.',
+        }),
+        # ── CR-FIX-VALID: Validation issues ──
+        'validationIssues': validation_issues,
     }
 
 
@@ -566,7 +694,7 @@ def _etl_ccaas(queue_dim_map=None):
     queue_data = defaultdict(lambda: {
         'count': 0, 'aht_sum': 0, 'acw_sum': 0, 'escalated': 0,
         'transferred': 0, 'abandoned': 0, 'customers': set(),
-        'repeat_contacts': 0,
+        'repeat_contacts': 0, 'queue_names': set(),
     })
     interactions_by_customer = defaultdict(list)
     for r in rows:
@@ -587,6 +715,7 @@ def _etl_ccaas(queue_dim_map=None):
         aht_min = aht_sec / 60
         qd = queue_data[queue_key]
         qd['count'] += 1
+        qd['queue_names'].add(queue_name)  # CR-FIX-QDIM: track raw queue names for dimension mapping
         qd['aht_sum'] += aht_min
         qd['acw_sum'] += acw_sec / 60
         qd['escalated'] += 1 if r.get('Escalated_Flag') else 0
@@ -629,11 +758,13 @@ def _etl_ccaas(queue_dim_map=None):
         fcr = clamp(0.55 + match_score * 0.35, 0.30, 0.95)
         ces = clamp(2.0 + (1 - match_score) * 2.5, 1.0, 5.0)
         # P2-1: Resolve location and sourcing from dimension map
-        location, sourcing = _resolve_queue_location(
-            '', bu, intent, channel, queue_dim_map)
+        # CR-FIX-QDIM: Pass first raw queue name for exact matching
+        primary_queue_name = next(iter(qd['queue_names']), '')
+        location, sourcing, team = _resolve_queue_location(
+            primary_queue_name, bu, intent, channel, queue_dim_map)
         queues.append({
             'bu': bu, 'intent': intent, 'channel': channel,
-            'location': location, 'sourcing': sourcing,
+            'location': location, 'sourcing': sourcing, 'team': team,
             'volume': count, 'csat': round(csat, 2), 'fcr': round(fcr, 3),
             'aht': round(avg_aht, 1), 'acw': round(avg_acw, 1),
             'cpc': round(cpc, 2), 'repeat': round(repeat_rate, 3),
@@ -683,11 +814,269 @@ def _etl_surveys(queues):
         ch = q['channel']
         if ch in channel_csat and channel_csat[ch]:
             q['csat'] = round(sum(channel_csat[ch]) / len(channel_csat[ch]), 2)
+            q['_csat_source'] = 'survey'
         if ch in channel_ces and channel_ces[ch]:
             q['ces'] = round(sum(channel_ces[ch]) / len(channel_ces[ch]), 2)
+            q['_ces_source'] = 'survey'
+
+
+# ═══════════════════════════════════════════════════════════════
+# CR-FIX-CRM: CRM Case Data Integration
+# Overlays real FCR, escalation, repeat rates from CRM case records
+# onto queue metrics, replacing synthetic/derived values.
+# ═══════════════════════════════════════════════════════════════
+_CRM_REASON_TO_INTENT = {
+    'Billing': 'Billing & Payments', 'Technical': 'Technical Support',
+    'Network': 'Network Outage', 'Device': 'Device Troubleshooting',
+    'General': 'General Enquiry', 'Complaint': 'Complaints',
+    'Account Changes': 'Plan Change', 'Retention': 'Service Cancellation',
+    'Sales': 'New Connection',
+}
+
+def _etl_crm(queues, metric_sources=None):
+    """Overlay real CRM metrics onto queue data where available."""
+    path = _resolve_path('raw/crm_case_export.xlsx')
+    if not os.path.exists(path):
+        return
+    try:
+        rows = read_xlsx_sheet(path, 'Case_Export')
+    except Exception:
+        logging.warning('[CRM] Failed to read crm_case_export.xlsx')
+        return
+
+    # Aggregate CRM metrics by BU + intent + channel
+    crm_agg = defaultdict(lambda: {
+        'total': 0, 'fcr_yes': 0, 'escalated': 0, 'reopened': 0,
+        'resolution_hours': [], 'sla_met': 0, 'sla_total': 0,
+        'csat_scores': [], 'ces_scores': [], 'nps_scores': [],
+    })
+
+    for r in rows:
+        reason = str(r.get('Contact_Reason__c', '')).strip()
+        intent = _CRM_REASON_TO_INTENT.get(reason)
+        if not intent:
+            continue
+        bu = str(r.get('Business_Unit__c', '')).strip()
+        channel = normalize_channel(r.get('Channel__c') or r.get('Origin'))
+        if not channel:
+            continue
+        key = f"{bu}|{intent}|{channel}"
+        agg = crm_agg[key]
+        agg['total'] += 1
+
+        # FCR
+        fcr_val = str(r.get('First_Contact_Resolution__c', '')).strip()
+        if fcr_val == 'Yes':
+            agg['fcr_yes'] += 1
+
+        # Escalation
+        esc_val = str(r.get('Escalated__c', '')).strip()
+        if esc_val == 'Yes':
+            agg['escalated'] += 1
+
+        # Repeat (reopen)
+        reopen_val = str(r.get('Reopened__c', '')).strip()
+        if reopen_val == 'Yes':
+            agg['reopened'] += 1
+
+        # Resolution hours
+        res_hrs = r.get('Resolution_Time_Hours__c')
+        if res_hrs is not None:
+            try:
+                agg['resolution_hours'].append(float(res_hrs))
+            except (ValueError, TypeError):
+                pass
+
+        # SLA
+        sla_val = str(r.get('SLA_Met__c', '')).strip()
+        if sla_val in ('Yes', 'No'):
+            agg['sla_total'] += 1
+            if sla_val == 'Yes':
+                agg['sla_met'] += 1
+
+        # CSAT/CES/NPS from CRM (case-level, more granular than survey)
+        for field, dest in [('CSAT_Score__c', 'csat_scores'), ('CES_Score__c', 'ces_scores'), ('NPS_Score__c', 'nps_scores')]:
+            v = r.get(field)
+            if v is not None:
+                try:
+                    agg[dest].append(float(v))
+                except (ValueError, TypeError):
+                    pass
+
+    # Overlay onto queues
+    overlaid = 0
+    for q in queues:
+        key = f"{q['bu']}|{q['intent']}|{q['channel']}"
+        agg = crm_agg.get(key)
+        if not agg or agg['total'] < 10:  # minimum sample size
+            continue
+
+        n = agg['total']
+        # FCR: real rate from CRM
+        q['fcr'] = round(agg['fcr_yes'] / n, 3)
+        q['_fcr_source'] = 'crm'
+
+        # Escalation: real rate from CRM (if enough cases have the flag)
+        q['escalation'] = round(agg['escalated'] / n, 3)
+        q['_escalation_source'] = 'crm'
+
+        # Repeat: real rate from reopened cases
+        q['repeat'] = round(agg['reopened'] / n, 3)
+        q['_repeat_source'] = 'crm'
+
+        # Resolution hours (store as supplementary metric)
+        if agg['resolution_hours']:
+            q['resolution_hours'] = round(sum(agg['resolution_hours']) / len(agg['resolution_hours']), 1)
+
+        # SLA compliance
+        if agg['sla_total'] > 0:
+            q['sla_met'] = round(agg['sla_met'] / agg['sla_total'], 3)
+
+        # Case-level CSAT (more granular than channel-level survey)
+        if len(agg['csat_scores']) >= 5:
+            q['csat'] = round(sum(agg['csat_scores']) / len(agg['csat_scores']), 2)
+            q['_csat_source'] = 'crm'
+
+        if len(agg['ces_scores']) >= 5:
+            q['ces'] = round(sum(agg['ces_scores']) / len(agg['ces_scores']), 2)
+            q['_ces_source'] = 'crm'
+
+        # NPS from CRM
+        if len(agg['nps_scores']) >= 5:
+            q['nps'] = round(sum(agg['nps_scores']) / len(agg['nps_scores']), 1)
+            # Also compute NPS category breakdown
+            promoters = sum(1 for s in agg['nps_scores'] if s >= 9) / len(agg['nps_scores'])
+            detractors = sum(1 for s in agg['nps_scores'] if s <= 6) / len(agg['nps_scores'])
+            q['nps_score'] = round((promoters - detractors) * 100, 1)
+            q['_nps_source'] = 'crm'
+
+        overlaid += 1
+
+    logging.info(f'[CRM] Overlaid real metrics onto {overlaid}/{len(queues)} queues '
+                 f'from {sum(a["total"] for a in crm_agg.values()):,} CRM cases')
+
+    # Update metric sources if provided
+    if metric_sources:
+        if overlaid > 0:
+            metric_sources['fcr'] = {'source': 'crm', 'confidence': 'actual', 'note': f'From CRM First_Contact_Resolution__c ({overlaid} queues matched)'}
+            metric_sources['escalation'] = {'source': 'crm', 'confidence': 'actual', 'note': f'From CRM Escalated__c ({overlaid} queues matched)'}
+            metric_sources['repeat'] = {'source': 'crm', 'confidence': 'actual', 'note': f'From CRM Reopened__c ({overlaid} queues matched)'}
+            metric_sources['nps'] = {'source': 'crm', 'confidence': 'actual', 'note': f'From CRM NPS_Score__c ({overlaid} queues matched)'}
+
+
+# ═══════════════════════════════════════════════════════════════
+# CR-FIX-WFM: WFM Monthly Summary Integration
+# Replaces parameter assumptions with actual WFM-measured values
+# for shrinkage, occupancy, utilization, adherence.
+# ═══════════════════════════════════════════════════════════════
+def _etl_wfm(params):
+    """Read WFM monthly summary and override heuristic params with actuals."""
+    path = _resolve_path('raw/hr_workforce_data.xlsx')
+    if not os.path.exists(path):
+        return
+    try:
+        rows = read_xlsx_sheet(path, 'WFM_Monthly_Summary')
+    except Exception:
+        logging.warning('[WFM] Failed to read WFM_Monthly_Summary sheet')
+        return
+
+    if not rows:
+        return
+
+    # Aggregate across all agents and months
+    total_scheduled = 0
+    total_actual = 0
+    total_productive = 0
+    total_training = 0
+    total_meeting = 0
+    total_break = 0
+    total_absent = 0
+    adherence_vals = []
+    occupancy_vals = []
+    utilization_vals = []
+    schedule_eff_vals = []
+    n = 0
+
+    for r in rows:
+        scheduled = float(r.get('Scheduled_Hours', 0) or 0)
+        actual = float(r.get('Actual_Hours', 0) or 0)
+        productive = float(r.get('Productive_Hours', 0) or 0)
+        training = float(r.get('Training_Hours', 0) or 0)
+        meeting = float(r.get('Meeting_Hours', 0) or 0)
+        brk = float(r.get('Break_Hours', 0) or 0)
+        absent = float(r.get('Absent_Hours', 0) or 0)
+
+        total_scheduled += scheduled
+        total_actual += actual
+        total_productive += productive
+        total_training += training
+        total_meeting += meeting
+        total_break += brk
+        total_absent += absent
+
+        adh = r.get('Adherence_%')
+        occ = r.get('Occupancy_%')
+        util = r.get('Utilization_%')
+        sch_eff = r.get('Schedule_Efficiency_%')
+
+        if adh is not None:
+            adherence_vals.append(float(adh))
+        if occ is not None:
+            occupancy_vals.append(float(occ))
+        if util is not None:
+            utilization_vals.append(float(util))
+        if sch_eff is not None:
+            schedule_eff_vals.append(float(sch_eff))
+        n += 1
+
+    if n == 0:
+        return
+
+    # Compute actual shrinkage: (scheduled - productive) / scheduled
+    actual_shrinkage = (total_scheduled - total_productive) / max(total_scheduled, 1)
+    actual_occupancy = sum(occupancy_vals) / len(occupancy_vals) if occupancy_vals else 0
+    actual_utilization = sum(utilization_vals) / len(utilization_vals) if utilization_vals else 0
+    actual_adherence = sum(adherence_vals) / len(adherence_vals) if adherence_vals else 0
+    actual_schedule_eff = sum(schedule_eff_vals) / len(schedule_eff_vals) if schedule_eff_vals else 0
+
+    # Shrinkage decomposition
+    shrinkage_decomp = {
+        'training': round(total_training / max(total_scheduled, 1), 3),
+        'meetings': round(total_meeting / max(total_scheduled, 1), 3),
+        'breaks': round(total_break / max(total_scheduled, 1), 3),
+        'absence': round(total_absent / max(total_scheduled, 1), 3),
+        'other': round(max(0, actual_shrinkage - (total_training + total_meeting + total_break + total_absent) / max(total_scheduled, 1)), 3),
+    }
+
+    # Override params with actuals
+    old_shrinkage = params.get('shrinkage', 0.30)
+    old_occupancy = params.get('targetOccupancy', 0.75)
+
+    params['shrinkage'] = round(actual_shrinkage, 3)
+    params['targetOccupancy'] = round(actual_occupancy, 3)
+    params['_wfmActuals'] = {
+        'shrinkage': round(actual_shrinkage, 3),
+        'occupancy': round(actual_occupancy, 3),
+        'utilization': round(actual_utilization, 3),
+        'adherence': round(actual_adherence, 3),
+        'scheduleEfficiency': round(actual_schedule_eff, 3),
+        'shrinkageDecomp': shrinkage_decomp,
+        'sampleSize': n,
+        'source': 'WFM_Monthly_Summary',
+        'overrides': {
+            'shrinkage': {'was': old_shrinkage, 'now': round(actual_shrinkage, 3)},
+            'occupancy': {'was': old_occupancy, 'now': round(actual_occupancy, 3)},
+        },
+    }
+
+    logging.info(f'[WFM] Actuals from {n} agent-months: shrinkage={actual_shrinkage:.1%} '
+                 f'(was {old_shrinkage:.1%}), occupancy={actual_occupancy:.1%} '
+                 f'(was {old_occupancy:.1%}), utilization={actual_utilization:.1%}, '
+                 f'adherence={actual_adherence:.1%}')
 
 
 def _etl_workforce(params):
+    """Read HR workforce data and build role aggregation."""
     path = _resolve_path('raw/hr_workforce_data.xlsx')
     if not os.path.exists(path):
         return _default_roles()

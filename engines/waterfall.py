@@ -82,6 +82,10 @@ INITIATIVE_LIBRARY = [
     {'id':'LS10','name':'Automation Centre of Excellence','layer':'Location Strategy','lever':'aht_reduction','impact':0.08,'channels':['Voice','Chat','Email'],'complexity':'any','effort':'medium','ahtImpact':-0.05,'fcrImpact':0.02,'csatImpact':0.02,'roles':['Reporting / Analytics','WFM Analyst'],'ramp':6,'adoption':0.85},
     {'id':'LS11','name':'Cloud Migration','layer':'Location Strategy','lever':'cost_reduction','impact':0.15,'channels':['Voice','Chat','Email'],'complexity':'any','effort':'high','ahtImpact':0,'fcrImpact':0,'csatImpact':0,'roles':['Agent L1'],'ramp':12,'adoption':0.90},
     {'id':'LS12','name':'Vendor Rationalisation','layer':'Location Strategy','lever':'cost_reduction','impact':0.10,'channels':['Voice','Chat','Email'],'complexity':'any','effort':'medium','ahtImpact':0,'fcrImpact':0,'csatImpact':0,'roles':['Agent L1'],'ramp':6,'adoption':0.85},
+    # Layer 4: CCaaS Platform (3) — enabler initiatives for cloud contact centre modernisation
+    {'id':'CC01','name':'CCaaS Platform Migration','layer':'Location Strategy','lever':'cost_reduction','impact':0.15,'channels':['Voice','Chat','Email','IVR'],'complexity':'any','effort':'high','ahtImpact':-0.05,'fcrImpact':0,'csatImpact':0.03,'roles':['Agent L1','Agent L2 / Specialist'],'ramp':12,'adoption':0.85},
+    {'id':'CC02','name':'Omnichannel Routing Consolidation','layer':'AI & Automation','lever':'aht_reduction','impact':0.10,'channels':['Voice','Chat','Email','SMS/WhatsApp'],'complexity':'any','effort':'medium','ahtImpact':-0.10,'fcrImpact':0.08,'csatImpact':0.06,'roles':['Agent L1','Agent L2 / Specialist'],'ramp':6,'adoption':0.80},
+    {'id':'CC03','name':'CCaaS Analytics & WFM Suite','layer':'Operating Model','lever':'shrinkage_reduction','impact':0.08,'channels':['Voice','Chat','Email'],'complexity':'any','effort':'medium','ahtImpact':0,'fcrImpact':0,'csatImpact':0,'roles':['WFM Analyst','Reporting / Analytics','Supervisor / Team Lead'],'ramp':6,'adoption':0.85},
 ]
 
 # CR-014v2: Industry-benchmarked caps (40-50% agent reduction achievable;
@@ -399,6 +403,44 @@ def score_initiatives(data, diagnostic, readiness_ctx=None):
         vol_bonus = 1.0 + (volume_share * 0.3)  # up to +30% for high-volume targets
         raw_score *= vol_bonus
         reasons.append(f'Volume: {volume_share:.0%} of total (+{(vol_bonus-1)*100:.0f}% bonus)')
+
+        # ── CR-FIX-M: Sub-intent granularity bonus ──
+        # Score higher if initiative targets intents with high pain/avoidability
+        sub_intent_data = diagnostic.get('subIntentAnalysis', [])
+        if sub_intent_data:
+            # Find intents this initiative touches (via channel overlap)
+            matching_intents = set()
+            for q in queues:
+                if q['channel'] in init['channels']:
+                    matching_intents.add(q.get('intent', ''))
+            
+            # Compute intent-level pain and avoidability scores
+            intent_pain = 0
+            intent_avoid = 0
+            intent_count = 0
+            for sia in sub_intent_data:
+                if sia.get('intent') in matching_intents:
+                    # Pain = high AHT + high volume + low FCR
+                    aht_pain = min(1.0, sia.get('avgAHT', 300) / 600)  # normalized
+                    vol_pain = min(1.0, sia.get('volume', 0) / max(total_volume * 0.15, 1))
+                    deflect_score = sia.get('totalDeflectable', 0) / max(sia.get('volume', 1), 1)
+                    intent_pain += aht_pain * 0.4 + vol_pain * 0.3 + (1 - deflect_score) * 0.3
+                    intent_avoid += deflect_score
+                    intent_count += 1
+            
+            if intent_count > 0:
+                avg_pain = intent_pain / intent_count
+                avg_avoid = intent_avoid / intent_count
+                # Bonus: up to +25% for high-pain intents, +15% for high avoidability
+                pain_bonus = avg_pain * 0.25
+                avoid_bonus = avg_avoid * 0.15 if lever in ('deflection', 'aht_reduction') else 0
+                sub_bonus = 1.0 + pain_bonus + avoid_bonus
+                raw_score *= sub_bonus
+                init['_intentPain'] = round(avg_pain, 3)
+                init['_intentAvoidability'] = round(avg_avoid, 3)
+                init['_matchingIntents'] = sorted(matching_intents)
+                if pain_bonus + avoid_bonus > 0.05:
+                    reasons.append(f'Intent fit: pain={avg_pain:.2f}, avoidability={avg_avoid:.2f} (+{(sub_bonus-1)*100:.0f}% bonus)')
 
         # ── Stage classification ──
         layer_readiness = readiness_map.get(init['layer'], 0.5)
@@ -979,6 +1021,28 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         init['_grossFTE'] = round(raw_fte, 1)
         init['_grossSaving'] = round(raw_fte * wtd, 0)
         
+        # ── CR-FIX-J: Per-initiative confidence bands ──
+        from engines.constants import LEVER_UNCERTAINTY
+        base_uncertainty = LEVER_UNCERTAINTY.get(lever, 0.20)
+        # Adjust by evidence strength: pool-capped = more certain, high adoption = less certain
+        evidence_factor = 1.0
+        if pool_capped:
+            evidence_factor *= 0.8  # capping adds certainty (ceiling is data-driven)
+        if init.get('adoption', 0.8) > 0.9:
+            evidence_factor *= 1.2  # high adoption assumption = more uncertainty
+        unc = base_uncertainty * evidence_factor
+        init['_savingBand'] = {
+            'low': round(init['_annualSaving'] * (1 - unc)),
+            'base': round(init['_annualSaving']),
+            'high': round(init['_annualSaving'] * (1 + unc)),
+            'uncertainty': round(unc, 2),
+        }
+        init['_fteBand'] = {
+            'low': round(total_init_fte * (1 - unc), 1),
+            'base': round(total_init_fte, 1),
+            'high': round(total_init_fte * (1 + unc), 1),
+        }
+        
         audit_trail.append({
             'id': init['id'], 'name': init['name'], 'lever': lever,
             'gross_fte': round(raw_fte, 1), 'net_fte': round(red, 1),
@@ -989,6 +1053,46 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
             'pool_capped': pool_capped,
             'safety_capped': init['_capApplied'],
         })
+    
+    # ══════════════════════════════════════════════════════════════
+    # CR-FIX-L: INITIATIVE INTERACTION DIAGNOSTICS
+    # ══════════════════════════════════════════════════════════════
+    # Identify which initiatives compete for the same pools/channels
+    for init in sorted_inits:
+        interactions = []
+        i_lever = init.get('lever', '')
+        i_channels = set(init.get('channels', []))
+        i_roles = set(init.get('roles', []))
+        for other in sorted_inits:
+            if other['id'] == init['id']:
+                continue
+            o_lever = other.get('lever', '')
+            o_channels = set(other.get('channels', []))
+            shared_channels = i_channels & o_channels
+            # Same pool competition
+            if i_lever == o_lever and shared_channels:
+                severity = 'high' if len(shared_channels) >= 2 else 'medium'
+                interactions.append({
+                    'with': other['id'], 'withName': other['name'],
+                    'type': 'same_pool',
+                    'severity': severity,
+                    'sharedChannels': sorted(shared_channels),
+                    'explanation': f'Both consume {i_lever.replace("_"," ")} pool on {", ".join(sorted(shared_channels))} queues',
+                })
+            # Secondary lever overlap
+            elif shared_channels:
+                i_levers = set(init.get('levers', {}).keys())
+                o_levers = set(other.get('levers', {}).keys())
+                shared_levers = i_levers & o_levers
+                if shared_levers:
+                    interactions.append({
+                        'with': other['id'], 'withName': other['name'],
+                        'type': 'shared_lever',
+                        'severity': 'low',
+                        'sharedChannels': sorted(shared_channels),
+                        'explanation': f'Shared lever(s): {", ".join(l.replace("_"," ") for l in shared_levers)} on {", ".join(sorted(shared_channels))}',
+                    })
+        init['_interactions'] = sorted(interactions, key=lambda x: {'high':0,'medium':1,'low':2}.get(x['severity'],3))[:5]
     
     # ══════════════════════════════════════════════════════════════
     # V10: CSAT / CUSTOMER EXPERIENCE AGGREGATION ENGINE
@@ -1251,6 +1355,7 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         'AI22':'crm','AI16':'crm',
         'AI13':'rpa','AI28':'rpa',
         'AI03':'ccaas platform','AI23':'ccaas platform','AI24':'ccaas platform','AI11':'ccaas platform',
+        'CC01':'ccaas platform','CC02':'ccaas platform','CC03':'wfm',
         'OP16':'bi/reporting','OP09':'bi/reporting',
     }
     
@@ -1267,10 +1372,10 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         'assist_ai': ['AI02','AI05','AI27','AI06'],
         'analytics': ['AI07','AI21','AI15'],
         'knowledge': ['AI08','AI19'],
-        'wfm': ['AI12','OP04','OP11'],
+        'wfm': ['AI12','OP04','OP11','CC03'],
         'crm_ext': ['AI22','AI16'],
         'rpa': ['AI13','AI28'],
-        'ccaas': ['AI03','AI23','AI24','AI11'],
+        'ccaas': ['AI03','AI23','AI24','AI11','CC01','CC02'],
     }
     _init_family = {}
     for fam, ids in _FAMILIES.items():
@@ -1481,6 +1586,106 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
                 pu = pool_utilization.get(pk, {})
                 bu_pool_util[bu_name][pk]['ceiling'] = round((pu.get('ceiling_fte', 0)) * bu_share, 1)
     
+    # ── CR-FIX-CONF: Confidence bands from scenarios ──
+    cons = scenarios.get('conservative', {})
+    aggr = scenarios.get('aggressive', {})
+    base = scenarios.get('base', {})
+    confidence_bands = {
+        'fteReduction': {'low': cons.get('fteReduction', round(total_red * 0.7)), 'base': total_red, 'high': aggr.get('fteReduction', round(total_red * 1.3))},
+        'totalSaving': {'low': cons.get('totalSaving', round(total_saving * 0.7)), 'base': round(total_saving), 'high': aggr.get('totalSaving', round(total_saving * 1.3))},
+        'npv': {'low': cons.get('npv', round(total_npv * 0.7)), 'base': round(total_npv), 'high': aggr.get('npv', round(total_npv * 1.3))},
+        'annualSaving': {'low': cons.get('annualSaving', 0), 'base': base.get('annualSaving', 0), 'high': aggr.get('annualSaving', 0)},
+        'investment': {'low': aggr.get('investment', round(total_inv * 0.9)), 'base': round(total_inv), 'high': cons.get('investment', round(total_inv * 1.15))},
+    }
+
+    # ── CR-FIX-CONF: Data quality confidence score (weighted) ──
+    metric_sources = data.get('metricSources', {})
+    from engines.constants import compute_data_quality_score
+    data_quality_score, data_quality_label, data_quality_breakdown = compute_data_quality_score(metric_sources)
+
+    # ── CR-FIX-EVID: Evidence cards for each initiative ──
+    for init in enabled:
+        evidence = {
+            'triggerReason': next((r for r in init.get('reasons', []) if 'Trigger' in r or 'trigger' in r), 'Qualified via scoring'),
+            'sourceFields': [],
+            'assumptions': [],
+            'invalidators': [],
+            'dataStrengtheners': [],
+            'calculationBasis': {},
+            'requiresConsultantReview': False,
+            'reviewReasons': [],
+        }
+        lever = init.get('lever', '')
+        calc_basis = data.get('calculationBasis', {})
+        vol_basis = calc_basis.get('volume', {}).get('selected', 'source')
+        fcr_basis = calc_basis.get('fcr', {}).get('selected', 'derived')
+        repeat_basis = calc_basis.get('repeat', {}).get('selected', 'derived')
+        shrinkage_basis = calc_basis.get('shrinkage', {}).get('selected', 'parameter_default')
+        
+        # Calculation basis for this initiative
+        evidence['calculationBasis'] = {
+            'volume': vol_basis,
+            'cpc': calc_basis.get('cpc', {}).get('selected', 'modeled'),
+            'fcr': fcr_basis,
+            'repeat': repeat_basis,
+            'shrinkage': shrinkage_basis,
+        }
+        
+        # Source fields
+        if lever == 'deflection':
+            evidence['sourceFields'] = ['volume (CCaaS)', 'complexity (intent mapping)', 'channel capability']
+        elif lever == 'aht_reduction':
+            evidence['sourceFields'] = ['AHT (CCaaS actual)', 'AHT decomposition', 'role cost (HR)']
+        elif lever == 'escalation_reduction':
+            evidence['sourceFields'] = ['escalation rate (CRM actual)', 'L2/L3 handle time']
+        elif lever == 'repeat_reduction':
+            evidence['sourceFields'] = [f'FCR ({fcr_basis})', f'repeat rate ({repeat_basis})']
+        elif lever == 'cost_reduction':
+            evidence['sourceFields'] = ['role cost (HR)', 'location readiness', 'cost arbitrage']
+        elif lever == 'shrinkage_reduction':
+            evidence['sourceFields'] = [f'shrinkage ({shrinkage_basis})', 'shrinkage decomposition']
+        # Assumptions
+        evidence['assumptions'] = [
+            f'Adoption rate: {init.get("adoption", 0.8):.0%}',
+            f'Ramp: {init.get("ramp", 12)} months to steady state',
+            f'Impact: {init.get("impact", 0):.0%} on {lever.replace("_", " ")}',
+            f'Volume basis: {vol_basis}',
+        ]
+        if init.get('_capApplied'):
+            evidence['assumptions'].append('Pool-capped: gross impact exceeded remaining pool ceiling')
+        # Invalidators — basis-aware
+        invalidators = ['Adoption rate is assumed, not measured']
+        if vol_basis == 'capacity_normalized':
+            invalidators.append('Volume is capacity-normalized (not source data)')
+        if lever in ('deflection', 'aht_reduction'):
+            invalidators.append('Complexity classification may shift with real intent analysis')
+        if lever == 'cost_reduction':
+            invalidators.extend(['Actual offshore wage rates may differ', 'Quality/attrition impacts not modelled'])
+        if repeat_basis in ('fcr_derived', 'blended'):
+            invalidators.append(f'Repeat rate is {repeat_basis} — not fully observed')
+        evidence['invalidators'] = invalidators
+        # Consultant review flags
+        review_reasons = []
+        if vol_basis == 'capacity_normalized':
+            review_reasons.append('Volume is capacity-normalized')
+        if repeat_basis in ('fcr_derived', 'blended'):
+            review_reasons.append(f'Repeat rate uses {repeat_basis} basis')
+        if fcr_basis == 'derived':
+            review_reasons.append('FCR is derived, not observed')
+        if shrinkage_basis == 'parameter_default':
+            review_reasons.append('Shrinkage uses parameter default, not WFM actual')
+        evidence['requiresConsultantReview'] = len(review_reasons) > 0
+        evidence['reviewReasons'] = review_reasons
+        # Data strengtheners
+        evidence['dataStrengtheners'] = []
+        if metric_sources.get('fcr', {}).get('confidence') != 'actual':
+            evidence['dataStrengtheners'].append('Integrate CRM FCR data for this queue')
+        if not data.get('params', {}).get('_wfmActuals'):
+            evidence['dataStrengtheners'].append('Load WFM actuals for real shrinkage/occupancy')
+        if vol_basis == 'source':
+            evidence['dataStrengtheners'].append('Consider capacity-normalized scenario for FTE-proportional view')
+        init['_evidence'] = evidence
+
     return {
         'roleImpact': {k: {'baseline': v['baseline'], 'yearly': [round(y) for y in v['yearly']]}
                        for k, v in role_impact.items()},
@@ -1494,7 +1699,7 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         'roi': round(roi, 1), 'roiGross': round(roi_g, 1), 'payback': round(payback, 1),
         'irr': round(irr, 1),
         'scenarios': scenarios, 'enabledInits': [i['id'] for i in enabled],
-        'leverAccum': {},  # deprecated — replaced by pool utilization
+        'leverAccum': {},
         'sensitivity': sensitivity,
         'investmentItems': inv_items, 'investmentYearly': inv_yearly,
         'investmentSummary': {
@@ -1502,18 +1707,18 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
             'contingency': round(ct), 'grandTotal': round(total_inv),
             'annualRecurring': round(ann_maint),
         },
-        # ── New v4 fields ──
         'poolUtilization': pool_utilization,
         'poolSummary': pool_summary,
         'auditTrail': audit_trail,
-        # ── v10: CSAT / CX fields ──
         'csatSummary': csat_summary,
-        # ── V4.6-#17: Operational KPI Projections ──
         'kpiProjections': kpi_projections,
-        # ── P2-1: Dimensional fields ──
         'buSummary': bu_summary,
         'locations': data.get('locations', ['Onshore']),
         'sourcingTypes': data.get('sourcingTypes', ['In-house']),
+        # ── CR-FIX-CONF: Confidence bands and data quality ──
+        'confidenceBands': confidence_bands,
+        'dataQuality': {'score': data_quality_score, 'label': data_quality_label,
+                        'breakdown': data_quality_breakdown},
     }
 
 
@@ -1560,6 +1765,125 @@ def _estimate_irr(cashflows, guess=0.10, max_iter=100):
         rate = max(-0.5, min(10.0, rate - npv/dnpv))
         if abs(npv) < 1: break
     return round(rate*100, 1)
+
+
+def compute_pillar_scenarios(data, initiatives):
+    """
+    V6 — Pillar-isolated waterfall runs (Spec v4, Section 6).
+
+    Runs run_waterfall() once per pillar with initiatives filtered to that layer only.
+    Each run is fully independent — pool tracking and role cumulation reset per run.
+    Individual pillar runs OVERESTIMATE (uncontested pool access) which inflates
+    the lower bound slightly. The combined run (upper bound) is accurate.
+
+    Returns:
+        {
+          ai:       { ...waterfall output for AI & Automation only },
+          om:       { ...waterfall output for Operating Model only },
+          location: { ...waterfall output for Location Strategy only },
+          combined: { ...waterfall output for all pillars (the existing full run) },
+          ranges: {
+              fteRange:     { low, high },       # AI+OM only (Location = 0 FTE)
+              savingsRange: { low, high },        # All three pillars
+          },
+          pillarSummary: {
+              ai:       { totalSaving, totalReduction, kpiDeltas },
+              om:       { totalSaving, totalReduction, kpiDeltas },
+              location: { totalSaving, totalReduction, kpiDeltas },
+          }
+        }
+    """
+    import copy as _c
+
+    PILLAR_LAYERS = {
+        'ai': 'AI & Automation',
+        'om': 'Operating Model',
+        'location': 'Location Strategy',
+    }
+
+    results = {}
+
+    # Run each pillar in isolation (skip sensitivity + scenarios for speed)
+    for key, layer_name in PILLAR_LAYERS.items():
+        pillar_inits = _c.deepcopy(initiatives)
+        for init in pillar_inits:
+            if init.get('layer') != layer_name:
+                init['enabled'] = False
+            # Preserve original enabled state for matching initiatives
+        try:
+            wf = run_waterfall(data, pillar_inits, _skip_sensitivity=True, _skip_scenarios=True)
+            results[key] = wf
+        except Exception:
+            results[key] = {
+                'totalSaving': 0, 'totalReduction': 0, 'totalNPV': 0,
+                'totalInvestment': 0, 'irr': 0, 'payback': 0,
+                'yearly': [], 'layerSaving': {}, 'layerFTE': {},
+                'roleImpact': {}, 'poolUtilization': {},
+                'kpiProjections': {}, 'csatSummary': {},
+            }
+
+    # Combined run = the existing full waterfall (all pillars)
+    try:
+        results['combined'] = run_waterfall(data, _c.deepcopy(initiatives),
+                                            _skip_sensitivity=True, _skip_scenarios=True)
+    except Exception:
+        results['combined'] = results.get('ai', results.get('om', {}))
+
+    # Compute FTE range (AI + OM only — Location produces 0 FTE by design)
+    ai_fte = results['ai'].get('totalReduction', 0)
+    om_fte = results['om'].get('totalReduction', 0)
+    combined_fte = results['combined'].get('totalReduction', 0)
+    fte_low = min(ai_fte, om_fte) if (ai_fte > 0 and om_fte > 0) else max(ai_fte, om_fte)
+    fte_high = combined_fte
+
+    # Compute savings range (all three pillars)
+    ai_sav = results['ai'].get('totalSaving', 0)
+    om_sav = results['om'].get('totalSaving', 0)
+    loc_sav = results['location'].get('totalSaving', 0)
+    combined_sav = results['combined'].get('totalSaving', 0)
+    non_zero_savs = [s for s in [ai_sav, om_sav, loc_sav] if s > 0]
+    sav_low = min(non_zero_savs) if non_zero_savs else 0
+    sav_high = combined_sav
+
+    # KPI deltas per pillar (from kpiProjections if available)
+    def _extract_kpi_deltas(wf_result):
+        kpi = wf_result.get('kpiProjections', {})
+        csat_s = wf_result.get('csatSummary', {})
+        return {
+            'ahtReduction': kpi.get('ahtReductionPct', 0),
+            'fcrImprovement': kpi.get('fcrImprovementPts', 0),
+            'csatUplift': csat_s.get('effectiveUplift', 0),
+        }
+
+    pillar_summary = {}
+    for key in ['ai', 'om', 'location']:
+        wf = results[key]
+        horizon = data['params'].get('horizon', 3)
+        annual_saving = wf.get('totalSaving', 0) / max(horizon, 1)
+        pillar_summary[key] = {
+            'totalSaving': wf.get('totalSaving', 0),
+            'annualSaving': round(annual_saving),
+            'totalReduction': wf.get('totalReduction', 0),
+            'totalInvestment': wf.get('totalInvestment', 0),
+            'totalNPV': wf.get('totalNPV', 0),
+            'irr': wf.get('irr', 0),
+            'payback': wf.get('payback', 0),
+            'kpiDeltas': _extract_kpi_deltas(wf),
+            'roleImpact': wf.get('roleImpact', {}),
+            'poolUtilization': wf.get('poolUtilization', {}),
+        }
+
+    return {
+        'ai': results['ai'],
+        'om': results['om'],
+        'location': results['location'],
+        'combined': results['combined'],
+        'ranges': {
+            'fteRange': {'low': round(fte_low, 1), 'high': round(fte_high, 1)},
+            'savingsRange': {'low': round(sav_low), 'high': round(sav_high)},
+        },
+        'pillarSummary': pillar_summary,
+    }
 
 
 def _run_sensitivity(data, initiatives, base_npv):

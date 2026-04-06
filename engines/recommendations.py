@@ -458,7 +458,7 @@ def _build_headline(page_context, signals, data, waterfall):
         'gap_analysis': lambda: f"Performance gaps across {len(signals)} metrics with direct improvement levers",
         'cost_analysis': lambda: f"${tc:,.0f} annual cost — structural optimization opportunities exist",
         'self_service': lambda: f"Self-service at {next((s['value'] for s in signals if s['type']=='low_self_service'), 'low')} — significant deflection potential",
-        'impact_dashboard': lambda: f"${waterfall.get('totalNPV',0):,.0f} NPV with {waterfall.get('payback',0):.1f}yr payback" if waterfall else "Complete business case",
+        'impact_dashboard': lambda: f"${waterfall.get('totalNPV',0):,.0f} NPV with {waterfall.get('payback',0):.1f}yr payback" if waterfall else "Complete financial overview",
     }
     try: return h.get(page_context, lambda: f"{len(signals)} improvement areas identified")()
     except: return f"{len(signals)} improvement areas identified"

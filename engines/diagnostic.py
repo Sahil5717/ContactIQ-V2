@@ -28,6 +28,11 @@ def run_diagnostic(data):
         scores = {}; details = {}
         for m in HEALTH_WEIGHTS:
             val = q.get(m); bench = _get_bench(benchmarks, q['channel'], m, params)
+            # CR-FIX-AHT: Queue AHT is stored in MINUTES (from ETL).
+            # Benchmarks are in SECONDS (360=6min, 420=7min, etc.).
+            # Convert to seconds at the diagnostic boundary for correct comparison.
+            if m == 'aht' and val is not None:
+                val = val * 60  # minutes → seconds
             if val is None or bench is None:
                 scores[m] = 50; details[m] = {'value':0,'benchmark':0,'gap':0,'score':50,'rating':'grey'}; continue
             gap = _calc_gap(val, bench, m)
@@ -136,14 +141,22 @@ def _compute_friction_score(queue, metric_details, benchmarks, params):
 
 
 def _get_bench(benchmarks, channel, metric, params):
-    ch_bench = benchmarks.get(channel, {})
-    if metric in ch_bench: return ch_bench[metric]
-    defaults = {'aht':{'Voice':360,'Chat':420,'Email':600,'IVR':120,'App/Self-Service':180,'SMS/WhatsApp':300,'Social Media':300,'Retail/Walk-in':600},
-                'fcr':{'Voice':0.75,'Chat':0.72,'Email':0.65,'IVR':0.80,'App/Self-Service':0.85,'SMS/WhatsApp':0.70,'Social Media':0.65,'Retail/Walk-in':0.80},
-                'csat':{'Voice':4.0,'Chat':3.8,'Email':3.5,'IVR':3.5,'App/Self-Service':4.0,'SMS/WhatsApp':3.8,'Social Media':3.5,'Retail/Walk-in':4.2},
-                'escalation':{'Voice':0.12,'Chat':0.10,'Email':0.08,'IVR':0.05,'App/Self-Service':0.03,'SMS/WhatsApp':0.08,'Social Media':0.10,'Retail/Walk-in':0.15},
-                'cpc':{'Voice':8.50,'Chat':5.00,'Email':4.00,'IVR':1.50,'App/Self-Service':0.50,'SMS/WhatsApp':3.00,'Social Media':4.00,'Retail/Walk-in':15.00}}
-    return defaults.get(metric,{}).get(channel)
+    """CR-FIX-BENCH: Unified benchmark access via data_loader.resolve_benchmark.
+    Converts AHT from canonical minutes (in benchmark config) to seconds for diagnostic scoring."""
+    from engines.data_loader import resolve_benchmark
+    val, _tq, _src = resolve_benchmark(benchmarks, metric.upper() if metric in ('aht','fcr','csat','cpc','ces') else metric.capitalize(), channel=channel)
+    if val is None or val == 0:
+        # Hard fallback if resolve_benchmark returns nothing
+        defaults = {'aht':{'Voice':360,'Chat':420,'Email':600,'IVR':120,'App/Self-Service':180,'SMS/WhatsApp':300,'Social Media':300,'Retail/Walk-in':600},
+                    'fcr':{'Voice':0.75,'Chat':0.72,'Email':0.65,'IVR':0.80,'App/Self-Service':0.85,'SMS/WhatsApp':0.70,'Social Media':0.65,'Retail/Walk-in':0.80},
+                    'csat':{'Voice':4.0,'Chat':3.8,'Email':3.5,'IVR':3.5,'App/Self-Service':4.0,'SMS/WhatsApp':3.8,'Social Media':3.5,'Retail/Walk-in':4.2},
+                    'escalation':{'Voice':0.12,'Chat':0.10,'Email':0.08,'IVR':0.05,'App/Self-Service':0.03,'SMS/WhatsApp':0.08,'Social Media':0.10,'Retail/Walk-in':0.15},
+                    'cpc':{'Voice':8.50,'Chat':5.00,'Email':4.00,'IVR':1.50,'App/Self-Service':0.50,'SMS/WhatsApp':3.00,'Social Media':4.00,'Retail/Walk-in':15.00}}
+        return defaults.get(metric,{}).get(channel)
+    # AHT: benchmark config stores in minutes, diagnostic needs seconds
+    if metric == 'aht':
+        val = val * 60
+    return val
 
 
 def _calc_gap(val, bench, metric):
@@ -441,7 +454,7 @@ def build_sub_intent_analysis(queues):
         intent_volume[intent] = intent_volume.get(intent, 0) + vol
         if intent not in intent_aht:
             intent_aht[intent] = []
-        intent_aht[intent].append((q.get('aht', 300), vol))
+        intent_aht[intent].append((q.get('aht', 5.0) * 60, vol))  # CR-FIX-AHT: convert min→sec
         if intent not in intent_channels:
             intent_channels[intent] = set()
         intent_channels[intent].add(q.get('channel', 'Voice'))
@@ -449,7 +462,7 @@ def build_sub_intent_analysis(queues):
     results = []
     for intent, total_vol in sorted(intent_volume.items(), key=lambda x: -x[1]):
         # Weighted AHT
-        aht_pairs = intent_aht.get(intent, [(300, 1)])
+        aht_pairs = intent_aht.get(intent, [(300, 1)])  # default 300 sec = 5 min
         wavg_aht = sum(a * v for a, v in aht_pairs) / max(sum(v for _, v in aht_pairs), 1)
 
         # Sub-intents

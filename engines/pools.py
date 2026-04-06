@@ -213,7 +213,10 @@ def compute_pools(enriched_queues, roles, params, cost_matrix=None):
         'breakdown': sorted(transfer_breakdown, key=lambda x: x['preventable_count'], reverse=True)[:20],
     }
     
-    escalation_extra_sec = 300  # 5 min per unnecessary escalation
+    # CR-FIX-ESC: Unified to 900 sec (15 min) — preventing an escalation avoids
+    # the full L2/L3 handle time, not just the escalation overhead.
+    # Consistent with gross.py (line 198) and waterfall.py (line 364).
+    escalation_extra_sec = 900  # 15 min per prevented escalation (full L2 avoidance)
     esc_hours = (total_preventable_escalations * escalation_extra_sec) / 3600
     esc_fte = esc_hours / max(net_prod_hours, 1)
     
@@ -280,8 +283,8 @@ def compute_pools(enriched_queues, roles, params, cost_matrix=None):
     # 5. LOCATION POOL
     # ════════════════════════════════════════════
     # FTE that could be migrated to lower-cost locations (no workload reduction)
-    # Based on migration readiness of the volume they handle
-    migratable_volume = sum(q['annual_volume'] * q.get('migration_readiness', 0) for q in ann_queues)
+    # CR-FIX-LOC: Uses location_readiness (offshoring suitability), NOT migration_readiness (channel migration)
+    migratable_volume = sum(q['annual_volume'] * q.get('location_readiness', q.get('migration_readiness', 0)) for q in ann_queues)
     migratable_share = migratable_volume / max(total_volume, 1)
     
     # Only certain roles can be migrated
@@ -485,7 +488,7 @@ def compute_pools(enriched_queues, roles, params, cost_matrix=None):
                 }
             elif pool_name in ('transfer_reduction', 'escalation_reduction'):
                 rate_key = 'transfer' if pool_name == 'transfer_reduction' else 'escalation'
-                extra_sec = 180 if pool_name == 'transfer_reduction' else 300
+                extra_sec = 180 if pool_name == 'transfer_reduction' else 900  # CR-FIX-ESC: unified to 15 min
                 bu_preventable = 0
                 for q in bu_queues:
                     rate = q.get(rate_key, 0)
@@ -527,7 +530,7 @@ def compute_pools(enriched_queues, roles, params, cost_matrix=None):
                     'volume': bu_vol,
                 }
             elif pool_name == 'location':
-                bu_mig_vol = sum(q['annual_volume'] * q.get('migration_readiness', 0) for q in bu_queues)
+                bu_mig_vol = sum(q['annual_volume'] * q.get('location_readiness', q.get('migration_readiness', 0)) for q in bu_queues)
                 bu_mig_share = bu_mig_vol / max(bu_vol, 1)
                 migratable_roles_names = ['Agent L1', 'Agent L2 / Specialist', 'Back-Office / Processing']
                 bu_mig_fte = bu_fte.get(bu, 0) * bu_mig_share * 0.6  # rough: 60% of BU FTE are migratable roles

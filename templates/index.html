@@ -794,78 +794,110 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
   <div class="sidebar-logo">
     <h1>EY GDS Intelligence</h1>
     <h2>ContactIQ</h2>
-    <div class="sub">Transformation Intelligence for Contact Centres</div>
+    <div class="sub">EY Contact Centre Opportunity Assessment</div>
   </div>
+
+  <!-- V6: Mode Toggle (admin only) -->
+  <div id="modeToggleBar" class="role-admin" style="display:none;padding:8px 16px;background:rgba(255,230,0,0.08);border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--ey-yellow);font-weight:700;">Mode</div>
+      <div id="modeToggle" style="display:flex;gap:0;border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,0.15);">
+        <button onclick="switchMode('opportunity')" id="modeBtnOpp" style="padding:4px 10px;font-size:10px;font-weight:600;font-family:inherit;border:none;cursor:pointer;background:#FFE600;color:#2E2E38;transition:all 0.2s;">Opportunity</button>
+        <button onclick="switchMode('delivery')" id="modeBtnDel" style="padding:4px 10px;font-size:10px;font-weight:600;font-family:inherit;border:none;cursor:pointer;background:transparent;color:rgba(255,255,255,0.5);transition:all 0.2s;">Delivery</button>
+      </div>
+    </div>
+  </div>
+
   <nav id="sidebarNav">
     <div class="nav-phase">🔍 Diagnose</div>
-    <div class="nav-item active" data-page="1">
+    <div class="nav-item active" data-page="1" data-access="all">
       <span class="nav-num">📊</span><span>Executive Summary</span>
     </div>
-    <div class="nav-item" data-page="2">
+
+    <div class="nav-phase">🎯 Pillar Deep Dives</div>
+    <div class="nav-item" data-page="22" data-access="all" data-mode="all">
+      <span class="nav-num">🤖</span><span>AI & Automation</span>
+    </div>
+    <div class="nav-item" data-page="23" data-access="all" data-mode="all">
+      <span class="nav-num">🏢</span><span>Operating Model</span>
+    </div>
+    <div class="nav-item" data-page="24" data-access="all" data-mode="all">
+      <span class="nav-num">🌍</span><span>Location Strategy</span>
+    </div>
+    <div class="nav-item" data-page="25" data-access="all" data-mode="all">
+      <span class="nav-num">📡</span><span>Current Channel Mix</span>
+    </div>
+
+    <div class="nav-phase">🔍 Diagnose</div>
+    <div class="nav-item" data-page="2" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">📏</span><span>Benchmarking</span>
     </div>
-    <div class="nav-item" data-page="3">
+    <div class="nav-item" data-page="3" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">🎯</span><span>Maturity Assessment</span>
     </div>
-    <div class="nav-item" data-page="4">
+    <div class="nav-item" data-page="4" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">🔥</span><span>Performance Heatmap</span>
     </div>
-    <div class="nav-item" data-page="5" style="display:none;">
-      <span class="nav-num">⚡</span><span>Friction Map</span>
-    </div>
-    <div class="nav-item" data-page="6">
+    <div class="nav-item" data-page="6" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">📉</span><span>Gap Analysis</span>
     </div>
-    <div class="nav-item" data-page="7">
+    <div class="nav-item" data-page="7" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">💲</span><span>Cost Analysis</span>
     </div>
-    <div class="nav-item" data-page="19">
+    <div class="nav-item" data-page="19" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">📋</span><span>Queue Analysis</span>
     </div>
-    <div class="nav-item" data-page="18">
+    <div class="nav-item" data-page="18" data-access="admin" data-mode="all">
       <span class="nav-num">🌿</span><span>Sub-Intent Analysis</span>
     </div>
 
     <div class="nav-phase">📐 Size the Prize</div>
-    <div class="nav-item" data-page="16">
+    <div class="nav-item" data-page="16" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">💎</span><span>Opportunity Buckets</span>
     </div>
-    <div class="nav-item" data-page="8">
+    <div class="nav-item" data-page="8" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">🤖</span><span>Self-Service Feasibility</span>
     </div>
-    <div class="nav-item" data-page="20">
+    <div class="nav-item" data-page="20" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">🏢</span><span>Operating Model</span>
     </div>
 
     <div class="nav-phase">💡 Solve</div>
-    <div class="nav-item" data-page="9">
+    <div class="nav-item" data-page="9" data-access="admin" data-mode="all">
       <span class="nav-num">🗺️</span><span>Initiative Roadmap</span>
     </div>
-    <div class="nav-item" data-page="10">
+    <div class="nav-item" data-page="10" data-access="admin" data-mode="all">
       <span class="nav-num">🔀</span><span>Projected Channel Mix</span>
     </div>
-    <div class="nav-item" data-page="11">
+    <div class="nav-item" data-page="11" data-access="admin,supervisor" data-mode="delivery">
       <span class="nav-num">📅</span><span>Implementation Gantt</span>
     </div>
 
     <div class="nav-phase">🎯 Justify</div>
-    <div class="nav-item" data-page="14">
+    <div class="nav-item" data-page="14" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">📈</span><span>Impact Dashboard</span>
     </div>
-    <div class="nav-item" data-page="17">
+    <div class="nav-item" data-page="17" data-access="admin" data-mode="all">
       <span class="nav-num">🏗️</span><span>BU Impact Views</span>
     </div>
-    <div class="nav-item" data-page="12">
+    <div class="nav-item" data-page="12" data-access="admin" data-mode="delivery">
       <span class="nav-num">⚠️</span><span>Risk Assessment</span>
     </div>
-    <div class="nav-item" data-page="13" style="display:none;">
+    <div class="nav-item" data-page="13" data-access="admin,supervisor" data-mode="delivery" style="display:none;">
       <span class="nav-num">👥</span><span>Workforce Transition</span>
     </div>
-    <div class="nav-item" data-page="21">
+    <div class="nav-item" data-page="21" data-access="admin" data-mode="all">
       <span class="nav-num">⚖️</span><span>Scenario Comparison</span>
     </div>
+    <div class="nav-item" data-page="26" data-access="all" data-mode="delivery">
+      <span class="nav-num">✅</span><span>Initiative Effectiveness</span>
+    </div>
+    <div class="nav-item" data-page="15" data-access="admin" data-mode="all">
+      <span class="nav-num">🔧</span><span>Overrides</span>
+    </div>
+
     <div class="nav-phase">⚙️ Administration</div>
-    <div class="nav-item" data-page="dm" onclick="toggleDataPanel()" style="cursor:pointer;">
+    <div class="nav-item" data-page="dm" data-access="admin" onclick="toggleDataPanel()" style="cursor:pointer;">
       <span class="nav-num" style="font-size:14px;">📁</span><span>Data Management</span><span class="role-admin" style="font-size:9px;background:#FFE600;color:#2E2E38;padding:1px 6px;border-radius:3px;margin-left:6px;">Admin</span>
     </div>
     <div class="nav-item" onclick="window.location.href='/api/export/pdf'" style="cursor:pointer;">
@@ -949,6 +981,7 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
     <button class="btn btn-outline btn-sm" onclick="refreshFromServer()" title="Reload from source data — resets all overrides">↻ Refresh Data</button>
     <button class="btn btn-sm" style="background:#FFE600;color:#2E2E38;font-weight:600;" onclick="recalculateAll()" title="Re-run calculations with current edits — preserves overrides">⚡ Recalculate</button>
     <button class="btn btn-outline btn-sm" onclick="handleExport()">⤓ Export Excel</button>
+    <button class="btn btn-outline btn-sm" onclick="showAuditTrail()" title="View override change history">📋 Audit Trail</button>
     <span id="topbarIndustry" style="font-size:12px; color:var(--ey-text-light);">Loading...</span>
   </div>
 </header>
@@ -986,6 +1019,13 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
   <div class="page" id="page-19"></div>
   <div class="page" id="page-20"></div>
   <div class="page" id="page-21"></div>
+
+  <!-- ─── V7: PILLAR DEEP DIVES + CHANNEL MIX ─── -->
+  <div class="page" id="page-22"></div>
+  <div class="page" id="page-23"></div>
+  <div class="page" id="page-24"></div>
+  <div class="page" id="page-25"></div>
+  <div class="page" id="page-26"></div>
 
 </main>
 
@@ -1048,22 +1088,203 @@ window.__DATA_SUMMARY = {{ data_summary | safe }};
     const role = document.getElementById('userRole');
     if (avatar) avatar.textContent = (ui.display_name || ui.username || 'A')[0].toUpperCase();
     if (name) name.textContent = ui.display_name || ui.username || 'Administrator';
-    if (role) role.textContent = (ui.role || 'supervisor').charAt(0).toUpperCase() + (ui.role || 'supervisor').slice(1);
-    // P2-5: Global role for access control
-    window.USER_ROLE = (ui.role || 'supervisor').toLowerCase();
+    // V6: Role display labels
+    const ROLE_LABELS = {admin: 'EY GDS', supervisor: 'EY US', analyst: 'Client'};
+    const roleKey = (ui.role || 'supervisor').toLowerCase();
+    if (role) role.textContent = ROLE_LABELS[roleKey] || roleKey;
+    window.USER_ROLE = roleKey;
   }
 })();
 
-// P2-5: Role-based UI visibility
-function applyRoleRestrictions() {
+// V6: Project Mode global
+window.PROJECT_MODE = 'opportunity'; // default, overridden by server data
+window.PILLAR_SCENARIOS = null;
+
+// V6: Role labels for display
+const V6_ROLE_LABELS = {admin: 'EY GDS', supervisor: 'EY US', analyst: 'Client'};
+
+// V7.1: Full access matrix per Spec §2 + §9
+// Key: page number → { admin: {opp,del}, supervisor: {opp,del}, analyst: {opp,del} }
+// true = visible, false = hidden. GDS (admin) sees everything in both modes.
+const PAGE_ACCESS = {
+  1:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  2:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
+  3:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
+  4:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
+  5:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
+  6:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
+  7:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
+  8:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
+  9:  { admin: {opp:true,del:true},  supervisor: {opp:false,del:true}, analyst: {opp:false,del:true} },
+  10: { admin: {opp:true,del:true},  supervisor: {opp:false,del:false},analyst: {opp:false,del:false} },
+  11: { admin: {opp:true,del:true},  supervisor: {opp:false,del:true}, analyst: {opp:false,del:true} },
+  12: { admin: {opp:true,del:true},  supervisor: {opp:false,del:true}, analyst: {opp:false,del:true} },
+  13: { admin: {opp:true,del:true},  supervisor: {opp:false,del:true}, analyst: {opp:false,del:true} },
+  14: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:true} },
+  15: { admin: {opp:true,del:true},  supervisor: {opp:false,del:false},analyst: {opp:false,del:false} },
+  16: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
+  17: { admin: {opp:true,del:true},  supervisor: {opp:false,del:true}, analyst: {opp:false,del:false} },
+  18: { admin: {opp:true,del:true},  supervisor: {opp:false,del:false},analyst: {opp:false,del:false} },
+  19: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
+  20: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
+  21: { admin: {opp:true,del:true},  supervisor: {opp:false,del:true}, analyst: {opp:false,del:false} },
+  22: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  23: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  24: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  25: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  26: { admin: {opp:false,del:true}, supervisor: {opp:false,del:true}, analyst: {opp:false,del:true} },
+};
+
+function applyNavAccessMatrix() {
   const role = window.USER_ROLE || 'supervisor';
-  // Analyst: hide all write controls
+  const mode = window.PROJECT_MODE || 'opportunity';
+  const modeKey = mode === 'delivery' ? 'del' : 'opp';
+
+  // CR-FIX-GOV: Calculation rights enforcement
+  window._calcRights = {
+    admin: { canOverride: ['any'], canEdit: ['initiative_library','benchmark_logic','formulas','defaults'] },
+    supervisor: { canOverride: ['adoption','ramp','benchmark','initiative_enabled','phasing','costAssumptions'],
+                  canEdit: ['initiative_enabled','adoption','ramp','scenarios','narrative'],
+                  guardrails: { adoption: {min:0.3, max:1.0}, ramp: {min:2, max:36} } },
+    analyst: { canOverride: [], canEdit: ['data_uploads','field_mapping','notes'] },
+  };
+  window.canOverride = function(field) {
+    const rights = window._calcRights[role] || window._calcRights.analyst;
+    return rights.canOverride.includes('any') || rights.canOverride.includes(field);
+  };
+  window.canEdit = function(field) {
+    const rights = window._calcRights[role] || window._calcRights.analyst;
+    return rights.canEdit.includes(field);
+  };
+  window.getGuardrail = function(field) {
+    const rights = window._calcRights[role] || {};
+    return (rights.guardrails || {})[field] || null;
+  };
+
+  document.querySelectorAll('#sidebarNav .nav-item[data-page]').forEach(el => {
+    const page = el.getAttribute('data-page');
+    if (page === 'dm') {
+      el.style.display = (role === 'admin') ? '' : 'none';
+      return;
+    }
+
+    const pageNum = parseInt(page);
+    const access = PAGE_ACCESS[pageNum];
+    if (!access) {
+      el.style.display = (role === 'admin') ? '' : 'none';
+      return;
+    }
+
+    const roleAccess = access[role];
+    const allowed = roleAccess ? roleAccess[modeKey] : false;
+    el.style.display = allowed ? '' : 'none';
+  });
+
+  // Phase headers: hide if all children hidden
+  document.querySelectorAll('#sidebarNav .nav-phase').forEach(phase => {
+    let next = phase.nextElementSibling;
+    let anyVisible = false;
+    while (next && !next.classList.contains('nav-phase')) {
+      if (next.classList.contains('nav-item') && next.style.display !== 'none') {
+        anyVisible = true;
+        break;
+      }
+      next = next.nextElementSibling;
+    }
+    phase.style.display = anyVisible ? '' : 'none';
+  });
+
+  // Show/hide mode toggle bar (admin only)
+  const modeBar = document.getElementById('modeToggleBar');
+  if (modeBar) modeBar.style.display = (role === 'admin') ? '' : 'none';
+
+  // Update mode toggle button states
+  const btnOpp = document.getElementById('modeBtnOpp');
+  const btnDel = document.getElementById('modeBtnDel');
+  if (btnOpp && btnDel) {
+    if (mode === 'opportunity') {
+      btnOpp.style.background = '#FFE600'; btnOpp.style.color = '#2E2E38';
+      btnDel.style.background = 'transparent'; btnDel.style.color = 'rgba(255,255,255,0.5)';
+    } else {
+      btnDel.style.background = '#FFE600'; btnDel.style.color = '#2E2E38';
+      btnOpp.style.background = 'transparent'; btnOpp.style.color = 'rgba(255,255,255,0.5)';
+    }
+  }
+
+  // Hide write controls per role
   if (role === 'analyst') {
     document.querySelectorAll('.role-supervisor, .role-admin').forEach(el => el.style.display = 'none');
   }
-  // Supervisor: hide admin-only controls
   if (role === 'supervisor') {
     document.querySelectorAll('.role-admin').forEach(el => el.style.display = 'none');
+  }
+}
+
+// V7.2 §3: Read-only lock for delivery-gained pages
+// Pages that a role gains in Delivery mode are read-only (no edit controls)
+const RO_PAGES = {
+  supervisor: [9, 11, 12, 13],    // EY US: gained in delivery, cannot modify
+  analyst:    [9, 11, 12, 13, 14], // Client: gained in delivery, cannot modify
+};
+
+function _applyReadOnlyLock(page) {
+  const role = window.USER_ROLE || 'admin';
+  const mode = window.PROJECT_MODE || 'opportunity';
+  const pageEl = document.getElementById('page-' + page);
+  if (!pageEl) return;
+
+  // Remove any existing RO banner
+  const existing = pageEl.querySelector('.v72-ro-banner');
+  if (existing) existing.remove();
+
+  // Admin never locked; only applies in delivery mode
+  if (role === 'admin' || mode !== 'delivery') return;
+
+  const roPages = RO_PAGES[role] || [];
+  if (!roPages.includes(page)) return;
+
+  // Inject RO banner at top of page
+  const banner = document.createElement('div');
+  banner.className = 'v72-ro-banner';
+  banner.style.cssText = 'background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:8px;';
+  banner.innerHTML = '<span style="font-size:16px;">🔒</span><span style="font-size:12px;color:#1565C0;font-weight:600;">Read Only — This page is available for review. Configuration changes require EY GDS access.</span>';
+  pageEl.insertBefore(banner, pageEl.firstChild);
+
+  // Disable all buttons and inputs within the page (except nav links)
+  pageEl.querySelectorAll('button, input[type="checkbox"], input[type="number"], select, textarea').forEach(el => {
+    if (el.closest('.v72-ro-banner')) return; // Don't disable banner itself
+    el.disabled = true;
+    el.style.opacity = '0.5';
+    el.style.pointerEvents = 'none';
+  });
+}
+
+// V6: Mode switch function (admin only)
+async function switchMode(newMode) {
+  if (newMode === window.PROJECT_MODE) return;
+  if (!confirm(`Switch to ${newMode === 'delivery' ? 'Delivery' : 'Opportunity'} mode? This changes what EY US and Client users can see.`)) return;
+  try {
+    const res = await fetch('/api/config/mode', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mode: newMode})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      window.PROJECT_MODE = newMode;
+      applyNavAccessMatrix();
+      // F-14 fix: Per spec F.2.1, mode change takes effect on NEXT page navigation,
+      // not immediately. Update nav visibility but do NOT re-render current page.
+      // Update mode toggle button styling
+      document.getElementById('modeBtnOpp').style.background = newMode === 'opportunity' ? '#FFE600' : 'transparent';
+      document.getElementById('modeBtnOpp').style.color = newMode === 'opportunity' ? '#2E2E38' : 'rgba(255,255,255,0.5)';
+      document.getElementById('modeBtnDel').style.background = newMode === 'delivery' ? '#FFE600' : 'transparent';
+      document.getElementById('modeBtnDel').style.color = newMode === 'delivery' ? '#2E2E38' : 'rgba(255,255,255,0.5)';
+    } else {
+      alert('Failed to switch mode: ' + (data.error || 'Unknown error'));
+    }
+  } catch(e) {
+    alert('Error switching mode: ' + e.message);
   }
 }
 // Apply after each page render
@@ -1261,7 +1482,7 @@ const PAGE_META = {
   11: { title: 'Implementation Gantt',   question: 'Q11: What\'s the implementation plan?' },
   12: { title: 'Risk Assessment',        question: 'Q12: What are the risks?' },
   13: { title: 'Workforce Transition',   question: 'Q13: What does the talent impact look like?' },
-  14: { title: 'Impact Dashboard',      question: 'Q14: What\u0027s the business case?' },
+  14: { title: 'Impact Dashboard',      question: 'Q14: What\u0027s the financial impact?' },
   16: { title: 'Opportunity Buckets',  question: 'How big is the opportunity in each area?' },
   15: { title: 'Overrides',             question: 'Q15: Can I adjust the assumptions?' },
   17: { title: 'BU Impact Views',        question: 'How does the transformation impact each Business Unit?' },
@@ -1269,6 +1490,11 @@ const PAGE_META = {
   19: { title: 'Queue Analysis',         question: 'Q19: What does the queue-level performance look like?' },
   20: { title: 'Operating Model',        question: 'Q20: What should the future operating model look like?' },
   21: { title: 'Scenario Comparison',    question: 'Q21: How do different transformation scenarios compare?' },
+  22: { title: 'AI & Automation',        question: 'What is the AI & Automation opportunity?' },
+  23: { title: 'Operating Model',        question: 'What is the Operating Model opportunity?' },
+  24: { title: 'Location Strategy',      question: 'What is the Location Strategy opportunity?' },
+  25: { title: 'Current Channel Mix',    question: 'Where does volume sit today across channels?' },
+  26: { title: 'Initiative Effectiveness', question: 'How are existing initiatives performing vs benchmark?' },
 };
 
 // ─── DATA LOADING: V6 — Single source of truth with visible fallback ───
@@ -1435,6 +1661,15 @@ if (window.__SERVER_DATA && window.__SERVER_DATA.demo) {
     DEMO = _normalizeBenchmarks(_hydrateDemo(window.__SERVER_DATA.demo));
     _DATA_SOURCE = 'server_inject';
     console.log('V6: Loaded from __SERVER_DATA (Jinja inject)', DEMO.queues.length, 'queues,', DEMO.totalFTE, 'FTE');
+    // V6: Extract pillar scenarios and project mode
+    if (window.__SERVER_DATA.pillarScenarios) {
+        window.PILLAR_SCENARIOS = window.__SERVER_DATA.pillarScenarios;
+        console.log('V6: Pillar scenarios loaded — FTE range:', window.PILLAR_SCENARIOS.ranges?.fteRange, 'Savings range:', window.PILLAR_SCENARIOS.ranges?.savingsRange);
+    }
+    if (window.__SERVER_DATA.projectMode) {
+        window.PROJECT_MODE = window.__SERVER_DATA.projectMode;
+        console.log('V6: Project mode:', window.PROJECT_MODE);
+    }
 } else {
     // ── Step 2: Try /api/data (XHR fallback) ──
     try {
@@ -1791,12 +2026,20 @@ function renderPage(page) {
       case 19: renderPage19(); break;
       case 20: renderPage20(); break;
       case 21: renderPage21(); break;
+      case 22: renderPage22(); break;
+      case 23: renderPage23(); break;
+      case 24: renderPage24(); break;
+      case 25: renderPage25(); break;
+      case 26: renderPage26(); break;
       default: renderPlaceholder(page); break;
     }
     rendered[page] = true;
 
-    // P2-5: Apply role-based visibility after render
-    if (typeof applyRoleRestrictions === 'function') applyRoleRestrictions();
+    // V6: Apply role+mode nav visibility after render
+    if (typeof applyNavAccessMatrix === 'function') applyNavAccessMatrix();
+
+    // V7.2 §3: Read-only enforcement for delivery-gained pages
+    _applyReadOnlyLock(page);
 
     // Inject recommendation blocks at TOP of diagnostic pages (async, non-blocking)
     const pageRecMap = {
@@ -1963,7 +2206,7 @@ async function renderRecommendationBlock(containerId, pageContext) {
         </div>`;
     }).join('');
 
-    // CR-05: Opportunity banner removed — redundant with Business Case Summary (P1) and Size the Prize (P16)
+    // CR-05: Opportunity banner removed — redundant with Financial Overview (P1) and Size the Prize (P16)
 
     container.innerHTML = `
       <div style="background:white;border-radius:10px;padding:16px 20px;margin-bottom:20px;box-shadow:var(--shadow);border:1px solid var(--ey-mid-gray);border-top:3px solid ${style.accent};">
@@ -2018,6 +2261,73 @@ setTimeout(() => {
    MODULE 1: PAGE 1 — EXECUTIVE SUMMARY
    ═══════════════════════════════════════════════════════════════ */
 function renderPage1() {
+  // V6: Dispatch to role+mode-specific exec summary
+  const role = window.USER_ROLE || 'admin';
+  const mode = window.PROJECT_MODE || 'opportunity';
+
+  if (role === 'admin') {
+    renderPage1_GDS();
+    _checkPillarOverrides(); // V7: Show warning if EY US has toggled pillars
+  } else if (role === 'supervisor') {
+    renderPage1_EYUS();
+  } else if (role === 'analyst') {
+    if (mode === 'delivery') {
+      renderPage1_ClientDelivery();
+    } else {
+      renderPage1_ClientOpportunity();
+    }
+  } else {
+    renderPage1_GDS();
+  }
+}
+
+// V7: Check if EY US has overridden pillar toggles — show warning to GDS admin
+async function _checkPillarOverrides() {
+  try {
+    const res = await fetch('/api/pillar/overrides');
+    const data = await res.json();
+    const overrides = data.overrides || {};
+    const keys = Object.keys(overrides);
+    if (keys.length === 0) return;
+
+    const el = document.getElementById('page-1');
+    if (!el) return;
+
+    const lines = keys.map(layer => {
+      const ov = overrides[layer];
+      return '<strong>' + layer + '</strong>: ' + (ov.enabled ? 'ON' : 'OFF') + ' (set by ' + (ov.set_by_name || ov.set_by_role || 'EY US') + ')';
+    });
+
+    const alertDiv = document.createElement('div');
+    alertDiv.id = 'v7PillarOverrideAlert';
+    alertDiv.style.cssText = 'background:#FFF3E0;border:1px solid #FF9800;border-radius:8px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;';
+    alertDiv.innerHTML = '<div><span style="font-size:14px;margin-right:8px;">⚠️</span><span style="font-size:12px;color:#E65100;"><strong>Pillar Overrides Active</strong> — ' + lines.join(' · ') + '</span></div>' +
+      '<button onclick="resetPillarToggles()" style="background:#E65100;color:white;border:none;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;">Reset to Defaults</button>';
+
+    const existing = document.getElementById('v7PillarOverrideAlert');
+    if (existing) existing.remove();
+    el.insertBefore(alertDiv, el.firstChild);
+  } catch(e) {
+    // Silent fail — non-critical
+  }
+}
+
+// V7: Reset pillar toggles to engine defaults (admin only)
+async function resetPillarToggles() {
+  if (!confirm('Reset all pillar toggles to engine defaults? This removes any EY US overrides.')) return;
+  try {
+    const res = await fetch('/api/pillar/reset', { method: 'POST', headers: {'Content-Type': 'application/json'} });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      // Reload to get fresh state
+      location.reload();
+    }
+  } catch(e) {
+    alert('Reset failed: ' + e.message);
+  }
+}
+
+function renderPage1_GDS() {
   const health = getHealthScore();
   const healthColor = health >= 70 ? 'var(--ey-green)' : health >= 40 ? 'var(--ey-amber)' : 'var(--ey-red)';
   const healthVerdict = health >= 70 ? 'Healthy' : health >= 40 ? 'Under Pressure' : 'Critical';
@@ -2105,18 +2415,51 @@ function renderPage1() {
       </div>
     </div>
 
-    <!-- CR-001: (2) Business Case Summary — MOVED TO TOP -->
+    <!-- CR-FIX-VOL: Volume scaling transparency banner -->
+    ${(DEMO.volumeScaling && DEMO.volumeScaling.factor > 1.5) ? `
+    <div style="background:#FFF8E1;border:1px solid #FFD54F;border-radius:8px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;font-size:12px;">
+      <span style="font-size:18px;">⚠️</span>
+      <div style="flex:1;">
+        <strong style="color:#F57F17;">Volume Basis</strong> —
+        Source CCaaS volume: <strong>${((DEMO.volumeScaling.rawMonthlyVolume||0)/1000).toFixed(1)}K/mo</strong>.
+        Capacity-normalized would be <strong>${DEMO.volumeScaling.factor}x</strong> (${((DEMO.volumeScaling.normalizedMonthlyVolume||0)/1000).toFixed(0)}K/mo).
+        <span id="volViewLabel" style="font-weight:700;">Currently showing: Source (raw)</span>
+      </div>
+      <button onclick="toggleVolumeView()" style="padding:6px 12px;border-radius:6px;border:1px solid #F57F17;background:white;color:#F57F17;font-weight:700;font-size:11px;cursor:pointer;" id="volToggleBtn">Switch to Normalized</button>
+    </div>` : ''}
+    <!-- CR-FIX-TAG: Metric confidence summary -->
+    ${DEMO.metricSources ? `
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+      ${Object.entries(DEMO.metricSources || {}).map(([k,v]) => {
+        const colors = {actual:'#E8F5E9;color:#2E7D32', derived:'#FFF3E0;color:#E65100', survey_backed:'#E3F2FD;color:#1565C0'};
+        const icons = {actual:'✓', derived:'~', survey_backed:'📊'};
+        return '<span style="font-size:10px;padding:3px 8px;border-radius:12px;background:'+(colors[v.confidence]||'#F5F5F5;color:#666')+';font-weight:600;" title="'+v.note+'">'+
+          (icons[v.confidence]||'?')+' '+k.toUpperCase()+'</span>';
+      }).join('')}
+    </div>` : ''}
+
+    <!-- CR-001: (2) Financial Overview — MOVED TO TOP -->
     <div class="card" style="background:linear-gradient(135deg,#1a1a2e,#2E2E38);color:white;border:2px solid var(--ey-yellow);">
       <div style="display:flex;align-items:flex-start;gap:16px;">
         <div style="font-size:36px;">💼</div>
         <div style="flex:1;">
-          <div style="font-size:15px;font-weight:800;color:var(--ey-yellow);margin-bottom:8px;">Business Case Summary</div>
+          <div style="font-size:15px;font-weight:800;color:var(--ey-yellow);margin-bottom:8px;">Financial Overview
+            ${DEMO.dataQuality ? '<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:8px;background:'+(DEMO.dataQuality.label==='High'?'#4CAF50':DEMO.dataQuality.label==='Medium'?'#FF9800':'#f44336')+';color:white;">Data Quality: '+DEMO.dataQuality.label+' ('+Math.round(DEMO.dataQuality.score*100)+'%)</span>' : ''}
+          </div>
           <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:12px;">
-            <div><div style="font-size:22px;font-weight:800;color:var(--ey-yellow);">${fmt(wf.totalInvestment||0,'$m')}</div><div style="font-size:10px;opacity:0.7;">Total Investment</div></div>
-            <div><div style="font-size:22px;font-weight:800;color:#4CAF50;">${fmt(wf.totalNPV||0,'$m')}</div><div style="font-size:10px;opacity:0.7;">NPV (${DEMO.params?.horizon||3}-yr)</div></div>
-            <div><div style="font-size:22px;font-weight:800;color:#4CAF50;">${fmt(wf.totalSaving||0,'$m')}</div><div style="font-size:10px;opacity:0.7;">Total Saving</div></div>
-            <div><div style="font-size:22px;font-weight:800;color:#4CAF50;">${(wf.irr||0).toFixed(0)}%</div><div style="font-size:10px;opacity:0.7;">IRR</div></div>
-            <div style="border-left:1px solid rgba(255,255,255,0.2);padding-left:12px;"><div style="font-size:22px;font-weight:800;color:#00BCD4;">${fmt((_csatS2.totalCXValue||0),'$m')}</div><div style="font-size:10px;opacity:0.7;">CX Revenue</div></div>
+            ${(() => {
+              const cb = DEMO.confidenceBands || wf.confidenceBands || {};
+              const _band = (key, val, label, color) => {
+                const b = cb[key];
+                const range = b ? '<div style="font-size:9px;opacity:0.5;margin-top:2px;">'+fmt(b.low,'$m')+' — '+fmt(b.high,'$m')+'</div>' : '';
+                return '<div><div style="font-size:22px;font-weight:800;color:'+color+';">'+val+'</div><div style="font-size:10px;opacity:0.7;">'+label+'</div>'+range+'</div>';
+              };
+              return _band('investment', fmt(wf.totalInvestment||0,'$m'), 'Total Investment', 'var(--ey-yellow)') +
+                     _band('npv', fmt(wf.totalNPV||0,'$m'), 'NPV ('+( DEMO.params?.horizon||3)+'-yr)', '#4CAF50') +
+                     _band('totalSaving', fmt(wf.totalSaving||0,'$m'), 'Total Saving', '#4CAF50') +
+                     '<div><div style="font-size:22px;font-weight:800;color:#4CAF50;">'+(wf.irr||0).toFixed(0)+'%</div><div style="font-size:10px;opacity:0.7;">IRR</div></div>' +
+                     '<div style="border-left:1px solid rgba(255,255,255,0.2);padding-left:12px;"><div style="font-size:22px;font-weight:800;color:#00BCD4;">'+fmt((_csatS2.totalCXValue||0),'$m')+'</div><div style="font-size:10px;opacity:0.7;">CX Revenue</div></div>';
+            })()}
           </div>
           <div style="font-size:12px;opacity:0.85;line-height:1.6;">
             A ${DEMO.params?.horizon||3}-year transformation of <strong>${INITIATIVES.filter(i=>i.enabled).length} initiatives</strong> delivers
@@ -2871,45 +3214,53 @@ function drawFTEWaterfallChart_legacy() {
 function showYoYCalc(metric, year) {
   const d = window._yoyData;
   const horizon = DEMO.params.horizon;
-  const rampFactor = (year/horizon) * (0.4 + 0.6 * ((year-1)/(horizon-1||1)));
-  const prevRampFactor = year > 1 ? ((year-1)/horizon) * (0.4 + 0.6 * ((year-2)/(horizon-1||1))) : 0;
 
   let html = '';
 
   if (metric === 'FTE') {
+    // CR-FIX-01: Use WATERFALL.yearly data directly — no independent S-curve computation
     const baselineFTE = DEMO.totalFTE;
-    const totalTargetReduction = window._projFTEReduction;
-    const cumReduction = Math.round(totalTargetReduction * rampFactor);
-    const prevCumReduction = Math.round(totalTargetReduction * prevRampFactor);
-    const yrReduction = cumReduction - prevCumReduction;
-    const adoptionPct = rampFactor;
+    const wfY = WATERFALL.yearly || [];
+    const currFTE = wfY[year-1]?.finalFTE || d.fte[year];
+    const prevFTE = year > 1 ? (wfY[year-2]?.finalFTE || d.fte[year-1]) : baselineFTE;
+    const cumReduction = baselineFTE - currFTE;
+    const prevCumReduction = baselineFTE - prevFTE;
+    const yrReduction = prevFTE - currFTE;
+    const totalTargetReduction = WATERFALL.totalReduction || window._projFTEReduction || 0;
+    const adoptionPct = totalTargetReduction > 0 ? (cumReduction / totalTargetReduction) : 0;
+
+    // Layer breakdown from WATERFALL if available
+    const lf = WATERFALL.layerFTE || {};
+    const layerRows = Object.keys(lf).length > 0 ? Object.entries(lf).map(([layer, fte]) =>
+      `<tr><td style="padding-left:20px;font-size:12px;">↳ ${layer}</td><td style="text-align:right;font-size:12px;">${fmt(Math.round(fte * adoptionPct), 'int')} FTE</td></tr>`
+    ).join('') : '';
 
     html = `
       <div style="font-size:13px;">
-        <p style="margin-bottom:12px; color:var(--ey-text-light);">FTE reduction follows S-curve adoption across all accepted initiatives.</p>
+        <p style="margin-bottom:12px; color:var(--ey-text-light);">FTE reduction from waterfall engine — pool-netted with diminishing returns applied.</p>
         <table class="data-table">
           <tbody>
             <tr><td>Baseline FTE</td><td style="text-align:right; font-weight:700;">${fmt(baselineFTE, 'int')}</td></tr>
             <tr><td>Total Target Reduction (at full adoption)</td><td style="text-align:right; font-weight:700;">${fmt(totalTargetReduction, 'int')}</td></tr>
-            <tr><td>S-Curve Adoption at Year ${year}</td><td style="text-align:right; font-weight:700;">${(adoptionPct * 100).toFixed(1)}%</td></tr>
+            <tr><td>Effective Adoption at Year ${year}</td><td style="text-align:right; font-weight:700;">${(adoptionPct * 100).toFixed(1)}%</td></tr>
             <tr style="border-top:2px solid var(--ey-mid-gray);">
-              <td>Cumulative Reduction (target × adoption)</td>
-              <td style="text-align:right; font-weight:700;">${fmt(totalTargetReduction, 'int')} × ${(adoptionPct * 100).toFixed(1)}% = <strong>${fmt(cumReduction, 'int')}</strong></td>
+              <td>Cumulative Reduction through Year ${year}</td>
+              <td style="text-align:right; font-weight:700;"><strong>${fmt(cumReduction, 'int')}</strong></td>
             </tr>
             ${year > 1 ? `<tr><td>Already Reduced by Year ${year-1}</td><td style="text-align:right;">−${fmt(prevCumReduction, 'int')}</td></tr>` : ''}
+            ${layerRows}
             <tr style="background:var(--ey-green-bg);">
               <td><strong>Year ${year} Incremental Reduction</strong></td>
               <td style="text-align:right; font-weight:700; color:var(--ey-green);">▼ ${fmt(yrReduction, 'int')} FTE</td>
             </tr>
             <tr style="background:var(--ey-light-gray);">
               <td><strong>Resulting FTE (Year ${year})</strong></td>
-              <td style="text-align:right; font-weight:700;">${fmt(baselineFTE, 'int')} − ${fmt(cumReduction, 'int')} = <strong>${fmt(baselineFTE - cumReduction, 'int')}</strong></td>
+              <td style="text-align:right; font-weight:700;">${fmt(baselineFTE, 'int')} − ${fmt(cumReduction, 'int')} = <strong>${fmt(currFTE, 'int')}</strong></td>
             </tr>
           </tbody>
         </table>
         <p style="margin-top:12px; font-size:11px; color:var(--ey-text-light);">
-          <strong>Adoption curve:</strong> Uses logistic S-curve — slow in Year 1 as initiatives ramp, accelerating in Year 2, plateauing by Year ${horizon}.<br>
-          <strong>Composition:</strong> AI & Automation ~55% of reduction, Operating Model ~30%, Location Strategy ~15%.<br>
+          <strong>Source:</strong> Pool-netted waterfall engine with diminishing returns cascade.<br>
           <strong>Override:</strong> Adjust initiative timing and adoption on Page 15 (Overrides) to change this projection.
         </p>
       </div>`;
@@ -2950,18 +3301,21 @@ function showYoYCalc(metric, year) {
     const prevSaving = d.saving[year - 1];
     const incremental = currSaving - prevSaving;
 
+    // CR-FIX-02: Use actual WATERFALL investment data, not hardcoded multipliers
+    const invYearly = WATERFALL.investmentYearly || [];
+    const yrInvestment = invYearly[year-1]?.investment || 0;
+    const redeployPct = DEMO.params.redeploymentPct || 0;
+    const grossSaving = currSaving + yrInvestment; // back-calculate gross from net
+    const redeploymentCost = grossSaving * redeployPct;
+    const techCost = yrInvestment - redeploymentCost;
+
     html = `
       <div style="font-size:13px;">
-        <p style="margin-bottom:12px; color:var(--ey-text-light);">Net savings = labour savings − technology costs − redeployment costs.</p>
+        <p style="margin-bottom:12px; color:var(--ey-text-light);">Net savings from waterfall engine — labour savings minus phased investment costs.</p>
         <table class="data-table">
           <tbody>
-            <tr><td>Year ${year} Gross Labour Saving</td><td style="text-align:right; font-weight:700;">${fmt(currSaving * 1.15, '$m')}</td></tr>
-            <tr><td>Technology Investment</td><td style="text-align:right; color:var(--ey-red);">−${fmt(currSaving * 0.08, '$k')}</td></tr>
-            <tr><td>Redeployment & Reskilling (${(DEMO.params.redeploymentPct * 100).toFixed(0)}%)</td><td style="text-align:right; color:var(--ey-red);">−${fmt(currSaving * 0.07, '$k')}</td></tr>
-            <tr style="background:var(--ey-green-bg);">
-              <td><strong>Year ${year} Net Saving</strong></td>
-              <td style="text-align:right; font-weight:700; color:var(--ey-green);">${fmt(currSaving, '$m')}</td>
-            </tr>
+            <tr><td>Year ${year} Net Saving (from waterfall)</td><td style="text-align:right; font-weight:700; color:var(--ey-green);">${fmt(currSaving, '$m')}</td></tr>
+            ${yrInvestment > 0 ? `<tr><td>Year ${year} Phased Investment</td><td style="text-align:right; color:var(--ey-text-light);">${fmt(yrInvestment, '$k')} (already netted)</td></tr>` : ''}
             <tr><td>Prior Year Net Saving</td><td style="text-align:right;">${fmt(prevSaving, '$m')}</td></tr>
             <tr style="background:var(--ey-light-gray);">
               <td><strong>Incremental vs Prior Year</strong></td>
@@ -2971,7 +3325,8 @@ function showYoYCalc(metric, year) {
         </table>
         <p style="margin-top:12px; font-size:11px; color:var(--ey-text-light);">
           <strong>Incremental saving</strong> reflects new initiatives reaching maturity + existing initiatives deepening adoption.<br>
-          <strong>Attrition factor:</strong> Savings are only realisable as natural attrition creates vacancies — attrition rate: ${(DEMO.params.attritionMonthly * 100).toFixed(0)}%/month.
+          <strong>Attrition factor:</strong> Savings are only realisable as natural attrition creates vacancies — attrition rate: ${(DEMO.params.attritionMonthly * 100).toFixed(0)}%/month.<br>
+          <strong>Total investment:</strong> ${fmt(WATERFALL.totalInvestment || 0, '$k')} phased across ${DEMO.params.horizon} years.
         </p>
       </div>`;
   } else { // Cumulative
@@ -3063,6 +3418,358 @@ function drillDown(bu, intent, channel) {
       <tbody>${rows}</tbody>
     </table>
   `);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   V6: EXEC SUMMARY — EY US VARIANT (Spec §4.2)
+   Financial Overview + 3 Cards + Parameter Panel
+   ═══════════════════════════════════════════════════════════════ */
+function renderPage1_EYUS() {
+  _renderExecSummary_ThreeCard({ showFinancialBanner: true, showParameterPanel: true });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   V6: EXEC SUMMARY — CLIENT OPPORTUNITY (Spec §4.3)
+   3 Cards only. No financials. No controls.
+   ═══════════════════════════════════════════════════════════════ */
+function renderPage1_ClientOpportunity() {
+  _renderExecSummary_ThreeCard({ showFinancialBanner: false, showParameterPanel: false });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   V6: EXEC SUMMARY — CLIENT DELIVERY (Spec §4.4)
+   3 Cards + Financial Overview. No parameter controls.
+   Reuses EY US template with param panel hidden (Spec §4.4)
+   ═══════════════════════════════════════════════════════════════ */
+function renderPage1_ClientDelivery() {
+  _renderExecSummary_ThreeCard({ showFinancialBanner: true, showParameterPanel: false });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   V6: Shared 3-Card Renderer (EY US + Client views)
+   ═══════════════════════════════════════════════════════════════ */
+function _renderExecSummary_ThreeCard(opts) {
+  const { showFinancialBanner, showParameterPanel } = opts;
+  const wf = WATERFALL;
+  const ps = window.PILLAR_SCENARIOS;
+  const health = getHealthScore();
+  const healthColor = health >= 70 ? 'var(--ey-green)' : health >= 40 ? 'var(--ey-amber)' : 'var(--ey-red)';
+  const healthVerdict = health >= 70 ? 'Healthy' : health >= 40 ? 'Under Pressure' : 'Critical';
+  const horizon = DEMO.params?.horizon || 3;
+  const annualBaseCost = DEMO.roles.reduce((s,r) => s + r.headcount * r.costPerFTE, 0);
+  const projFTEReduction = wf.totalReduction;
+  const projSavings = wf.yearly[wf.yearly.length-1]?.annualSaving || 0;
+  const _csatS2 = wf.csatSummary || {};
+
+  // Pillar data — from pillarScenarios if available, else from layerSaving
+  const pAI = ps?.pillarSummary?.ai || {};
+  const pOM = ps?.pillarSummary?.om || {};
+  const pLoc = ps?.pillarSummary?.location || {};
+  const ranges = ps?.ranges || {};
+  const fteRange = ranges.fteRange || { low: 0, high: projFTEReduction };
+  const savRange = ranges.savingsRange || { low: 0, high: wf.totalSaving || 0 };
+
+  // V7.2 F.2.3: Detect all pillars toggled off
+  const anyPillarActive = INITIATIVES.some(i => i.enabled);
+  const allPillarsOff = !anyPillarActive;
+
+  // KPI benchmarks
+  const bm = DEMO.benchmarks || {};
+  const kpiItems = [
+    {m:'CSAT', actual:DEMO.avgCSAT, bench:(bm.CSAT||{}).global||3.9, dir:'higher', unit:'/5', fmt:v=>v.toFixed(2)},
+    {m:'FCR', actual:DEMO.avgFCR, bench:(bm.FCR||{}).global||0.76, dir:'higher', unit:'%', fmt:v=>(v*100).toFixed(1)+'%'},
+    {m:'AHT', actual:DEMO.avgAHT_min, bench:(bm.AHT||{}).global||5.5, dir:'lower', unit:'min', fmt:v=>v.toFixed(1)+' min'},
+    {m:'CPC', actual:DEMO.avgCPC, bench:(bm.CPC||{}).global||6.5, dir:'lower', unit:'$', fmt:v=>'$'+v.toFixed(2)},
+  ];
+
+  // Projected KPIs for Before & After
+  const kpis = wf.kpiProjections || {};
+  const fvKpi = (v, u) => u === '%' ? (v*100).toFixed(1)+'%' : u === '/5' ? v.toFixed(2) : u === '$' ? '$'+v.toFixed(2) : v.toFixed(1)+(u==='min'?' min':'');
+
+  // Diagnostic verdict one-liner (Appendix A.1)
+  const kpisOnTarget = kpiItems.filter(k => {
+    const gap = k.dir === 'higher' ? (k.bench - k.actual)/k.bench : (k.actual - k.bench)/k.bench;
+    return gap <= 0.05;
+  }).length;
+
+  // One-liner templates per pillar (Appendix A.2)
+  const deflPoolPct = (() => {
+    const pu = wf.poolUtilization || {};
+    const defl = pu.deflection || {};
+    return defl.ceiling_fte ? Math.round(defl.ceiling_fte / DEMO.totalFTE * 100) : 25;
+  })();
+  const costGapPct = (() => {
+    const omRoles = DEMO.roles.filter(r => r.role.includes('L1') || r.role.includes('L2'));
+    if (!omRoles.length) return 15;
+    const avgCost = omRoles.reduce((s,r) => s + r.costPerFTE, 0) / omRoles.length;
+    const benchCost = 52000; // industry avg
+    return Math.max(0, Math.round((avgCost - benchCost) / benchCost * 100));
+  })();
+  const onshoreVolPct = (() => {
+    const onshore = DEMO.roles.filter(r => (r.location || 'Onshore') === 'Onshore');
+    const total = DEMO.roles.reduce((s,r) => s + r.headcount, 0);
+    const onshoreHC = onshore.reduce((s,r) => s + r.headcount, 0);
+    return total ? Math.round(onshoreHC / total * 100) : 70;
+  })();
+
+  const pillarOneLiner = {
+    ai: `${deflPoolPct}% of your contact volume is routine and can be handled through self-service and automation`,
+    om: `Your agent structure has a ${costGapPct}% cost gap vs benchmark — restructuring improves efficiency and resolution`,
+    loc: `${onshoreVolPct}% of volume is handled onshore — nearshore arbitrage creates significant savings`,
+  };
+
+  // Layer colors
+  const LC = { ai: 'var(--ey-blue)', om: 'var(--ey-teal)', loc: 'var(--ey-amber)' };
+  const LBg = { ai: '#EBF3FF', om: '#E0F7FA', loc: '#FFF8E1' };
+
+  const el = document.getElementById('page-1');
+  let html = '';
+
+  // ─── V7.2 F.2.3: ALL PILLARS OFF WARNING ───
+  if (allPillarsOff) {
+    html += `
+    <div class="card" style="background:#FFF8E1;border:2px solid #FF9800;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:28px;">⚠️</span>
+        <div>
+          <div style="font-size:14px;font-weight:800;color:#E65100;">No Opportunity Selected</div>
+          <div style="font-size:12px;color:#BF360C;margin-top:4px;">All transformation pillars are currently disabled. Enable at least one pillar to see the opportunity assessment. ${showParameterPanel ? 'Use the Parameter Controls below to toggle pillars.' : ''}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ─── FINANCIAL OVERVIEW BANNER (EY US + Client Delivery only) ───
+  if (showFinancialBanner) {
+    html += `
+    <div class="card" style="background:linear-gradient(135deg,#1a1a2e,#2E2E38);color:white;border:2px solid var(--ey-yellow);margin-bottom:16px;">
+      <div style="display:flex;align-items:flex-start;gap:16px;">
+        <div style="font-size:32px;">📊</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:800;color:var(--ey-yellow);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Financial Overview</div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;">
+            <div><div style="font-size:24px;font-weight:800;color:var(--ey-yellow);">${fmt(wf.totalInvestment||0,'$m')}</div><div style="font-size:10px;opacity:0.7;">Total Investment</div></div>
+            <div><div style="font-size:24px;font-weight:800;color:#4CAF50;">${fmt(wf.totalNPV||0,'$m')}</div><div style="font-size:10px;opacity:0.7;">NPV (${horizon}-yr)</div></div>
+            <div><div style="font-size:24px;font-weight:800;color:#4CAF50;">${fmt(wf.totalSaving||0,'$m')}</div><div style="font-size:10px;opacity:0.7;">Total Savings</div></div>
+            <div><div style="font-size:24px;font-weight:800;color:#4CAF50;">${(wf.irr||0).toFixed(0)}%</div><div style="font-size:10px;opacity:0.7;">IRR</div></div>
+            <div><div style="font-size:24px;font-weight:800;color:#00BCD4;">${(wf.payback||0).toFixed(1)} mo</div><div style="font-size:10px;opacity:0.7;">Payback Period</div></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ─── CARD 1: YOUR CONTACT CENTRE TODAY ───
+  html += `
+  <div class="card" style="border-left:5px solid ${healthColor};margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--ey-text-light);margin-bottom:4px;">Your Contact Centre Today</div>
+        <div style="display:flex;align-items:baseline;gap:12px;">
+          <div style="font-size:48px;font-weight:800;color:${healthColor};line-height:1;">${Math.round(health)}<span style="font-size:16px;color:var(--ey-text-light);">/100</span></div>
+          <div style="font-size:16px;font-weight:700;color:${healthColor};">${healthVerdict}</div>
+        </div>
+      </div>
+      <div style="flex:1;padding-left:16px;border-left:1px solid var(--ey-mid-gray);">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><div style="font-size:10px;color:var(--ey-text-light);text-transform:uppercase;">Annual Volume</div><div style="font-size:18px;font-weight:800;">${((DEMO.totalVolumeAnnual || DEMO.totalVolume * 12)/1000).toFixed(0)}K</div></div>
+          <div><div style="font-size:10px;color:var(--ey-text-light);text-transform:uppercase;">Annual Cost</div><div style="font-size:18px;font-weight:800;">${fmt(annualBaseCost,'$m')}</div></div>
+        </div>
+      </div>
+    </div>
+    <!-- KPI Benchmark Badges -->
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+      ${kpiItems.map(k => {
+        const gap = k.dir === 'higher' ? (k.bench - k.actual)/k.bench*100 : (k.actual - k.bench)/k.bench*100;
+        const ok = gap <= 5;
+        return '<div style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;background:'+(ok?'var(--ey-green-bg)':'#FFF3E0')+';color:'+(ok?'var(--ey-green)':'#E65100')+';">'+ k.m +': '+k.fmt(k.actual)+' <span style="opacity:0.7;font-weight:400;">(bench: '+k.fmt(k.bench)+')</span> '+(ok?'✓':gap.toFixed(0)+'% gap')+'</div>';
+      }).join('')}
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--ey-text);line-height:1.5;">
+      ${DEMO.params?.clientName || 'Client'}'s contact centre is <strong style="color:${healthColor};">${healthVerdict}</strong> with <strong>${kpisOnTarget}</strong> of <strong>${kpiItems.length}</strong> KPIs meeting industry benchmarks.
+    </div>
+  </div>`;
+
+  // ─── CARD 2: OPPORTUNITY BY PILLAR ───
+  html += `
+  <div class="card" style="margin-bottom:16px;">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--ey-text-light);margin-bottom:8px;">Opportunity by Pillar</div>
+    <!-- Headlines -->
+    <div style="display:flex;gap:16px;margin-bottom:14px;">
+      <div style="padding:10px 18px;background:var(--ey-green-bg);border-radius:8px;border:1px solid var(--ey-green);">
+        <div style="font-size:10px;color:var(--ey-green);font-weight:600;">FTE Reduction Range</div>
+        <div style="font-size:20px;font-weight:800;color:var(--ey-green);">${Math.round(fteRange.low)}–${Math.round(fteRange.high)} FTE</div>
+        <div style="font-size:9px;color:var(--ey-text-light);">Subject to detailed design</div>
+      </div>
+      <div style="padding:10px 18px;background:var(--ey-green-bg);border-radius:8px;border:1px solid var(--ey-green);">
+        <div style="font-size:10px;color:var(--ey-green);font-weight:600;">Annual Savings Range</div>
+        <div style="font-size:20px;font-weight:800;color:var(--ey-green);">${fmt(savRange.low,'$m')}–${fmt(savRange.high,'$m')}</div>
+        <div style="font-size:9px;color:var(--ey-text-light);">Across all three pillars</div>
+      </div>
+    </div>
+    <!-- Three Pillar Blocks -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+      ${[
+        {key:'ai', label:'AI & Automation', layer:'AI & Automation', icon:'🤖', p:pAI, color:LC.ai, bg:LBg.ai, oneLiner:pillarOneLiner.ai, showFTE:true, page:22},
+        {key:'om', label:'Operating Model', layer:'Operating Model', icon:'🏢', p:pOM, color:LC.om, bg:LBg.om, oneLiner:pillarOneLiner.om, showFTE:true, page:23},
+        {key:'loc', label:'Location Strategy', layer:'Location Strategy', icon:'🌍', p:pLoc, color:LC.loc, bg:LBg.loc, oneLiner:pillarOneLiner.loc, showFTE:false, page:24},
+      ].map(pl => {
+        const pillarEnabled = INITIATIVES.some(i => i.layer === pl.layer && i.enabled);
+        const annSav = pl.p.annualSaving || Math.round((pl.p.totalSaving || 0) / Math.max(horizon, 1));
+        if (!pillarEnabled) {
+          return '<div style="border:1px solid #E0E0E6;border-radius:10px;padding:16px;background:#F6F6FA;border-top:4px solid #E0E0E6;opacity:0.6;">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+              '<span style="font-size:20px;filter:grayscale(1);">'+pl.icon+'</span>' +
+              '<div style="font-size:13px;font-weight:800;color:var(--ey-text-light);">'+pl.label+'</div>' +
+            '</div>' +
+            '<div style="font-size:22px;font-weight:800;color:var(--ey-text-light);margin-bottom:4px;">$0</div>' +
+            '<div style="font-size:11px;color:var(--ey-text-light);margin-top:8px;">Pillar disabled — enable to see opportunity</div>' +
+          '</div>';
+        }
+        return '<div style="border:1px solid '+pl.color+'30;border-radius:10px;padding:16px;background:'+pl.bg+';border-top:4px solid '+pl.color+';cursor:pointer;" onclick="navigateTo('+pl.page+')">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+            '<span style="font-size:20px;">'+pl.icon+'</span>' +
+            '<div style="font-size:13px;font-weight:800;color:var(--ey-dark);">'+pl.label+'</div>' +
+          '</div>' +
+          '<div style="font-size:22px;font-weight:800;color:'+pl.color+';margin-bottom:4px;">'+fmt(annSav,'$m')+'/yr</div>' +
+          (pl.showFTE ? '<div style="font-size:12px;color:var(--ey-dark);font-weight:600;">~'+Math.round(pl.p.totalReduction || 0)+' FTE</div>' : '<div style="font-size:12px;color:var(--ey-text-light);font-style:italic;">Cost savings only</div>') +
+          '<div style="font-size:11px;color:var(--ey-text);margin-top:8px;line-height:1.5;">'+pl.oneLiner+'</div>' +
+          '<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+pl.color+';">Explore this opportunity →</div>' +
+        '</div>';
+      }).join('')}
+    </div>
+    <div style="margin-top:8px;font-size:10px;color:var(--ey-text-light);font-style:italic;">
+      ⓘ Pillar values are computed in isolation — they will not sum to the combined total due to pool netting and diminishing returns interactions between pillars.
+    </div>
+  </div>`;
+
+  // ─── CARD 3: BEFORE & AFTER ───
+  html += `
+  <div class="card" style="margin-bottom:16px;">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--ey-text-light);margin-bottom:4px;">Before & After</div>
+    <div style="font-size:12px;color:var(--ey-text);margin-bottom:12px;">Here is what good looks like.</div>
+    <div style="display:grid;grid-template-columns:1fr 40px 1fr;gap:0;align-items:stretch;">
+      <!-- BEFORE -->
+      <div style="background:#FFF5F5;border-radius:10px 0 0 10px;padding:16px;border:1px solid #FFCDD2;border-right:none;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ey-red);font-weight:700;margin-bottom:12px;">Current State</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><div style="font-size:9px;color:var(--ey-text-light);text-transform:uppercase;">Headcount</div><div style="font-size:18px;font-weight:800;">${fmt(DEMO.totalFTE,'int')}</div></div>
+          <div><div style="font-size:9px;color:var(--ey-text-light);text-transform:uppercase;">Annual Cost</div><div style="font-size:18px;font-weight:800;">${fmt(annualBaseCost,'$m')}</div></div>
+          ${['AHT','FCR','CSAT','CPC'].map(k => {
+            const kp = kpis[k]; if (!kp) return '';
+            return '<div><div style="font-size:9px;color:var(--ey-text-light);text-transform:uppercase;">'+k+'</div><div style="font-size:15px;font-weight:700;">'+fvKpi(kp.current, kp.unit)+'</div></div>';
+          }).join('')}
+        </div>
+      </div>
+      <!-- ARROW -->
+      <div style="display:flex;align-items:center;justify-content:center;background:linear-gradient(90deg,#FFF5F5,#F0FFF4);z-index:1;">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--ey-green);color:white;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,0.15);">→</div>
+      </div>
+      <!-- AFTER -->
+      <div style="background:#F0FFF4;border-radius:0 10px 10px 0;padding:16px;border:1px solid #C8E6C9;border-left:none;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ey-green);font-weight:700;margin-bottom:12px;">Achievable State</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><div style="font-size:9px;color:var(--ey-text-light);text-transform:uppercase;">Headcount</div><div style="font-size:18px;font-weight:800;color:var(--ey-green);">${fmt(DEMO.totalFTE - projFTEReduction,'int')}</div><div style="font-size:9px;color:var(--ey-green);font-weight:600;">↓ ${projFTEReduction} FTE</div></div>
+          <div><div style="font-size:9px;color:var(--ey-text-light);text-transform:uppercase;">Annual Cost</div><div style="font-size:18px;font-weight:800;color:var(--ey-green);">${fmt(annualBaseCost - projSavings,'$m')}</div><div style="font-size:9px;color:var(--ey-green);font-weight:600;">↓ ${fmt(projSavings,'$m')}/yr</div></div>
+          ${['AHT','FCR','CSAT','CPC'].map(k => {
+            const kp = kpis[k]; if (!kp) return '';
+            const isGood = (kp.direction === 'higher' && kp.delta > 0) || (kp.direction === 'lower' && kp.delta < 0);
+            const dc = isGood ? 'var(--ey-green)' : 'var(--ey-red)';
+            return '<div><div style="font-size:9px;color:var(--ey-text-light);text-transform:uppercase;">'+k+'</div><div style="font-size:15px;font-weight:700;color:'+dc+';">'+fvKpi(kp.projected, kp.unit)+'</div></div>';
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // ─── PARAMETER CONTROLS (EY US only, Spec §C) ───
+  if (showParameterPanel) {
+    html += `
+    <div class="card" style="margin-bottom:16px;background:var(--ey-light-gray);border:1px dashed var(--ey-mid-gray);">
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="document.getElementById('v6ParamPanel').style.display = document.getElementById('v6ParamPanel').style.display === 'none' ? 'block' : 'none';">
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--ey-text-light);">⚙️ Parameter Controls</div>
+          <div style="font-size:11px;color:var(--ey-text-light);margin-top:2px;">Adjust assumptions and pillar toggles</div>
+        </div>
+        <span style="font-size:16px;color:var(--ey-text-light);">▼</span>
+      </div>
+      <div id="v6ParamPanel" style="display:none;margin-top:14px;">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+          <!-- Client Parameters -->
+          <div style="background:white;border-radius:8px;padding:12px;border:1px solid var(--ey-mid-gray);">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ey-text-light);margin-bottom:8px;">Client Parameters</div>
+            <div style="font-size:11px;line-height:2;">
+              <div>Total Volume: <strong>${((DEMO.totalVolumeAnnual || DEMO.totalVolume * 12)/1000).toFixed(0)}K/yr</strong></div>
+              <div>Total FTE: <strong>${DEMO.totalFTE}</strong></div>
+              <div>Avg Cost/FTE: <strong>$${Math.round(annualBaseCost / DEMO.totalFTE).toLocaleString()}</strong></div>
+            </div>
+          </div>
+          <!-- Scenario Assumptions -->
+          <div style="background:white;border-radius:8px;padding:12px;border:1px solid var(--ey-mid-gray);">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ey-text-light);margin-bottom:8px;">Scenario Assumptions</div>
+            <div style="font-size:11px;line-height:2;">
+              <div>Wage Inflation: <strong>${((DEMO.params?.wageInflation||0.03)*100).toFixed(1)}%</strong></div>
+              <div>Volume Growth: <strong>${((DEMO.params?.volumeGrowth||0.02)*100).toFixed(1)}%</strong></div>
+              <div>Discount Rate: <strong>${((DEMO.params?.discountRate||0.10)*100).toFixed(0)}%</strong></div>
+              <div>Horizon: <strong>${horizon} years</strong></div>
+            </div>
+          </div>
+          <!-- Pillar Toggles (Interactive — V7) -->
+          <div style="background:white;border-radius:8px;padding:12px;border:1px solid var(--ey-mid-gray);">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ey-text-light);margin-bottom:8px;">Pillar Toggles</div>
+            <div style="font-size:11px;line-height:2.2;" id="v7PillarToggles">
+              ${['AI & Automation','Operating Model','Location Strategy'].map(layer => {
+                const enabled = INITIATIVES.some(i => i.layer === layer && i.enabled);
+                const layerId = layer.replace(/[^a-zA-Z]/g,'_');
+                return '<div style="display:flex;align-items:center;gap:6px;">' +
+                  '<button onclick="togglePillar(\''+layer+'\', '+ !enabled +')" id="pillarBtn_'+layerId+'" style="width:38px;height:20px;border-radius:10px;border:none;cursor:pointer;position:relative;background:'+(enabled?'var(--ey-green)':'var(--ey-mid-gray)')+';transition:background 0.2s;">' +
+                    '<span style="position:absolute;top:2px;'+(enabled?'right:2px':'left:2px')+';width:16px;height:16px;border-radius:50%;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:all 0.2s;"></span>' +
+                  '</button>' +
+                  '<span style="flex:1;">'+layer+'</span>' +
+                  '<span id="pillarState_'+layerId+'" style="font-weight:600;color:'+(enabled?'var(--ey-green)':'var(--ey-text-light)')+';">'+(enabled?'ON':'OFF')+'</span>' +
+                '</div>';
+              }).join('')}
+            </div>
+            <div style="margin-top:8px;font-size:10px;color:var(--ey-text-light);">Changes recalculate all downstream metrics and persist across sessions.</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+// V7: Interactive pillar toggle — calls API, persists to DB, refreshes views
+async function togglePillar(layer, enabled) {
+  const layerId = layer.replace(/[^a-zA-Z]/g,'_');
+  const btn = document.getElementById('pillarBtn_' + layerId);
+  const stateEl = document.getElementById('pillarState_' + layerId);
+  if (btn) { btn.style.opacity = '0.5'; btn.disabled = true; }
+
+  try {
+    const res = await fetch('/api/pillar/toggle', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ layer, enabled })
+    });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      // Update local state
+      INITIATIVES.forEach(i => { if (i.layer === layer) i.enabled = enabled; });
+      if (data.waterfall) Object.assign(WATERFALL, data.waterfall);
+      if (data.pillarScenarios) window.PILLAR_SCENARIOS = data.pillarScenarios;
+
+      // Re-render exec summary
+      renderPage(1);
+    } else {
+      alert('Toggle failed: ' + (data.error || 'Unknown'));
+    }
+  } catch(e) {
+    alert('Error toggling pillar: ' + e.message);
+  }
+  if (btn) { btn.style.opacity = '1'; btn.disabled = false; }
 }
 
 
@@ -3362,9 +4069,9 @@ function renderPage3() {
   else if (ssPct >= 0.15 && ssPct < 0.30) autoScore = 3;
   else autoScore = 3; // Would need AI indicators for 4
 
-  // Workforce maturity
+  // Workforce maturity — CR-FIX-WFM: use WFM actuals when available
   const sharedPct = 0.35; // Demo estimate
-  const avgShrinkage = 0.30;
+  const avgShrinkage = DEMO.wfmActuals?.shrinkage || DEMO.params?.shrinkage || 0.30;
   let wfScore;
   if (sharedPct < 0.2 && avgShrinkage > 0.35) wfScore = 1;
   else if (sharedPct < 0.5) wfScore = 2;
@@ -3782,7 +4489,13 @@ function showMaturityDrillDown(dimIndex) {
     'Workforce Model': {
       inputs: [
         { label: 'Shared resource %', value: (deriv.sharedPct * 100).toFixed(0) + '%', detail: 'Agents handling multiple channels simultaneously' },
-        { label: 'Average shrinkage', value: (deriv.avgShrinkage * 100).toFixed(0) + '%', detail: 'Absence / unavailability rate' },
+        { label: 'Average shrinkage', value: (deriv.avgShrinkage * 100).toFixed(0) + '%', detail: DEMO.wfmActuals ? 'From WFM actuals (was '+((DEMO.wfmActuals.overrides?.shrinkage?.was||0.30)*100).toFixed(0)+'% assumed)' : 'Parameter assumption' },
+        ...(DEMO.wfmActuals ? [
+          { label: 'Occupancy', value: ((DEMO.wfmActuals.occupancy||0)*100).toFixed(0) + '%', detail: 'From WFM Monthly Summary' },
+          { label: 'Utilization', value: ((DEMO.wfmActuals.utilization||0)*100).toFixed(0) + '%', detail: 'From WFM Monthly Summary' },
+          { label: 'Adherence', value: ((DEMO.wfmActuals.adherence||0)*100).toFixed(0) + '%', detail: 'From WFM Monthly Summary' },
+          { label: 'Shrinkage breakdown', value: Object.entries(DEMO.wfmActuals.shrinkageDecomp||{}).map(([k,v])=>k+': '+(v*100).toFixed(1)+'%').join(', '), detail: 'Training, meetings, breaks, absence, other' },
+        ] : []),
       ],
       rules: [
         { condition: 'Shared < 20% AND shrinkage > 35%', result: '1 — Reactive', active: deriv.sharedPct < 0.2 && deriv.avgShrinkage > 0.35 },
@@ -3982,7 +4695,7 @@ function generateInitiatives() {
     { id:'AI10', name:'Social Media Auto-Response', lever:'deflection', impact:0.15, channels:['Social Media'], complexity:'simple', effort:'low', ahtImpact:0, fcrImpact:0.02, csatImpact:0.03, roles:['Agent L1'], ramp:3, adoption:0.70 },
     { id:'AI11', name:'Proactive Outbound Notifications', lever:'deflection', impact:0.10, channels:['SMS/WhatsApp','Email'], complexity:'simple', effort:'low', ahtImpact:0, fcrImpact:0.05, csatImpact:0.08, roles:['Agent L1'], ramp:3, adoption:0.85 },
     { id:'AI12', name:'AI-Powered WFM Scheduling', lever:'shrinkage_reduction', impact:0.10, channels:['Voice','Chat'], complexity:'any', effort:'medium', ahtImpact:0, fcrImpact:0, csatImpact:0, roles:['WFM Analyst'], ramp:6, adoption:0.80 },
-    { id:'AI13', name:'Robotic Process Automation (RPA)', lever:'aht_reduction', impact:0.25, channels:['Email'], complexity:'simple', effort:'medium', ahtImpact:-0.25, fcrImpact:0.05, csatImpact:0.02, roles:['Back-Office / Processing'], ramp:6, adoption:0.80 },
+    { id:'AI13', name:'Robotic Process Automation', lever:'aht_reduction', impact:0.25, channels:['Email'], complexity:'simple', effort:'medium', ahtImpact:-0.25, fcrImpact:0.05, csatImpact:0.02, roles:['Back-Office / Processing'], ramp:6, adoption:0.80 },
     { id:'AI14', name:'Visual IVR / Digital Switchboard', lever:'deflection', impact:0.15, channels:['IVR','App/Self-Service'], complexity:'simple', effort:'medium', ahtImpact:-0.10, fcrImpact:0.05, csatImpact:0.10, roles:['Agent L1'], ramp:6, adoption:0.70 },
     { id:'AI15', name:'AI Complaint Triage', lever:'escalation_reduction', impact:0.20, channels:['Voice','Chat','Email'], complexity:'complex', effort:'medium', ahtImpact:-0.10, fcrImpact:0.08, csatImpact:0.10, roles:['Agent L2 / Specialist','Agent L3 / Expert'], ramp:6, adoption:0.75 },
     { id:'AI16', name:'Predictive Churn Detection', lever:'deflection', impact:0.05, channels:['Voice','Chat'], complexity:'any', effort:'medium', ahtImpact:0, fcrImpact:0.03, csatImpact:0.15, roles:['Agent L2 / Specialist'], ramp:6, adoption:0.75 },
@@ -3998,6 +4711,7 @@ function generateInitiatives() {
     { id:'AI26', name:'AI Fraud Detection', lever:'escalation_reduction', impact:0.08, channels:['Voice','Chat','App/Self-Service'], complexity:'complex', effort:'high', ahtImpact:-0.05, fcrImpact:0.03, csatImpact:0.02, roles:['Agent L3 / Expert'], ramp:9, adoption:0.75 },
     { id:'AI27', name:'Next-Best-Action Engine', lever:'aht_reduction', impact:0.10, channels:['Voice','Chat'], complexity:'any', effort:'medium', ahtImpact:-0.10, fcrImpact:0.08, csatImpact:0.10, roles:['Agent L1','Agent L2 / Specialist'], ramp:6, adoption:0.80 },
     { id:'AI28', name:'Automated Compliance Checks', lever:'aht_reduction', impact:0.05, channels:['Voice','Chat','Email'], complexity:'any', effort:'low', ahtImpact:-0.05, fcrImpact:0.02, csatImpact:0, roles:['QA Analyst','Agent L1'], ramp:3, adoption:0.85 },
+    { id:'CC02', name:'Omnichannel Routing Consolidation', lever:'aht_reduction', impact:0.10, channels:['Voice','Chat','Email','SMS/WhatsApp'], complexity:'any', effort:'medium', ahtImpact:-0.10, fcrImpact:0.08, csatImpact:0.06, roles:['Agent L1','Agent L2 / Specialist'], ramp:6, adoption:0.80 },
   ];
   ai.forEach(i => { i.layer = 'AI & Automation'; lib.push(i); });
 
@@ -4020,24 +4734,26 @@ function generateInitiatives() {
     { id:'OP15', name:'Proactive Outbound (Manual)', lever:'deflection', impact:0.05, channels:['Voice','SMS/WhatsApp'], complexity:'simple', effort:'low', ahtImpact:0, fcrImpact:0.03, csatImpact:0.05, roles:['Agent L1'], ramp:3, adoption:0.80 },
     { id:'OP16', name:'Reporting Consolidation', lever:'shrinkage_reduction', impact:0.05, channels:['Voice','Chat','Email'], complexity:'any', effort:'low', ahtImpact:0, fcrImpact:0, csatImpact:0, roles:['Reporting / Analytics','WFM Analyst'], ramp:3, adoption:0.90 },
     { id:'OP17', name:'Call Avoidance (Root Cause Fix)', lever:'deflection', impact:0.12, channels:['Voice','Chat'], complexity:'any', effort:'medium', ahtImpact:0, fcrImpact:0.10, csatImpact:0.08, roles:['Agent L1','Supervisor / Team Lead'], ramp:6, adoption:0.75 },
-    { id:'OP18', name:'Quality Framework Refresh', lever:'aht_reduction', impact:0.05, channels:['Voice','Chat','Email'], complexity:'any', effort:'low', ahtImpact:0, fcrImpact:0.05, csatImpact:0.05, roles:['QA Analyst','Trainer'], ramp:3, adoption:0.85 },
+    { id:'OP18', name:'Agent Desktop Unification', lever:'aht_reduction', impact:0.10, channels:['Voice','Chat','Email'], complexity:'any', effort:'low', ahtImpact:0, fcrImpact:0.05, csatImpact:0.05, roles:['QA Analyst','Trainer'], ramp:3, adoption:0.85 },
+    { id:'CC03', name:'CCaaS Analytics & WFM Suite', lever:'shrinkage_reduction', impact:0.08, channels:['Voice','Chat','Email'], complexity:'any', effort:'medium', ahtImpact:0, fcrImpact:0, csatImpact:0, roles:['WFM Analyst','Reporting / Analytics','Supervisor / Team Lead'], ramp:6, adoption:0.85 },
   ];
   om.forEach(i => { i.layer = 'Operating Model'; lib.push(i); });
 
   // Layer 3: Location Strategy (12)
   const loc = [
-    { id:'LS01', name:'Nearshore Migration (L1)', lever:'cost_reduction', impact:0.30, channels:['Voice','Chat'], complexity:'simple', effort:'high', ahtImpact:0.05, fcrImpact:-0.03, csatImpact:-0.05, roles:['Agent L1'], ramp:12, adoption:0.70 },
-    { id:'LS02', name:'Nearshore Migration (L2)', lever:'cost_reduction', impact:0.25, channels:['Voice','Chat'], complexity:'moderate', effort:'high', ahtImpact:0.05, fcrImpact:-0.05, csatImpact:-0.08, roles:['Agent L2 / Specialist'], ramp:12, adoption:0.60 },
-    { id:'LS03', name:'Offshore Migration (L1)', lever:'cost_reduction', impact:0.50, channels:['Voice','Chat','Email'], complexity:'simple', effort:'high', ahtImpact:0.10, fcrImpact:-0.05, csatImpact:-0.10, roles:['Agent L1'], ramp:12, adoption:0.60 },
-    { id:'LS04', name:'Offshore Back-Office', lever:'cost_reduction', impact:0.45, channels:['Email'], complexity:'simple', effort:'medium', ahtImpact:0.05, fcrImpact:-0.03, csatImpact:-0.03, roles:['Back-Office / Processing'], ramp:9, adoption:0.75 },
-    { id:'LS05', name:'WFH / Hybrid Model', lever:'cost_reduction', impact:0.10, channels:['Voice','Chat','Email'], complexity:'any', effort:'low', ahtImpact:0, fcrImpact:0, csatImpact:0.02, roles:['Agent L1','Agent L2 / Specialist'], ramp:3, adoption:0.85 },
-    { id:'LS06', name:'Hub Consolidation (Sites)', lever:'cost_reduction', impact:0.15, channels:['Voice','Chat'], complexity:'any', effort:'high', ahtImpact:0, fcrImpact:0, csatImpact:0, roles:['Supervisor / Team Lead','Agent L1'], ramp:12, adoption:0.80 },
-    { id:'LS07', name:'Gig / Flex Agent Model', lever:'shrinkage_reduction', impact:0.12, channels:['Chat','Email','Social Media'], complexity:'simple', effort:'medium', ahtImpact:0.05, fcrImpact:-0.02, csatImpact:-0.03, roles:['Agent L1'], ramp:6, adoption:0.65 },
-    { id:'LS08', name:'Extended Hours (Follow-the-Sun)', lever:'shrinkage_reduction', impact:0.08, channels:['Voice','Chat'], complexity:'any', effort:'medium', ahtImpact:0, fcrImpact:0.02, csatImpact:0.05, roles:['Agent L1'], ramp:6, adoption:0.75 },
-    { id:'LS09', name:'Nearshore QA Team', lever:'cost_reduction', impact:0.20, channels:['Voice','Chat','Email'], complexity:'any', effort:'medium', ahtImpact:0, fcrImpact:0, csatImpact:0, roles:['QA Analyst'], ramp:6, adoption:0.75 },
-    { id:'LS10', name:'Offshore WFM Hub', lever:'cost_reduction', impact:0.25, channels:['Voice','Chat','Email'], complexity:'any', effort:'medium', ahtImpact:0, fcrImpact:0, csatImpact:0, roles:['WFM Analyst','Reporting / Analytics'], ramp:6, adoption:0.80 },
-    { id:'LS11', name:'Retail Footprint Optimisation', lever:'cost_reduction', impact:0.20, channels:['Retail/Walk-in'], complexity:'any', effort:'high', ahtImpact:0, fcrImpact:0, csatImpact:-0.05, roles:['Agent L1'], ramp:12, adoption:0.70 },
-    { id:'LS12', name:'Centre of Excellence (CoE)', lever:'aht_reduction', impact:0.08, channels:['Voice','Chat','Email'], complexity:'complex', effort:'medium', ahtImpact:-0.08, fcrImpact:0.05, csatImpact:0.05, roles:['Agent L3 / Expert','Knowledge Manager'], ramp:6, adoption:0.80 },
+    { id:'LS01', name:'Nearshore Hub Setup', lever:'cost_reduction', impact:0.250, channels:['Voice','Chat'], complexity:'simple', effort:'high', ahtImpact:0.05, fcrImpact:-0.03, csatImpact:-0.05, roles:['Agent L1'], ramp:12, adoption:0.70 },
+    { id:'LS02', name:'Offshore Expansion', lever:'cost_reduction', impact:0.40, channels:['Voice','Chat'], complexity:'moderate', effort:'high', ahtImpact:0.05, fcrImpact:-0.05, csatImpact:-0.08, roles:['Agent L2 / Specialist'], ramp:12, adoption:0.60 },
+    { id:'LS03', name:'Work-from-Home Program', lever:'cost_reduction', impact:0.100, channels:['Voice','Chat','Email'], complexity:'simple', effort:'high', ahtImpact:0.10, fcrImpact:-0.05, csatImpact:-0.10, roles:['Agent L1'], ramp:12, adoption:0.60 },
+    { id:'LS04', name:'BPO Partnership', lever:'cost_reduction', impact:0.30, channels:['Email'], complexity:'simple', effort:'medium', ahtImpact:0.05, fcrImpact:-0.03, csatImpact:-0.03, roles:['Back-Office / Processing'], ramp:9, adoption:0.75 },
+    { id:'LS05', name:'Gig Workforce Model', lever:'cost_reduction', impact:0.150, channels:['Voice','Chat','Email'], complexity:'any', effort:'low', ahtImpact:0, fcrImpact:0, csatImpact:0.02, roles:['Agent L1','Agent L2 / Specialist'], ramp:3, adoption:0.85 },
+    { id:'LS06', name:'Shared Services Centre', lever:'cost_reduction', impact:0.20, channels:['Voice','Chat'], complexity:'any', effort:'high', ahtImpact:0, fcrImpact:0, csatImpact:0, roles:['Supervisor / Team Lead','Agent L1'], ramp:12, adoption:0.80 },
+    { id:'LS07', name:'Site Consolidation', lever:'cost_reduction', impact:0.12, channels:['Chat','Email','Social Media'], complexity:'simple', effort:'medium', ahtImpact:0.05, fcrImpact:-0.02, csatImpact:-0.03, roles:['Agent L1'], ramp:6, adoption:0.65 },
+    { id:'LS08', name:'Follow-the-Sun Model', lever:'shrinkage_reduction', impact:0.08, channels:['Voice','Chat'], complexity:'any', effort:'medium', ahtImpact:0, fcrImpact:0.02, csatImpact:0.05, roles:['Agent L1'], ramp:6, adoption:0.75 },
+    { id:'LS09', name:'Regional Language Hubs', lever:'aht_reduction', impact:0.050, channels:['Voice','Chat','Email'], complexity:'any', effort:'medium', ahtImpact:0, fcrImpact:0, csatImpact:0, roles:['QA Analyst'], ramp:6, adoption:0.75 },
+    { id:'LS10', name:'Automation Centre of Excellence', lever:'aht_reduction', impact:0.08, channels:['Voice','Chat','Email'], complexity:'any', effort:'medium', ahtImpact:0, fcrImpact:0, csatImpact:0, roles:['WFM Analyst','Reporting / Analytics'], ramp:6, adoption:0.80 },
+    { id:'LS11', name:'Cloud Migration', lever:'cost_reduction', impact:0.150, channels:['Retail/Walk-in'], complexity:'any', effort:'high', ahtImpact:0, fcrImpact:0, csatImpact:-0.05, roles:['Agent L1'], ramp:12, adoption:0.70 },
+    { id:'LS12', name:'Vendor Rationalisation', lever:'cost_reduction', impact:0.10, channels:['Voice','Chat','Email'], complexity:'complex', effort:'medium', ahtImpact:-0.08, fcrImpact:0.05, csatImpact:0.05, roles:['Agent L3 / Expert','Knowledge Manager'], ramp:6, adoption:0.80 },
+    { id:'CC01', name:'CCaaS Platform Migration', lever:'cost_reduction', impact:0.15, channels:['Voice','Chat','Email','IVR'], complexity:'any', effort:'high', ahtImpact:-0.05, fcrImpact:0, csatImpact:0.03, roles:['Agent L1','Agent L2 / Specialist'], ramp:12, adoption:0.85 },
   ];
   loc.forEach(i => { i.layer = 'Location Strategy'; lib.push(i); });
 
@@ -4348,6 +5064,60 @@ function showRecalcToast() {
   setTimeout(() => t.classList.remove('show'), 1200);
 }
 
+// CR-FIX-AUDIT: Show override audit trail
+function showAuditTrail() {
+  fetch('/api/audit-trail').then(r => r.json()).then(data => {
+    const log = data.auditLog || [];
+    let html = '<div style="max-height:400px;overflow-y:auto;">';
+    if (log.length === 0) {
+      html += '<p style="color:var(--ey-text-light);text-align:center;padding:20px;">No override changes recorded yet.</p>';
+    } else {
+      html += '<table class="data-table" style="font-size:11px;"><thead><tr><th>Time</th><th>User</th><th>Field</th><th>Action</th><th>Old</th><th>New</th><th>Reason</th></tr></thead><tbody>';
+      log.forEach(entry => {
+        html += '<tr><td>'+(entry.changed_at||'').substring(0,16)+'</td><td>'+(entry.display_name||entry.username||'-')+'</td><td style="font-weight:600;">'+
+          (entry.override_key||'')+'</td><td>'+
+          (entry.action||'set')+'</td><td style="color:var(--ey-red);">'+
+          (entry.old_value ? String(entry.old_value).substring(0,30) : '-')+'</td><td style="color:var(--ey-green);">'+
+          (entry.new_value ? String(entry.new_value).substring(0,30) : '-')+'</td><td style="color:var(--ey-text-light);">'+
+          (entry.reason||'-')+'</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+    showModal('Override Audit Trail — '+log.length+' changes', html);
+  }).catch(err => {
+    showModal('Audit Trail', '<p style="color:var(--ey-red);">Failed to load audit trail: '+err.message+'</p>');
+  });
+}
+
+// CR-FIX-VOL: Toggle between source and normalized volume views
+// CR-FIX-VOL v2: Default is SOURCE. Toggle switches to capacity-normalized.
+window._volumeViewNormalized = false;
+function toggleVolumeView() {
+  window._volumeViewNormalized = !window._volumeViewNormalized;
+  const btn = document.getElementById('volToggleBtn');
+  const label = document.getElementById('volViewLabel');
+  if (window._volumeViewNormalized) {
+    // Switch to normalized
+    DEMO.queues.forEach(q => {
+      if (q.normalizedVolume !== undefined) q.volume = q.normalizedVolume;
+    });
+    DEMO.totalVolume = DEMO.volumeScaling?.normalizedMonthlyVolume || DEMO.totalVolume;
+    if (btn) btn.textContent = 'Switch to Source';
+    if (label) label.textContent = 'Currently showing: Capacity-Normalized';
+  } else {
+    // Switch back to source (default)
+    DEMO.queues.forEach(q => {
+      if (q.rawVolume !== undefined) q.volume = q.rawVolume;
+    });
+    DEMO.totalVolume = DEMO.volumeScaling?.rawMonthlyVolume || DEMO.totalVolume;
+    if (btn) btn.textContent = 'Switch to Normalized';
+    if (label) label.textContent = 'Currently showing: Source (raw)';
+  }
+  Object.keys(rendered).forEach(k => rendered[k] = false);
+  renderPage(currentPage);
+}
+
 function recalculateAll(activeLayer) {
   // Change 5b/9: RECALCULATE — sends full parameter state, preserves overrides
   // Change 6b: optional activeLayer for scoped calculation
@@ -4539,12 +5309,29 @@ function runWaterfall() {
   const totalSaving = yearly.reduce((s,y) => s + y.annualSaving, 0);
   const totalReduction = yearly[horizon-1]?.fteReduction || 0;
 
-  // Tech + change management investment estimate
-  const techInvestment = (yearly[0]?.annualSaving || 0) * 0.45;
-  const changeMgmt = techInvestment * 0.25;
-  const training = techInvestment * 0.15;
-  const contingency = techInvestment * 0.10;
-  const totalInvestment = techInvestment + changeMgmt + training + contingency;
+  // CR-FIX-04: Use cached backend investment ratios if available, fall back to heuristic
+  // When backend has previously computed investment, scale proportionally to new savings
+  const _cachedInv = DEMO.waterfall?.investmentSummary || {};
+  const _cachedTotal = DEMO.waterfall?.totalInvestment || 0;
+  const _cachedSaving = DEMO.waterfall?.totalSaving || 0;
+  let techInvestment, changeMgmt, training, contingency, totalInvestment;
+  
+  if (_cachedTotal > 0 && _cachedSaving > 0) {
+    // Scale backend investment proportionally to new savings vs original savings
+    const scaleFactor = totalSaving / _cachedSaving;
+    totalInvestment = Math.round(_cachedTotal * scaleFactor);
+    techInvestment = Math.round((DEMO.waterfall?.techInvestment || _cachedTotal * 0.60) * scaleFactor);
+    changeMgmt = Math.round((DEMO.waterfall?.changeMgmt || _cachedTotal * 0.17) * scaleFactor);
+    training = Math.round((DEMO.waterfall?.training || _cachedTotal * 0.13) * scaleFactor);
+    contingency = totalInvestment - techInvestment - changeMgmt - training;
+  } else {
+    // Fallback heuristic (no backend data available)
+    techInvestment = (yearly[0]?.annualSaving || 0) * 0.45;
+    changeMgmt = techInvestment * 0.25;
+    training = techInvestment * 0.15;
+    contingency = techInvestment * 0.10;
+    totalInvestment = techInvestment + changeMgmt + training + contingency;
+  }
   const roi = totalInvestment > 0 ? ((totalNPV - totalInvestment) / totalInvestment * 100) : 0;
   const payback = totalInvestment > 0 ? totalInvestment / (yearly[0]?.annualSaving || 1) * 12 : 0;
   
@@ -6081,7 +6868,7 @@ function openInitEditor(idx) {
       </div>
       <div class="init-field">
         <label>Adoption %</label>
-        <input type="number" id="ie_adoption" value="${(init.adoption*100).toFixed(0)}" min="0" max="100" step="5">
+        <input type="number" id="ie_adoption" value="${(init.adoption*100).toFixed(0)}" min="${(window.getGuardrail?.('adoption')?.min||0.3)*100}" max="${(window.getGuardrail?.('adoption')?.max||1.0)*100}" step="5" ${window.canOverride?.('adoption') ? '' : 'disabled title="Your role cannot modify adoption"'}>
       </div>
       <div class="init-field">
         <label>Effort</label>
@@ -6100,7 +6887,7 @@ function openInitEditor(idx) {
       </div>
       <div class="init-field">
         <label>Ramp (months)</label>
-        <input type="number" id="ie_ramp" value="${init.ramp}" min="1" max="24">
+        <input type="number" id="ie_ramp" value="${init.ramp}" min="${window.getGuardrail?.('ramp')?.min||2}" max="${window.getGuardrail?.('ramp')?.max||36}" ${window.canOverride?.('ramp') ? '' : 'disabled title="Your role cannot modify ramp"'}>
       </div>
     </div>
 
@@ -6332,7 +7119,31 @@ function openInitEditor(idx) {
         </div>
         <div style="font-size:9px;color:var(--ey-text-light);margin-top:2px;">Raw csatImpact: +${(init.csatImpact||0).toFixed(2)} pts × ${((init.adoption||0.8)*100).toFixed(0)}% adoption → diminishing returns applied</div>
       </div>` : ''}
+      ${init._evidence ? `
+      <div style="margin-top:8px;padding:10px;background:rgba(26,115,232,0.06);border-radius:6px;border-left:3px solid var(--ey-blue);">
+        <div style="font-size:10px;font-weight:700;color:var(--ey-blue);margin-bottom:6px;">📋 Evidence Card</div>
+        <div style="font-size:10px;line-height:1.6;">
+          <div style="margin-bottom:4px;"><strong>Data sources:</strong> ${(init._evidence.sourceFields||[]).map(s => '<span style="background:#E3F2FD;color:#1565C0;padding:1px 5px;border-radius:4px;font-size:9px;">'+s+'</span>').join(' ')}</div>
+          <div style="margin-bottom:4px;"><strong>Assumptions:</strong> ${(init._evidence.assumptions||[]).map(a => '<div style="font-size:9px;color:var(--ey-text-light);margin-left:8px;">• '+a+'</div>').join('')}</div>
+          <div style="margin-bottom:4px;"><strong style="color:var(--ey-amber);">Could invalidate:</strong> ${(init._evidence.invalidators||[]).map(i => '<div style="font-size:9px;color:var(--ey-amber);margin-left:8px;">⚠ '+i+'</div>').join('')}</div>
+          ${(init._evidence.dataStrengtheners||[]).length > 0 ? '<div><strong style="color:var(--ey-green);">Would strengthen:</strong> '+(init._evidence.dataStrengtheners||[]).map(d => '<div style="font-size:9px;color:var(--ey-green);margin-left:8px;">+ '+d+'</div>').join('')+'</div>' : ''}
+        </div>
+      </div>` : ''}
       <div style="font-size:10px;color:var(--ey-text-light);margin-top:6px;">Effective impact: ${((init._effectiveImpact||init.impact)*100).toFixed(1)}% (raw: ${(init.impact*100).toFixed(0)}%) after pool netting</div>
+    </div>
+
+    <!-- CR-FIX-AB: Consultant notes + approval status -->
+    <div style="margin-top:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div style="font-size:11px;font-weight:700;">📝 Consultant Notes</div>
+        <select id="ie_approvalStatus" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid var(--ey-mid-gray);" ${window.canOverride?.('initiative_enabled') ? '' : 'disabled'}>
+          <option value="draft" ${(init.approvalStatus||'draft')==='draft'?'selected':''}>Draft</option>
+          <option value="approved" ${init.approvalStatus==='approved'?'selected':''}>✅ Approved</option>
+          <option value="hidden" ${init.approvalStatus==='hidden'?'selected':''}>🚫 Hidden from client</option>
+        </select>
+      </div>
+      <textarea id="ie_consultantNote" rows="2" placeholder="Internal rationale (not shown to client)..." style="width:100%;padding:8px;border:1px solid var(--ey-mid-gray);border-radius:6px;font-size:11px;resize:vertical;">${init.consultantNote || ''}</textarea>
+      <textarea id="ie_clientNarrative" rows="2" placeholder="Client-safe narrative (shown in approved output)..." style="width:100%;padding:8px;border:1px solid var(--ey-mid-gray);border-radius:6px;font-size:11px;resize:vertical;margin-top:4px;">${init.clientSafeNarrative || ''}</textarea>
     </div>
 
     <div style="display:flex;gap:8px;margin-top:16px;">
@@ -6363,6 +7174,11 @@ function toggleInitChip(el, value, idx, field) {
 }
 
 function saveInitEditor(idx) {
+  // CR-FIX-GOV: Check calculation rights before allowing override
+  if (!window.canOverride || !window.canOverride('adoption')) {
+    alert('Your role (' + (window.USER_ROLE||'analyst') + ') does not have permission to modify initiative parameters. Contact a supervisor or admin.');
+    return;
+  }
   const init = INITIATIVES[idx];
   const fields = {
     name: document.getElementById('ie_name').value,
@@ -6404,6 +7220,14 @@ function saveInitEditor(idx) {
   // Ensure primary lever is always included
   levers[fields.lever] = true;
   fields.levers = levers;
+  
+  // CR-FIX-AB: Consultant notes
+  const noteEl = document.getElementById('ie_consultantNote');
+  const clientNoteEl = document.getElementById('ie_clientNarrative');
+  if (noteEl) fields.consultantNote = noteEl.value;
+  if (clientNoteEl) fields.clientSafeNarrative = clientNoteEl.value;
+  const approvalEl = document.getElementById('ie_approvalStatus');
+  if (approvalEl) fields.approvalStatus = approvalEl.value;
   
   // Apply locally
   Object.assign(init, fields);
@@ -7493,7 +8317,7 @@ function renderPage11() {
     const oldStart = init.startMonth, oldRamp = init.ramp;
     if (field === 'start') { init.startMonth = val; init.endMonth = val + init.ramp; }
     else if (field === 'dur') { init.ramp = val; init.endMonth = init.startMonth + val; }
-    // v12-#50: Re-run waterfall engine so business case numbers update
+    // v12-#50: Re-run waterfall engine so financial overview numbers update
     const oldNPV = WATERFALL.totalNPV || 0;
     const oldReduction = WATERFALL.totalReduction || 0;
     WATERFALL = Object.assign(WATERFALL, runWaterfall());
@@ -8011,21 +8835,24 @@ function renderPage14() {
   const sensVars = serverSens.length > 0
     ? serverSens.map(s => ({name: s.variable || s.name, swing: Math.abs(safeNum(s.swing || s.highNPV - s.lowNPV, baseNPV * 0.1))})).sort((a,b) => b.swing - a.swing)
     : [
-        { name: 'Adoption Rate', swing: baseNPV * 0.22 },
-        { name: 'FTE Cost Variance', swing: baseNPV * 0.18 },
-        { name: 'Implementation Delay', swing: baseNPV * 0.15 },
-        { name: 'Volume Growth', swing: baseNPV * 0.12 },
-        { name: 'Wage Inflation', swing: baseNPV * 0.09 },
-        { name: 'Discount Rate', swing: baseNPV * 0.08 },
+        { name: 'Adoption Speed', swing: baseNPV * 0.22 },
+        { name: 'Wage Inflation', swing: baseNPV * 0.18 },
+        { name: 'Volume Growth', swing: baseNPV * 0.15 },
+        { name: 'Discount Rate', swing: baseNPV * 0.12 },
+        { name: 'Attrition Rate', swing: baseNPV * 0.09 },
+        { name: 'Redeployment %', swing: baseNPV * 0.08 },
       ].sort((a,b) => b.swing - a.swing);
 
   // Cost of inaction
+  // CR-FIX-06: Apply volume growth SYMMETRICALLY — both do-nothing and transform scenarios
+  // experience volume growth. The transform scenario absorbs it via FTE reduction + automation.
   const annualBaseCost = DEMO.roles.reduce((s,r)=>s+r.headcount*r.costPerFTE,0);
+  const vg = DEMO.params.volumeGrowth || 0;
   const doNothingCost = Array.from({length: horizon}, (_,yr) =>
-    annualBaseCost * Math.pow(1+DEMO.params.wageInflation, yr+1) * (1 + DEMO.params.volumeGrowth * (yr+1))
+    annualBaseCost * Math.pow(1+DEMO.params.wageInflation, yr+1) * (1 + vg * (yr+1))
   );
   const totalDoNothing = doNothingCost.reduce((s,c)=>s+c,0);
-  const totalWithTransform = wf.yearly.reduce((s,y)=>s+y.futureCost,0) + wf.totalInvestment;
+  const totalWithTransform = wf.yearly.reduce((s,y,yr) => s + y.futureCost * (1 + vg * (yr+1)), 0) + wf.totalInvestment;
   const costOfInaction = totalDoNothing - totalWithTransform;
 
   // Investment breakdown
@@ -9759,6 +10586,7 @@ function _omSliderDebounce() {
       'LS04': 'offshore_increase', 'LS05': 'offshore_increase', 'LS06': 'onshore_consolidation',
       'LS07': 'onshore_consolidation', 'LS08': 'offshore_increase', 'LS09': 'nearshore_increase',
       'LS10': 'cost_reduction_general', 'LS11': 'cost_reduction_general', 'LS12': 'cost_reduction_general',
+      'CC01': 'cost_reduction_general',
     };
     let changed = 0;
     (INITIATIVES || []).filter(i => i.layer === 'Location Strategy').forEach(i => {
@@ -9897,6 +10725,7 @@ function renderPage20() {
     'LS10': { direction: 'cost_reduction_general', desc: 'Automation CoE — location-neutral' },
     'LS11': { direction: 'cost_reduction_general', desc: 'Cloud migration — location-neutral' },
     'LS12': { direction: 'cost_reduction_general', desc: 'Vendor rationalisation — location-neutral' },
+    'CC01': { direction: 'cost_reduction_general', desc: 'CCaaS platform migration — license & telephony consolidation' },
   };
 
   // Find which Location Strategy initiatives are needed using metadata + baseline comparison
@@ -9928,7 +10757,7 @@ function renderPage20() {
         <div style="font-size:32px;">🎯</div>
         <div>
           <div style="font-size:16px;font-weight:800;color:var(--ey-yellow);">Target Operating Model — Strategic Input</div>
-          <div style="font-size:11px;opacity:0.8;">Set your target state below. Downstream pages (Channel Strategy, BU Impact, Business Case) will recalculate from these inputs.</div>
+          <div style="font-size:11px;opacity:0.8;">Set your target state below. Downstream pages (Channel Strategy, BU Impact, Impact Dashboard) will recalculate from these inputs.</div>
         </div>
       </div>
     </div>
@@ -10352,9 +11181,605 @@ function renderPage21() {
 
 
 /* ═══════════════════════════════════════════════════════════════
+   V7: PAGE 22 — AI & AUTOMATION + INTENT HEATMAP (Spec §5.1, B.2)
+   Role-aware: Client sees aggregated, EY US/GDS sees intent-level detail
+   ═══════════════════════════════════════════════════════════════ */
+function renderPage22() {
+  const el = document.getElementById('page-22');
+  const role = window.USER_ROLE || 'admin';
+  const ps = window.PILLAR_SCENARIOS;
+  const pAI = ps?.pillarSummary?.ai || {};
+  const horizon = DEMO.params?.horizon || 3;
+  const annSav = pAI.annualSaving || Math.round((pAI.totalSaving || 0) / Math.max(horizon, 1));
+  const fteRed = Math.round(pAI.totalReduction || 0);
+  const kd = pAI.kpiDeltas || {};
+
+  // Intent analysis from queues
+  const intentMap = {};
+  _filteredQueues().forEach(q => {
+    if (!intentMap[q.intent]) intentMap[q.intent] = { intent: q.intent, volume: 0, cost: 0, channels: new Set(), complexity: q.complexity || 0.5 };
+    intentMap[q.intent].volume += q.volume;
+    intentMap[q.intent].cost += q.volume * q.cpc;
+    intentMap[q.intent].channels.add(q.channel);
+  });
+  const intents = Object.values(intentMap).sort((a, b) => b.cost - a.cost);
+  const selfServiceThreshold = 0.4;
+  const ssEligible = intents.filter(i => i.complexity <= selfServiceThreshold);
+  const ssVolume = ssEligible.reduce((s, i) => s + i.volume, 0);
+  const totalVolume = intents.reduce((s, i) => s + i.volume, 0);
+  const ssPct = totalVolume ? Math.round(ssVolume / totalVolume * 100) : 0;
+  const annFactor = DEMO.volumeAnnualizationFactor || 12;
+  const totalAnnualVol = totalVolume * annFactor;
+  const avgCPC = DEMO.avgCPC || 5;
+
+  let html = '';
+
+  // Section 1: Header Banner
+  html += `
+  <div style="background:linear-gradient(135deg,#1a1a2e,#2E2E38);color:white;padding:20px 28px;border-radius:12px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ey-yellow);font-weight:700;margin-bottom:4px;">🤖 AI & Automation Opportunity</div>
+        <div style="display:flex;align-items:baseline;gap:20px;margin-top:8px;">
+          <div><div style="font-size:28px;font-weight:800;color:var(--ey-yellow);">${fmt(annSav,'$m')}/yr</div><div style="font-size:10px;opacity:0.7;">Savings Potential</div></div>
+          <div><div style="font-size:28px;font-weight:800;color:#4CAF50;">~${fteRed} FTE</div><div style="font-size:10px;opacity:0.7;">Reduction</div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;text-align:center;">
+        ${kd.ahtReduction ? '<div><div style="font-size:18px;font-weight:800;color:#00BCD4;">'+kd.ahtReduction.toFixed(1)+'%</div><div style="font-size:9px;opacity:0.7;">AHT Reduction</div></div>' : ''}
+        ${kd.fcrImprovement ? '<div><div style="font-size:18px;font-weight:800;color:#00BCD4;">+'+kd.fcrImprovement.toFixed(1)+'pts</div><div style="font-size:9px;opacity:0.7;">FCR Improvement</div></div>' : ''}
+        ${kd.csatUplift ? '<div><div style="font-size:18px;font-weight:800;color:#00BCD4;">+'+kd.csatUplift.toFixed(2)+'</div><div style="font-size:9px;opacity:0.7;">CSAT Uplift</div></div>' : ''}
+      </div>
+    </div>
+  </div>`;
+
+  // Section 2: Narrative
+  html += `
+  <div class="card" style="margin-bottom:16px;border-left:4px solid var(--ey-blue);">
+    <div style="font-size:13px;line-height:1.65;color:var(--ey-dark);">
+      <strong>${ssPct}%</strong> of your <strong>${(totalAnnualVol/1000).toFixed(0)}K</strong> annual contacts are routine enquiries that can be handled through self-service and automation channels.
+      This represents <strong>${(ssVolume * annFactor / 1000).toFixed(0)}K</strong> contacts per year currently handled by live agents
+      at an average cost of <strong>$${avgCPC.toFixed(2)}</strong> per contact.
+    </div>
+  </div>`;
+
+  // Section 3 & 4: Role-aware rendering
+  if (role === 'analyst') {
+    // CLIENT VIEW: Aggregated only (Spec B.2.1)
+    html += `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">Automation Eligibility</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div style="text-align:center;">
+          <canvas id="p22Donut" width="280" height="280"></canvas>
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center;gap:12px;">
+          <div style="padding:12px;background:var(--ey-blue-bg);border-radius:8px;border-left:4px solid var(--ey-blue);">
+            <div style="font-size:11px;color:var(--ey-text-light);">Contact Types Analysed</div>
+            <div style="font-size:22px;font-weight:800;">${intents.length}</div>
+          </div>
+          <div style="padding:12px;background:var(--ey-green-bg);border-radius:8px;border-left:4px solid var(--ey-green);">
+            <div style="font-size:11px;color:var(--ey-text-light);">Self-Service Candidates</div>
+            <div style="font-size:22px;font-weight:800;">${ssEligible.length}</div>
+          </div>
+          <div style="padding:12px;background:var(--ey-light-gray);border-radius:8px;border-left:4px solid var(--ey-text-light);">
+            <div style="font-size:11px;color:var(--ey-text-light);">Average Complexity</div>
+            <div style="font-size:22px;font-weight:800;">${ssPct > 60 ? 'Simple' : ssPct > 30 ? 'Moderate' : 'Complex'}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  } else {
+    // EY US / GDS VIEW: Full intent heatmap (Spec B.2.2)
+    const top15 = intents.slice(0, 15);
+    html += `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">Intent Heatmap <span style="font-size:11px;font-weight:400;color:var(--ey-text-light);">Top ${top15.length} by monthly cost</span></div>
+      <div class="table-wrap"><table class="data-table" style="font-size:11px;">
+        <thead><tr>
+          <th>Intent</th><th style="text-align:right;">Monthly Vol</th><th style="text-align:right;">Monthly Cost</th>
+          <th style="text-align:center;">Channels</th><th style="text-align:center;">Complexity</th><th style="text-align:center;">SS Eligible</th>
+        </tr></thead>
+        <tbody>
+          ${top15.map(i => {
+            const ss = i.complexity <= selfServiceThreshold;
+            const compColor = i.complexity <= 0.3 ? 'var(--ey-green)' : i.complexity <= 0.5 ? 'var(--ey-amber)' : 'var(--ey-red)';
+            return '<tr>' +
+              '<td style="font-weight:600;">'+i.intent+'</td>' +
+              '<td style="text-align:right;">'+i.volume.toLocaleString()+'</td>' +
+              '<td style="text-align:right;">'+fmt(i.cost,'$k')+'</td>' +
+              '<td style="text-align:center;font-size:10px;">'+[...i.channels].join(', ')+'</td>' +
+              '<td style="text-align:center;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+compColor+';"></span> '+(i.complexity*100).toFixed(0)+'%</td>' +
+              '<td style="text-align:center;">'+(ss?'<span style="color:var(--ey-green);font-weight:700;">✓ Yes</span>':'<span style="color:var(--ey-text-light);">No</span>')+'</td>' +
+            '</tr>';
+          }).join('')}
+        </tbody>
+      </table></div>
+      ${intents.length > 15 ? '<div style="text-align:center;margin-top:8px;font-size:11px;color:var(--ey-text-light);">Showing top 15 of '+intents.length+' intents</div>' : ''}
+    </div>`;
+  }
+
+  // Section 5: Back link
+  html += '<div style="text-align:center;margin-top:16px;"><a href="#" onclick="navigateTo(1);return false;" style="color:var(--ey-blue);font-size:12px;font-weight:600;text-decoration:none;">← Back to Opportunity Summary</a></div>';
+
+  el.innerHTML = html;
+
+  // Draw donut for client view
+  if (role === 'analyst') {
+    const canvas = document.getElementById('p22Donut');
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      const cx = 140, cy = 140, r = 100, lw = 40;
+      ctx.clearRect(0, 0, 280, 280);
+      // Agent-required
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2 * (1 - ssPct/100)); ctx.strokeStyle = '#E0E0E6'; ctx.lineWidth = lw; ctx.stroke();
+      // Self-service eligible
+      ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI/2, -Math.PI/2 + Math.PI * 2 * (ssPct/100)); ctx.strokeStyle = '#1A73E8'; ctx.lineWidth = lw; ctx.stroke();
+      // Center text
+      ctx.fillStyle = '#2E2E38'; ctx.font = '800 32px Inter,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(ssPct + '%', cx, cy - 8);
+      ctx.font = '500 11px Inter,sans-serif'; ctx.fillStyle = '#747480';
+      ctx.fillText('Self-Service Eligible', cx, cy + 16);
+    }
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   V7: PAGE 23 — OPERATING MODEL + ROLE IMPACT (Spec §5.2, B.3)
+   Same view for all tiers
+   ═══════════════════════════════════════════════════════════════ */
+function renderPage23() {
+  const el = document.getElementById('page-23');
+  const ps = window.PILLAR_SCENARIOS;
+  const pOM = ps?.pillarSummary?.om || {};
+  const horizon = DEMO.params?.horizon || 3;
+  const annSav = pOM.annualSaving || Math.round((pOM.totalSaving || 0) / Math.max(horizon, 1));
+  const fteRed = Math.round(pOM.totalReduction || 0);
+  const kd = pOM.kpiDeltas || {};
+
+  // Role impact from waterfall
+  const roleImpact = WATERFALL.roleImpact || {};
+  const roles = DEMO.roles || [];
+  const roleData = roles.map(r => {
+    const ri = roleImpact[r.role] || {};
+    const baseline = ri.baseline || r.headcount;
+    const yearlyArr = ri.yearly || [];
+    const finalFTE = yearlyArr.length > 0 ? yearlyArr[yearlyArr.length - 1] : baseline;
+    const reduction = baseline - finalFTE;
+    return { role: r.role, baseline, finalFTE: Math.round(finalFTE), reduction: Math.round(reduction), costPerFTE: r.costPerFTE, location: r.location || 'Onshore' };
+  }).filter(r => r.baseline > 0).sort((a, b) => b.reduction - a.reduction);
+
+  // L1:L2 ratio
+  const l1 = roles.find(r => r.role.includes('L1'));
+  const l2 = roles.find(r => r.role.includes('L2'));
+  const l1hc = l1 ? l1.headcount : 0;
+  const l2hc = l2 ? l2.headcount : 0;
+  const ratio = l2hc ? (l1hc / l2hc).toFixed(1) : 'N/A';
+  const benchRatio = '3.5'; // industry benchmark
+
+  // Cost gap
+  const avgRoleCost = roles.reduce((s, r) => s + r.costPerFTE * r.headcount, 0) / Math.max(DEMO.totalFTE, 1);
+  const benchCost = 52000;
+  const costGapPct = Math.max(0, Math.round((avgRoleCost - benchCost) / benchCost * 100));
+
+  let html = '';
+
+  // Header Banner
+  html += `
+  <div style="background:linear-gradient(135deg,#1a1a2e,#2E2E38);color:white;padding:20px 28px;border-radius:12px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ey-yellow);font-weight:700;margin-bottom:4px;">🏢 Operating Model Opportunity</div>
+        <div style="display:flex;align-items:baseline;gap:20px;margin-top:8px;">
+          <div><div style="font-size:28px;font-weight:800;color:var(--ey-yellow);">${fmt(annSav,'$m')}/yr</div><div style="font-size:10px;opacity:0.7;">Savings Potential</div></div>
+          <div><div style="font-size:28px;font-weight:800;color:#4CAF50;">~${fteRed} FTE</div><div style="font-size:10px;opacity:0.7;">Reduction</div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;text-align:center;">
+        <div><div style="font-size:18px;font-weight:800;color:#00BCD4;">${ratio}:1</div><div style="font-size:9px;opacity:0.7;">L1:L2 Ratio</div></div>
+        <div><div style="font-size:18px;font-weight:800;color:#00BCD4;">${costGapPct}%</div><div style="font-size:9px;opacity:0.7;">Cost Gap vs Bench</div></div>
+      </div>
+    </div>
+  </div>`;
+
+  // Narrative
+  html += `
+  <div class="card" style="margin-bottom:16px;border-left:4px solid var(--ey-teal);">
+    <div style="font-size:13px;line-height:1.65;color:var(--ey-dark);">
+      Your L1:L2 ratio is <strong>${ratio}:1</strong> against a benchmark of <strong>${benchRatio}:1</strong>.
+      The weighted average cost per FTE is <strong>$${Math.round(avgRoleCost).toLocaleString()}</strong> against a benchmark of <strong>$${benchCost.toLocaleString()}</strong>
+      — a <strong>${costGapPct}%</strong> gap. Restructuring improves efficiency and resolution quality.
+      <em>Note: This is organisational design impact, distinct from geographic arbitrage (Location Strategy).</em>
+    </div>
+  </div>`;
+
+  // Role Impact Visual — Horizontal bar chart via HTML
+  const maxRed = Math.max(...roleData.map(r => r.reduction), 1);
+  html += `
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">FTE Reduction by Role Tier</div>
+    ${roleData.map(r => {
+      const pct = Math.round(r.reduction / maxRed * 100);
+      const barColor = r.reduction > 0 ? 'var(--ey-teal)' : 'var(--ey-mid-gray)';
+      return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">' +
+        '<div style="width:180px;font-size:11px;font-weight:600;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+r.role+'</div>' +
+        '<div style="flex:1;background:var(--ey-light-gray);border-radius:4px;height:22px;position:relative;">' +
+          '<div style="width:'+Math.max(pct,2)+'%;background:'+barColor+';height:100%;border-radius:4px;transition:width 0.3s;"></div>' +
+          '<span style="position:absolute;right:8px;top:3px;font-size:10px;font-weight:700;color:var(--ey-dark);">'+r.reduction+' FTE ('+r.baseline+'→'+r.finalFTE+')</span>' +
+        '</div>' +
+        '<div style="width:80px;font-size:10px;color:var(--ey-text-light);text-align:right;">$'+Math.round(r.costPerFTE/1000)+'K/yr</div>' +
+      '</div>';
+    }).join('')}
+  </div>`;
+
+  // Supporting data table
+  html += `
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">Role Structure Detail</div>
+    <div class="table-wrap"><table class="data-table" style="font-size:11px;">
+      <thead><tr><th>Role</th><th style="text-align:right;">Baseline FTE</th><th style="text-align:right;">Projected FTE</th><th style="text-align:right;">Reduction</th><th style="text-align:right;">Cost/FTE</th><th>Location</th></tr></thead>
+      <tbody>${roleData.map(r => '<tr><td style="font-weight:600;">'+r.role+'</td><td style="text-align:right;">'+r.baseline+'</td><td style="text-align:right;">'+r.finalFTE+'</td><td style="text-align:right;color:var(--ey-green);font-weight:700;">-'+r.reduction+'</td><td style="text-align:right;">$'+Math.round(r.costPerFTE/1000)+'K</td><td>'+r.location+'</td></tr>').join('')}</tbody>
+    </table></div>
+  </div>`;
+
+  html += '<div style="text-align:center;margin-top:16px;"><a href="#" onclick="navigateTo(1);return false;" style="color:var(--ey-blue);font-size:12px;font-weight:600;text-decoration:none;">← Back to Opportunity Summary</a></div>';
+  el.innerHTML = html;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   V7: PAGE 24 — LOCATION STRATEGY + LOCATION IMPACT (Spec §5.3, B.4)
+   Same view for all tiers. Dollar value only — no FTE.
+   ═══════════════════════════════════════════════════════════════ */
+function renderPage24() {
+  const el = document.getElementById('page-24');
+  const ps = window.PILLAR_SCENARIOS;
+  const pLoc = ps?.pillarSummary?.location || {};
+  const horizon = DEMO.params?.horizon || 3;
+  const annSav = pLoc.annualSaving || Math.round((pLoc.totalSaving || 0) / Math.max(horizon, 1));
+
+  // Location data from roles
+  const locMap = {};
+  DEMO.roles.forEach(r => {
+    const loc = r.location || 'Onshore';
+    if (!locMap[loc]) locMap[loc] = { location: loc, headcount: 0, totalCost: 0 };
+    locMap[loc].headcount += r.headcount;
+    locMap[loc].totalCost += r.headcount * r.costPerFTE;
+  });
+  const locations = Object.values(locMap).sort((a, b) => b.totalCost - a.totalCost);
+  const totalHC = locations.reduce((s, l) => s + l.headcount, 0);
+  const costByLoc = locations.map(l => ({ ...l, costPerFTE: Math.round(l.totalCost / Math.max(l.headcount, 1)), pct: Math.round(l.headcount / Math.max(totalHC, 1) * 100) }));
+
+  const onshore = costByLoc.find(l => l.location === 'Onshore') || { costPerFTE: 65000, pct: 70 };
+  const nearshore = costByLoc.find(l => l.location === 'Nearshore') || { costPerFTE: 32000, pct: 0 };
+  const offshore = costByLoc.find(l => l.location === 'Offshore') || { costPerFTE: 18000, pct: 0 };
+  const arbitrage = onshore.costPerFTE - (nearshore.costPerFTE || offshore.costPerFTE || 32000);
+
+  // Location pool data
+  const poolUtil = pLoc.poolUtilization || WATERFALL.poolUtilization || {};
+  const locPool = poolUtil.location || {};
+  const migratableShare = locPool.migratable_share || 0.30;
+
+  let html = '';
+
+  // Header Banner
+  html += `
+  <div style="background:linear-gradient(135deg,#1a1a2e,#2E2E38);color:white;padding:20px 28px;border-radius:12px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ey-yellow);font-weight:700;margin-bottom:4px;">🌍 Location Strategy Opportunity</div>
+        <div style="display:flex;align-items:baseline;gap:20px;margin-top:8px;">
+          <div><div style="font-size:28px;font-weight:800;color:var(--ey-yellow);">${fmt(annSav,'$m')}/yr</div><div style="font-size:10px;opacity:0.7;">Cost Savings</div></div>
+          <div><div style="font-size:18px;font-weight:600;color:rgba(255,255,255,0.6);font-style:italic;">Cost savings only — no FTE reduction</div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;text-align:center;">
+        <div><div style="font-size:18px;font-weight:800;color:#00BCD4;">${onshore.pct}%</div><div style="font-size:9px;opacity:0.7;">Onshore</div></div>
+        <div><div style="font-size:18px;font-weight:800;color:#00BCD4;">${fmt(arbitrage,'$k')}</div><div style="font-size:9px;opacity:0.7;">Arbitrage/FTE/yr</div></div>
+      </div>
+    </div>
+  </div>`;
+
+  // Narrative
+  html += `
+  <div class="card" style="margin-bottom:16px;border-left:4px solid var(--ey-amber);">
+    <div style="font-size:13px;line-height:1.65;color:var(--ey-dark);">
+      <strong>${onshore.pct}%</strong> of your volume is currently handled onshore at <strong>$${Math.round(onshore.costPerFTE/1000)}K/FTE/yr</strong>
+      vs <strong>$${Math.round((nearshore.costPerFTE || offshore.costPerFTE || 32000)/1000)}K/FTE/yr</strong> nearshore.
+      Approximately <strong>${(migratableShare * 100).toFixed(0)}%</strong> of volume is eligible for migration,
+      generating <strong>${fmt(annSav,'$m')}/yr</strong> in cost savings through geographic arbitrage.
+    </div>
+  </div>`;
+
+  // Location Visual — stacked bar via HTML
+  const locColors = { 'Onshore': 'var(--ey-blue)', 'Nearshore': 'var(--ey-teal)', 'Offshore': 'var(--ey-amber)' };
+  html += `
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">Current Volume Split by Location</div>
+    <div style="display:flex;height:40px;border-radius:8px;overflow:hidden;margin-bottom:16px;">
+      ${costByLoc.map(l => '<div style="width:'+Math.max(l.pct,5)+'%;background:'+(locColors[l.location]||'var(--ey-mid-gray)')+';display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;">'+l.location+' '+l.pct+'%</div>').join('')}
+    </div>
+    <div class="card-title" style="margin-top:16px;">Cost per FTE by Location</div>
+    <div style="display:grid;grid-template-columns:repeat(${costByLoc.length},1fr);gap:12px;">
+      ${costByLoc.map(l => '<div style="text-align:center;padding:16px;border-radius:8px;background:var(--ey-light-gray);border-top:4px solid '+(locColors[l.location]||'var(--ey-mid-gray)')+';"><div style="font-size:10px;color:var(--ey-text-light);text-transform:uppercase;margin-bottom:4px;">'+l.location+'</div><div style="font-size:24px;font-weight:800;color:var(--ey-dark);">$'+Math.round(l.costPerFTE/1000)+'K</div><div style="font-size:11px;color:var(--ey-text-light);">'+l.headcount+' FTE ('+l.pct+'%)</div></div>').join('')}
+    </div>
+  </div>`;
+
+  html += '<div style="text-align:center;margin-top:16px;"><a href="#" onclick="navigateTo(1);return false;" style="color:var(--ey-blue);font-size:12px;font-weight:600;text-decoration:none;">← Back to Opportunity Summary</a></div>';
+  el.innerHTML = html;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   V7: PAGE 25 — CURRENT CHANNEL MIX (Spec §5.4, B.5)
+   Diagnostic mirror — not a recommendation. Same view for all tiers.
+   ═══════════════════════════════════════════════════════════════ */
+function renderPage25() {
+  const el = document.getElementById('page-25');
+
+  // Aggregate channel data from queues
+  const chanMap = {};
+  _filteredQueues().forEach(q => {
+    const ch = q.channel || 'Unknown';
+    if (!chanMap[ch]) chanMap[ch] = { channel: ch, volume: 0, cost: 0 };
+    chanMap[ch].volume += q.volume;
+    chanMap[ch].cost += q.volume * q.cpc;
+  });
+  const channels = Object.values(chanMap).sort((a, b) => b.volume - a.volume);
+  const totalVol = channels.reduce((s, c) => s + c.volume, 0);
+  const totalCost = channels.reduce((s, c) => s + c.cost, 0);
+  channels.forEach(c => {
+    c.pct = totalVol ? Math.round(c.volume / totalVol * 100) : 0;
+    c.cpc = c.volume ? (c.cost / c.volume) : 0;
+  });
+
+  const chanColors = {
+    'Voice': '#1A73E8', 'Chat': '#0097A9', 'Email': '#FF9800', 'IVR': '#9C27B0',
+    'App/Self-Service': '#4CAF50', 'SMS/WhatsApp': '#00BCD4', 'Social Media': '#E91E63',
+    'Retail/Walk-in': '#795548', 'Unknown': '#9E9E9E'
+  };
+
+  let html = '';
+
+  html += `
+  <div style="background:linear-gradient(135deg,#1a1a2e,#2E2E38);color:white;padding:20px 28px;border-radius:12px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ey-yellow);font-weight:700;margin-bottom:4px;">📡 Current Channel Mix</div>
+        <div style="font-size:14px;opacity:0.7;margin-top:4px;">Diagnostic mirror — where volume sits today. No recommendations, no projections.</div>
+      </div>
+      <div style="display:flex;gap:16px;text-align:center;">
+        <div><div style="font-size:20px;font-weight:800;color:var(--ey-yellow);">${channels.length}</div><div style="font-size:9px;opacity:0.7;">Channels</div></div>
+        <div><div style="font-size:20px;font-weight:800;color:var(--ey-yellow);">${(totalVol/1000).toFixed(0)}K</div><div style="font-size:9px;opacity:0.7;">Monthly Vol</div></div>
+      </div>
+    </div>
+  </div>`;
+
+  // Donut + Cost bars side by side
+  html += `
+  <div class="card" style="margin-bottom:16px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+      <div>
+        <div class="card-title">Volume Distribution</div>
+        <canvas id="p25Donut" width="300" height="300"></canvas>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;justify-content:center;">
+          ${channels.map(c => '<span style="font-size:10px;display:inline-flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:'+(chanColors[c.channel]||'#999')+';"></span>'+c.channel+' '+c.pct+'%</span>').join('')}
+        </div>
+      </div>
+      <div>
+        <div class="card-title">Cost per Contact by Channel</div>
+        ${channels.map(c => {
+          const maxCPC = Math.max(...channels.map(x => x.cpc), 1);
+          const pct = Math.round(c.cpc / maxCPC * 100);
+          return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+            '<div style="width:100px;font-size:11px;font-weight:600;text-align:right;">'+c.channel+'</div>' +
+            '<div style="flex:1;background:var(--ey-light-gray);border-radius:4px;height:20px;position:relative;">' +
+              '<div style="width:'+Math.max(pct,3)+'%;background:'+(chanColors[c.channel]||'#999')+';height:100%;border-radius:4px;"></div>' +
+              '<span style="position:absolute;right:6px;top:2px;font-size:10px;font-weight:700;">$'+c.cpc.toFixed(2)+'</span>' +
+            '</div>' +
+          '</div>';
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+
+  // Supporting table
+  html += `
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">Channel Detail</div>
+    <div class="table-wrap"><table class="data-table" style="font-size:11px;">
+      <thead><tr><th>Channel</th><th style="text-align:right;">Monthly Volume</th><th style="text-align:right;">% of Total</th><th style="text-align:right;">Monthly Cost</th><th style="text-align:right;">Cost per Contact</th></tr></thead>
+      <tbody>
+        ${channels.map(c => '<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+(chanColors[c.channel]||'#999')+';vertical-align:middle;margin-right:6px;"></span><strong>'+c.channel+'</strong></td><td style="text-align:right;">'+c.volume.toLocaleString()+'</td><td style="text-align:right;">'+c.pct+'%</td><td style="text-align:right;">'+fmt(c.cost,'$k')+'</td><td style="text-align:right;">$'+c.cpc.toFixed(2)+'</td></tr>').join('')}
+        <tr style="font-weight:800;border-top:2px solid var(--ey-dark);"><td>Total</td><td style="text-align:right;">${totalVol.toLocaleString()}</td><td style="text-align:right;">100%</td><td style="text-align:right;">${fmt(totalCost,'$k')}</td><td style="text-align:right;">$${(totalCost/Math.max(totalVol,1)).toFixed(2)}</td></tr>
+      </tbody>
+    </table></div>
+  </div>`;
+
+  html += '<div style="text-align:center;margin-top:16px;"><a href="#" onclick="navigateTo(1);return false;" style="color:var(--ey-blue);font-size:12px;font-weight:600;text-decoration:none;">← Back to Opportunity Summary</a></div>';
+  el.innerHTML = html;
+
+  // Draw donut
+  const canvas = document.getElementById('p25Donut');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    const cx = 150, cy = 150, r = 110, lw = 45;
+    ctx.clearRect(0, 0, 300, 300);
+    let startAngle = -Math.PI / 2;
+    channels.forEach(c => {
+      const sliceAngle = (c.pct / 100) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, startAngle, startAngle + sliceAngle);
+      ctx.strokeStyle = chanColors[c.channel] || '#999';
+      ctx.lineWidth = lw;
+      ctx.stroke();
+      startAngle += sliceAngle;
+    });
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   V7.1: PAGE 26 — INITIATIVE EFFECTIVENESS (Spec §5.5)
+   Delivery mode only. Assesses existing + validates recommended.
+   ═══════════════════════════════════════════════════════════════ */
+
+// V7.1: Track which initiatives the client already has in place
+window._existingInitiatives = window._existingInitiatives || {};
+
+function renderPage26() {
+  const el = document.getElementById('page-26');
+  const role = window.USER_ROLE || 'admin';
+  const mode = window.PROJECT_MODE || 'opportunity';
+
+  if (mode !== 'delivery') {
+    el.innerHTML = '<div class="card" style="padding:40px;text-align:center;"><h3>Initiative Effectiveness</h3><p style="color:var(--ey-text-light);margin-top:8px;">This page is available in Delivery mode only. Switch to Delivery mode to access initiative assessment.</p></div>';
+    return;
+  }
+
+  const allInits = INITIATIVES || [];
+  const enabledInits = allInits.filter(i => i.enabled);
+  const existing = window._existingInitiatives;
+
+  // Initiative benchmarks (expected deflection/impact ranges per initiative type)
+  const benchmarks = {
+    'deflection': { metric: 'Deflection Rate', benchmark: 0.35, unit: '%', fmt: v => (v*100).toFixed(0)+'%' },
+    'aht_reduction': { metric: 'AHT Reduction', benchmark: 0.15, unit: '%', fmt: v => (v*100).toFixed(0)+'%' },
+    'escalation_reduction': { metric: 'Escalation Reduction', benchmark: 0.20, unit: '%', fmt: v => (v*100).toFixed(0)+'%' },
+    'shrinkage_reduction': { metric: 'Shrinkage Reduction', benchmark: 0.08, unit: '%', fmt: v => (v*100).toFixed(0)+'%' },
+    'cost_reduction': { metric: 'Cost Reduction', benchmark: 0.25, unit: '%', fmt: v => (v*100).toFixed(0)+'%' },
+  };
+
+  let html = '';
+
+  // Header
+  html += `
+  <div style="background:linear-gradient(135deg,#1a1a2e,#2E2E38);color:white;padding:20px 28px;border-radius:12px;margin-bottom:16px;">
+    <div>
+      <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ey-yellow);font-weight:700;margin-bottom:4px;">✅ Initiative Effectiveness</div>
+      <div style="font-size:14px;opacity:0.7;margin-top:4px;">Assess existing investments and validate tool recommendations against your data.</div>
+    </div>
+  </div>`;
+
+  // ─── Component A: Existing Initiative Assessment ───
+  html += `
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">Component A — Existing Initiative Assessment</div>
+    <div style="font-size:12px;color:var(--ey-text-light);margin-bottom:14px;">Mark initiatives your organisation already has in place. For each, we compare benchmark performance against expected outcomes.</div>
+    <div style="max-height:500px;overflow-y:auto;">
+      <table class="data-table" style="font-size:11px;">
+        <thead><tr>
+          <th style="width:36px;">In Place</th>
+          <th>ID</th>
+          <th>Initiative</th>
+          <th>Layer</th>
+          <th>Target Lever</th>
+          <th>Benchmark</th>
+          ${role !== 'analyst' ? '<th>Computed Impact</th><th>Status</th>' : '<th>Assessment</th>'}
+        </tr></thead>
+        <tbody>
+          ${allInits.map(init => {
+            const isExisting = existing[init.id] || false;
+            const bm = benchmarks[init.lever] || { metric: init.lever, benchmark: init.impact || 0.20, unit: '%', fmt: v => (v*100).toFixed(0)+'%' };
+            // Simulate actual performance (70% of benchmark if marked existing — placeholder for real data)
+            const actualPct = isExisting ? (init.impact * 0.70) : 0;
+            const underperforming = isExisting && actualPct < bm.benchmark * 0.80;
+            const rowBg = isExisting ? (underperforming ? '#FFF3E0' : '#E8F5E9') : '';
+            return '<tr style="background:'+rowBg+';">' +
+              '<td style="text-align:center;"><input type="checkbox" '+(isExisting?'checked':'')+' onchange="markExistingInit(\''+init.id+'\', this.checked)" style="cursor:pointer;width:16px;height:16px;"></td>' +
+              '<td style="font-weight:600;">'+init.id+'</td>' +
+              '<td>'+init.name+'</td>' +
+              '<td><span style="font-size:10px;padding:2px 6px;border-radius:4px;background:'+(init.layer==='AI & Automation'?'var(--ey-blue-bg)':init.layer==='Operating Model'?'#E0F7FA':'var(--ey-amber-bg)')+';color:'+(init.layer==='AI & Automation'?'var(--ey-blue)':init.layer==='Operating Model'?'var(--ey-teal)':'var(--ey-amber)')+';">'+init.layer+'</span></td>' +
+              '<td style="font-size:10px;">'+bm.metric+'</td>' +
+              '<td>'+bm.fmt(bm.benchmark)+'</td>' +
+              (role !== 'analyst' ?
+                '<td>'+(isExisting ? bm.fmt(actualPct) : '—')+'</td>' +
+                '<td>'+(isExisting ? (underperforming ? '<span style="color:#E65100;font-weight:700;">⚠️ Underperforming</span>' : '<span style="color:var(--ey-green);font-weight:700;">✓ On Track</span>') : '<span style="color:var(--ey-text-light);">Not marked</span>')+'</td>'
+              :
+                '<td>'+(isExisting ? (underperforming ? '<span style="color:#E65100;font-weight:700;">Below benchmark</span>' : '<span style="color:var(--ey-green);font-weight:700;">Meeting benchmark</span>') : '<span style="color:var(--ey-text-light);">—</span>')+'</td>'
+              ) +
+            '</tr>';
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${Object.keys(existing).length > 0 ? (() => {
+      const existingIds = Object.keys(existing).filter(k => existing[k]);
+      const existingInits = allInits.filter(i => existingIds.includes(i.id));
+      const existingSav = existingInits.reduce((s,i) => s + (i._annualSaving || 0), 0);
+      const totalSav = WATERFALL.totalSaving || 0;
+      const additionalOpp = totalSav - existingSav;
+      return '<div style="margin-top:14px;padding:12px 16px;background:var(--ey-green-bg);border-radius:8px;border:1px solid var(--ey-green);">' +
+        '<div style="font-size:12px;font-weight:700;color:var(--ey-green);margin-bottom:4px;">Existing Investment Summary</div>' +
+        '<div style="font-size:12px;color:var(--ey-dark);">'+existingIds.length+' initiatives already in place. ' +
+        (role !== 'analyst' ? 'Current coverage: <strong>'+fmt(existingSav,'$m')+'</strong> of <strong>'+fmt(totalSav,'$m')+'</strong> total opportunity. ' : '') +
+        'Additional opportunity beyond current investments: <strong>'+fmt(additionalOpp,'$m')+'</strong></div>' +
+      '</div>';
+    })() : ''}
+  </div>`;
+
+  // ─── Component B: Recommendation Validation ───
+  const ranked = [...enabledInits].sort((a,b) => (b._annualSaving||0) - (a._annualSaving||0));
+  const q1Cutoff = Math.ceil(ranked.length * 0.75);
+
+  if (role !== 'analyst') {
+    // EY US / GDS: full ranking with bottom quartile flagged
+    html += `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">Component B — Recommendation Validation</div>
+      <div style="font-size:12px;color:var(--ey-text-light);margin-bottom:14px;">Initiatives ranked by computed impact for this client's data. Bottom quartile flagged as low/no impact.</div>
+      <table class="data-table" style="font-size:11px;">
+        <thead><tr><th style="width:30px;">#</th><th>ID</th><th>Initiative</th><th>Layer</th><th style="text-align:right;">Annual Saving</th><th style="text-align:right;">FTE Impact</th><th>Verdict</th></tr></thead>
+        <tbody>
+          ${ranked.map((init, idx) => {
+            const isBottom = idx >= q1Cutoff;
+            const isExist = existing[init.id];
+            return '<tr style="background:'+(isBottom?'#FFF8E1':isExist?'#E8F5E9':'')+';">' +
+              '<td style="font-weight:600;color:var(--ey-text-light);">'+(idx+1)+'</td>' +
+              '<td style="font-weight:600;">'+init.id+'</td>' +
+              '<td>'+init.name+(isExist?' <span style="font-size:9px;background:var(--ey-green-bg);color:var(--ey-green);padding:1px 4px;border-radius:3px;">EXISTING</span>':'')+'</td>' +
+              '<td style="font-size:10px;">'+init.layer+'</td>' +
+              '<td style="text-align:right;font-weight:600;">'+fmt(init._annualSaving||0,'$k')+'</td>' +
+              '<td style="text-align:right;">'+((init._fteImpact||0).toFixed(1))+'</td>' +
+              '<td>'+(isBottom?'<span style="color:#E65100;font-weight:600;">⚠ Low impact for this client</span>':'<span style="color:var(--ey-green);font-weight:600;">✓ Recommended</span>')+'</td>' +
+            '</tr>';
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  } else {
+    // Client: aggregated only — no initiative names for recommended
+    const topCount = q1Cutoff;
+    const topSav = ranked.slice(0, q1Cutoff).reduce((s,i) => s + (i._annualSaving||0), 0);
+    html += `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">Recommendation Summary</div>
+      <div style="font-size:13px;color:var(--ey-dark);line-height:1.6;">
+        Our analysis identified <strong>${ranked.length} initiatives</strong> relevant to your contact centre.
+        The top <strong>${topCount} initiatives</strong> deliver <strong>${fmt(topSav,'$m')}/yr</strong> in value.
+        The remaining ${ranked.length - topCount} were assessed as lower impact for your specific operating context.
+      </div>
+    </div>`;
+  }
+
+  html += '<div style="text-align:center;margin-top:16px;"><a href="#" onclick="navigateTo(1);return false;" style="color:var(--ey-blue);font-size:12px;font-weight:600;text-decoration:none;">← Back to Opportunity Summary</a></div>';
+  el.innerHTML = html;
+}
+
+// V7.1: Mark/unmark an initiative as existing
+function markExistingInit(initId, checked) {
+  window._existingInitiatives[initId] = checked;
+  // Re-render to update summary
+  renderPage(26);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
    INITIALIZATION
    ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
+  applyNavAccessMatrix();
   renderPage(1);
 });
 {% endraw %}

@@ -14,12 +14,15 @@ from engines.data_loader import run_etl, set_path_overrides
 from engines.diagnostic import run_diagnostic
 from engines.maturity import run_maturity
 from engines.readiness import compute_readiness, STRATEGIC_DRIVERS
-from engines.waterfall import score_initiatives, run_waterfall
+from engines.waterfall import score_initiatives, run_waterfall, compute_pillar_scenarios
 from engines.risk import run_risk
 from engines.workforce import run_workforce
 from engines.channel_strategy import run_channel_strategy
+from engines.transcripts import run_transcript_analysis
+from engines.insights import run_insights
+from engines.scenarios import compare_scenarios, compute_delta
 from engines.recommendations import get_recommendations, get_initiative_linkage, get_available_industries, get_industry_config
-from infrastructure.database import init_db, validate_session, load_overrides, save_overrides
+from infrastructure.database import init_db, validate_session, load_overrides, save_overrides, get_project_mode, set_project_mode, get_mode_change_log
 from infrastructure.auth import init_auth, login_user, logout_user, get_current_user, require_role
 from infrastructure.file_manager import (
     FILE_REGISTRY, get_file_status, get_active_file_path, get_upload_summary,
@@ -40,7 +43,9 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB upload limit
 STATE = {
     'data': None, 'diagnostic': None, 'maturity': None,
     'readiness': None, 'initiatives': None, 'waterfall': None,
+    'pillarScenarios': None,
     'risk': None, 'workforce': None, 'channelStrategy': None,
+    'transcriptAnalysis': None, 'insights': None, 'scenarioComparison': None,
     'overrides': {}, 'loaded': False,
 }
 
@@ -61,17 +66,31 @@ def _check_api_auth():
         if not user:
             # Allow unauthenticated access in dev when no users exist
             from infrastructure.database import get_db
-            db = get_db()
             try:
-                count = db.execute("SELECT COUNT(*) as c FROM users").fetchone()['c']
-                if count == 0:
-                    return  # No users configured — allow access (initial setup)
+                with get_db() as db:
+                    count = db.execute("SELECT COUNT(*) as c FROM users").fetchone()['c']
+                    if count == 0:
+                        return  # No users configured — allow access (initial setup)
             except Exception:
-                return  # DB not ready — allow access
+                # F-03 fix: DB failure must deny access, not grant it
+                return jsonify({'error': 'Service temporarily unavailable'}), 503
             return jsonify({'error': 'Authentication required'}), 401
 
 
+# F-18 fix: Periodically clean up expired sessions (1 in 100 requests)
+import random
+@app.before_request
+def _maybe_cleanup_sessions():
+    if random.randint(1, 100) == 1:
+        try:
+            from infrastructure.database import cleanup_expired_sessions
+            cleanup_expired_sessions()
+        except Exception:
+            pass  # Non-critical — don't block the request
+
+
 def _sanitize_for_json(obj):
+    """Recursively sanitize objects for JSON serialization."""
     if isinstance(obj, set): return sorted(list(obj))
     elif isinstance(obj, dict): return {k: _sanitize_for_json(v) for k, v in obj.items()}
     elif isinstance(obj, list): return [_sanitize_for_json(v) for v in obj]
@@ -90,58 +109,147 @@ def _apply_file_overrides():
 
 
 def _run_all():
+    """CR-FIX-AH: Pipeline refactored into named stages for testability and maintainability."""
     with STATE_LOCK:
         _apply_file_overrides()
-        data = run_etl()
-        if 'totalCost' not in data:
-            data['totalCost'] = sum(r['headcount'] * r['costPerFTE'] for r in data['roles'])
-        if 'avgCPC' not in data:
-            annual_vol = data.get('totalVolumeAnnual', data.get('totalVolume', 1))
-            data['avgCPC'] = round(data['totalCost'] / max(annual_vol, 1), 2)
-        STATE['data'] = data
-        STATE['diagnostic'] = run_diagnostic(data)
-        STATE['maturity'] = run_maturity(data, STATE['diagnostic'])
-        STATE['readiness'] = compute_readiness(data, STATE['diagnostic'], STATE['maturity'])
-        STATE['initiatives'] = score_initiatives(data, STATE['diagnostic'], STATE['readiness'])
-        _apply_all_overrides()
-        STATE['waterfall'] = run_waterfall(data, STATE['initiatives'])
-        STATE['risk'] = run_risk(STATE['initiatives'], data)
-        STATE['workforce'] = run_workforce(data, STATE['waterfall'], STATE['initiatives'])
-        STATE['channelStrategy'] = run_channel_strategy(data, STATE['diagnostic'], STATE['initiatives'])
-        STATE['subIntentAnalysis'] = STATE['diagnostic'].get('subIntentAnalysis', [])
+        
+        # ── Stage 1: Data Loading ──
+        _stage_load_data()
+        
+        # ── Stage 2: Diagnostic & Readiness ──
+        _stage_diagnostic()
+        
+        # ── Stage 3: Initiative Scoring ──
+        _stage_initiatives()
+        
+        # ── Stage 4: Waterfall & Financial Projection ──
+        _stage_waterfall()
+        
+        # ── Stage 5: Downstream Engines ──
+        _stage_downstream()
+        
+        # ── Stage 6: Intelligence & Enrichment ──
+        _stage_enrichment()
+        
         STATE['loaded'] = True
         return True
+
+
+def _stage_load_data():
+    """Stage 1: ETL pipeline — load and validate all source data."""
+    data = run_etl()
+    if 'totalCost' not in data:
+        data['totalCost'] = sum(r['headcount'] * r['costPerFTE'] for r in data['roles'])
+    if 'avgCPC' not in data:
+        annual_vol = data.get('totalVolumeAnnual', data.get('totalVolume', 1))
+        data['avgCPC'] = round(data['totalCost'] / max(annual_vol, 1), 2)
+    STATE['data'] = data
+
+
+def _stage_diagnostic():
+    """Stage 2: Run diagnostic, maturity, and readiness assessments."""
+    data = STATE['data']
+    STATE['diagnostic'] = run_diagnostic(data)
+    STATE['maturity'] = run_maturity(data, STATE['diagnostic'])
+    STATE['readiness'] = compute_readiness(data, STATE['diagnostic'], STATE['maturity'])
+
+
+def _stage_initiatives():
+    """Stage 3: Score and select initiatives, apply persisted overrides."""
+    data = STATE['data']
+    STATE['initiatives'] = score_initiatives(data, STATE['diagnostic'], STATE['readiness'])
+    persisted = load_overrides()
+    if persisted:
+        STATE['overrides'].update(persisted)
+    _apply_all_overrides()
+
+
+def _stage_waterfall():
+    """Stage 4: Run waterfall cascade and pillar scenarios."""
+    data = STATE['data']
+    STATE['waterfall'] = run_waterfall(data, STATE['initiatives'])
+    try:
+        STATE['pillarScenarios'] = compute_pillar_scenarios(data, STATE['initiatives'])
+    except Exception as e:
+        print(f"[WARN] Pillar scenarios failed: {e}")
+        STATE['pillarScenarios'] = None
+
+
+def _stage_downstream():
+    """Stage 5: Risk, workforce, and channel strategy engines."""
+    data = STATE['data']
+    STATE['risk'] = run_risk(STATE['initiatives'], data)
+    STATE['workforce'] = run_workforce(data, STATE['waterfall'], STATE['initiatives'])
+    STATE['channelStrategy'] = run_channel_strategy(data, STATE['diagnostic'], STATE['initiatives'])
+    STATE['subIntentAnalysis'] = STATE['diagnostic'].get('subIntentAnalysis', [])
+
+
+def _stage_enrichment():
+    """Stage 6: Transcript analysis, insights, scenario comparison."""
+    data = STATE['data']
+    try:
+        STATE['transcriptAnalysis'] = run_transcript_analysis()
+    except Exception as e:
+        print(f"[WARN] Transcript analysis failed: {e}")
+        STATE['transcriptAnalysis'] = {}
+    try:
+        STATE['insights'] = run_insights(data, STATE['diagnostic'], STATE['waterfall'])
+    except Exception as e:
+        print(f"[WARN] Insight engine failed: {e}")
+        STATE['insights'] = {}
+    try:
+        STATE['scenarioComparison'] = compare_scenarios(data, STATE['initiatives'], run_waterfall)
+    except Exception as e:
+        print(f"[WARN] Scenario comparison failed: {e}")
+        STATE['scenarioComparison'] = []
 
 
 def _recompute_downstream():
     with STATE_LOCK:
         data = STATE['data']
         STATE['waterfall'] = run_waterfall(data, STATE['initiatives'])
+        try:
+            STATE['pillarScenarios'] = compute_pillar_scenarios(data, STATE['initiatives'])
+        except Exception:
+            pass
         STATE['risk'] = run_risk(STATE['initiatives'], data)
         STATE['workforce'] = run_workforce(data, STATE['waterfall'], STATE['initiatives'])
 
 
 def _recompute_all_from_diagnostic():
     with STATE_LOCK:
-        data = STATE['data']
-        STATE['diagnostic'] = run_diagnostic(data)
-        STATE['maturity'] = run_maturity(data, STATE['diagnostic'])
-        STATE['readiness'] = compute_readiness(data, STATE['diagnostic'], STATE['maturity'])
-        STATE['initiatives'] = score_initiatives(data, STATE['diagnostic'], STATE['readiness'])
-        _apply_all_overrides()
-        _recompute_downstream_unlocked()
-        STATE['channelStrategy'] = run_channel_strategy(data, STATE['diagnostic'], STATE['initiatives'])
+        _recompute_all_from_diagnostic_unlocked()
+
+
+def _recompute_all_from_diagnostic_unlocked():
+    """Internal helper — called from within STATE_LOCK, no re-acquire."""
+    data = STATE['data']
+    STATE['diagnostic'] = run_diagnostic(data)
+    STATE['maturity'] = run_maturity(data, STATE['diagnostic'])
+    STATE['readiness'] = compute_readiness(data, STATE['diagnostic'], STATE['maturity'])
+    STATE['initiatives'] = score_initiatives(data, STATE['diagnostic'], STATE['readiness'])
+    _apply_all_overrides()
+    _recompute_downstream_unlocked()
+    STATE['channelStrategy'] = run_channel_strategy(data, STATE['diagnostic'], STATE['initiatives'])
 
 
 def _recompute_downstream_unlocked():
     """Internal helper — called from within STATE_LOCK, no re-acquire."""
     data = STATE['data']
     STATE['waterfall'] = run_waterfall(data, STATE['initiatives'])
+    try:
+        STATE['pillarScenarios'] = compute_pillar_scenarios(data, STATE['initiatives'])
+    except Exception:
+        pass
     STATE['risk'] = run_risk(STATE['initiatives'], data)
     STATE['workforce'] = run_workforce(data, STATE['waterfall'], STATE['initiatives'])
 
 
 def _apply_all_overrides():
+    # F-27 WARNING: This function is called from within STATE_LOCK (by _run_all,
+    # _recompute_all_from_diagnostic_unlocked, api_reset_pillar_toggles).
+    # It MUST remain lock-free — never acquire STATE_LOCK or call any function
+    # that acquires STATE_LOCK from here, or it will deadlock.
     # Initiative overrides
     for init in STATE['initiatives']:
         iid = init['id']
@@ -281,6 +389,26 @@ def _build_demo_object(overrides=None):
         # v12-#35: Sub-intent data for downstream pages
         'subIntentEnriched': _enrich_sub_intents_for_downstream(
             diag.get('subIntentAnalysis', []), inits, wf),
+        # CR-FIX-VOL: Volume scaling transparency
+        'volumeScaling': data.get('volumeScaling', {}),
+        # CR-FIX-TAG: Metric provenance tagging
+        'metricSources': data.get('metricSources', {}),
+        # CR-FIX-WFM: WFM actuals (shrinkage decomposition, occupancy, utilization)
+        'wfmActuals': data['params'].get('_wfmActuals', {}),
+        # CR-FIX-CONF: Confidence bands and data quality
+        'confidenceBands': wf.get('confidenceBands', {}),
+        'dataQuality': wf.get('dataQuality', {}),
+        # CR-FIX-TRANSCRIPT: Transcript analysis
+        'transcriptAnalysis': _sanitize_for_json(STATE.get('transcriptAnalysis', {})),
+        # CR-FIX-BASIS: Calculation basis and validation
+        'calculationBasis': data.get('calculationBasis', {}),
+        'validationIssues': data.get('validationIssues', []),
+        # CR-FIX-O: Insights
+        'insights': _sanitize_for_json(STATE.get('insights', {})),
+        # CR-FIX-R: Scenario comparison
+        'scenarioComparison': STATE.get('scenarioComparison', []),
+        # CR-FIX-AG: Model version
+        'modelVersion': '8.0.0',
     }
 
 
@@ -294,7 +422,18 @@ def _build_demo_object(overrides=None):
 
 @app.route('/api/health')
 def api_health():
-    return jsonify({'status': 'ok', 'version': 'v2.0', 'service': 'ContactIQ'})
+    return jsonify({'status': 'ok', 'version': 'v8.0', 'service': 'ContactIQ'})
+
+
+@app.route('/api/audit-trail')
+def api_audit_trail():
+    """CR-FIX-AUDIT: Return override audit trail."""
+    from infrastructure.database import get_override_audit_log
+    try:
+        log = get_override_audit_log(limit=200)
+        return jsonify({'auditLog': log, 'count': len(log)})
+    except Exception as e:
+        return jsonify({'auditLog': [], 'count': 0, 'error': str(e)})
 
 
 @app.route('/login')
@@ -398,15 +537,17 @@ def api_data_recalculate():
         STATE['_load_error'] = None
         saved_overrides = dict(STATE['overrides'])
         _run_all()
-        STATE['overrides'] = saved_overrides
-        _apply_all_overrides()
-        _recompute_downstream()
+        # F-05 fix: Wrap remaining STATE mutations in lock
+        with STATE_LOCK:
+            STATE['overrides'] = saved_overrides
+            _apply_all_overrides()
+            _recompute_downstream_unlocked()
         return jsonify({'status': 'ok', 'message': 'All engines recalculated',
                         'data': _build_demo_object(), 'initiatives': STATE['initiatives'],
                         'waterfall': STATE['waterfall']})
     except Exception as e:
         traceback.print_exc()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
 
 
 # ══════════════════════════════════════════════════════════════
@@ -443,6 +584,55 @@ def api_industry_config(key):
 
 
 # ══════════════════════════════════════════════════════════════
+#  V6: MODE TOGGLE & PILLAR SCENARIOS API
+# ══════════════════════════════════════════════════════════════
+
+@app.route('/api/config/mode', methods=['GET'])
+def api_get_mode():
+    """Get current project mode."""
+    return jsonify({'mode': get_project_mode()})
+
+
+@app.route('/api/config/mode', methods=['POST'])
+@require_role('admin')
+def api_set_mode():
+    """Set project mode (admin only)."""
+    new_mode = request.json.get('mode', '')
+    if new_mode not in ('opportunity', 'delivery'):
+        return jsonify({'error': 'Mode must be "opportunity" or "delivery"'}), 400
+    user = get_current_user()
+    user_id = user['id'] if user else None
+    try:
+        old_mode = set_project_mode(new_mode, user_id)
+        return jsonify({'mode': new_mode, 'previous': old_mode, 'ok': True})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.route('/api/config/mode-log', methods=['GET'])
+@require_role('admin')
+def api_mode_log():
+    """Get mode change audit trail (admin only)."""
+    return jsonify({'log': get_mode_change_log()})
+
+
+@app.route('/api/pillar-scenarios')
+def api_pillar_scenarios():
+    """Get pillar-isolated waterfall results and ranges."""
+    if not STATE['loaded']:
+        return jsonify({'error': 'Not loaded'}), 503
+    ps = STATE.get('pillarScenarios')
+    if not ps:
+        return jsonify({'error': 'Pillar scenarios not computed'}), 503
+    # Return only the summary and ranges (full waterfall per pillar is too large)
+    return jsonify(_sanitize_for_json({
+        'ranges': ps['ranges'],
+        'pillarSummary': ps['pillarSummary'],
+    }))
+
+
+# ══════════════════════════════════════════════════════════════
 #  MAIN PAGE ROUTES
 # ══════════════════════════════════════════════════════════════
 
@@ -463,8 +653,24 @@ def index():
                  'role': user.get('role','supervisor')} if user else {'username':'admin','display_name':'Administrator','role':'supervisor'}
     data_summary = get_upload_summary()
 
+    # V6: Include project mode and pillar scenarios
+    project_mode = get_project_mode()
+
     if STATE['loaded']:
-        server_data = {'demo': _build_demo_object(), 'initiatives': STATE['initiatives'], 'waterfall': STATE['waterfall']}
+        # Build pillar summary for frontend (lightweight — not full waterfall per pillar)
+        ps = STATE.get('pillarScenarios')
+        pillar_data = {
+            'ranges': ps['ranges'],
+            'pillarSummary': ps['pillarSummary'],
+        } if ps else None
+
+        server_data = {
+            'demo': _build_demo_object(),
+            'initiatives': STATE['initiatives'],
+            'waterfall': STATE['waterfall'],
+            'pillarScenarios': pillar_data,
+            'projectMode': project_mode,
+        }
         return render_template('index.html', server_data=json.dumps(server_data, default=str),
                                load_error=None, user_info=json.dumps(user_info),
                                data_summary=json.dumps(data_summary))
@@ -579,20 +785,22 @@ def api_refresh():
         return jsonify({'status':'ok', 'data': _build_demo_object(),
                         'initiatives': STATE['initiatives'], 'waterfall': STATE['waterfall']})
     except Exception as e:
-        return jsonify({'status':'error','message':str(e)}), 500
+        return jsonify({'status':'error','message':'Internal server error'}), 500
 
 @app.route('/api/recalculate', methods=['POST'])
 @require_role('supervisor')
 def api_recalculate():
     try:
         body = request.get_json(force=True) if request.is_json else {}
-        data = STATE['data']
-        for key, value in body.get('params', {}).items():
-            if key in data['params']:
-                data['params'][key] = value; STATE['overrides'][key] = value
-        if 'strategicDriver' in body.get('params', {}):
-            data['params']['strategicDriver'] = body['params']['strategicDriver']
-        _recompute_all_from_diagnostic()
+        # F-05 fix: Acquire lock BEFORE mutating STATE
+        with STATE_LOCK:
+            data = STATE['data']
+            for key, value in body.get('params', {}).items():
+                if key in data['params']:
+                    data['params'][key] = value; STATE['overrides'][key] = value
+            if 'strategicDriver' in body.get('params', {}):
+                data['params']['strategicDriver'] = body['params']['strategicDriver']
+            _recompute_all_from_diagnostic_unlocked()
         active_layer = body.get('activeLayer')
         if active_layer and active_layer != 'All Layers':
             scoped_inits = copy.deepcopy(STATE['initiatives'])
@@ -611,7 +819,7 @@ def api_recalculate():
                         'enabledCount':sum(1 for i in STATE['initiatives'] if i.get('enabled'))})
     except Exception as e:
         traceback.print_exc()
-        return jsonify({'status':'error','message':str(e)}), 500
+        return jsonify({'status':'error','message':'Internal server error'}), 500
 
 @app.route('/api/initiative/toggle', methods=['POST'])
 @require_role('supervisor')
@@ -619,10 +827,12 @@ def api_toggle_initiative():
     body = request.get_json(force=True)
     init_id = body.get('id'); enabled = body.get('enabled')
     if not init_id or enabled is None: return jsonify({'error':'id and enabled required'}), 400
-    STATE['overrides'][f"init_enabled_{init_id}"] = bool(enabled)
-    for init in STATE['initiatives']:
-        if init['id'] == init_id: init['enabled'] = bool(enabled); break
-    _recompute_downstream()
+    # F-05 fix: Acquire lock BEFORE mutating STATE to prevent race conditions
+    with STATE_LOCK:
+        STATE['overrides'][f"init_enabled_{init_id}"] = bool(enabled)
+        for init in STATE['initiatives']:
+            if init['id'] == init_id: init['enabled'] = bool(enabled); break
+        _recompute_downstream_unlocked()
     return jsonify({'status':'ok','enabledCount':sum(1 for i in STATE['initiatives'] if i.get('enabled')),
                     'waterfall':STATE['waterfall'],'risk':STATE['risk'],
                     'workforce':STATE['workforce'],'initiatives':STATE['initiatives']})
@@ -633,17 +843,109 @@ def api_update_initiative():
     body = request.get_json(force=True)
     init_id = body.get('id'); fields = body.get('fields', {})
     if not init_id: return jsonify({'error':'id required'}), 400
-    fk = f"init_fields_{init_id}"
-    if fk not in STATE['overrides']: STATE['overrides'][fk] = {}
-    STATE['overrides'][fk].update(fields)
-    for init in STATE['initiatives']:
-        if init['id'] == init_id:
-            for k, v in fields.items(): init[k] = v
-            break
-    _recompute_downstream()
+    # F-05 fix: Acquire lock BEFORE mutating STATE
+    with STATE_LOCK:
+        fk = f"init_fields_{init_id}"
+        if fk not in STATE['overrides']: STATE['overrides'][fk] = {}
+        STATE['overrides'][fk].update(fields)
+        for init in STATE['initiatives']:
+            if init['id'] == init_id:
+                for k, v in fields.items(): init[k] = v
+                break
+        _recompute_downstream_unlocked()
     return jsonify({'status':'ok','enabledCount':sum(1 for i in STATE['initiatives'] if i.get('enabled')),
                     'waterfall':STATE['waterfall'],'risk':STATE['risk'],
                     'workforce':STATE['workforce'],'initiatives':STATE['initiatives']})
+
+# V7: Pillar toggle — enables/disables all initiatives in a layer
+@app.route('/api/pillar/toggle', methods=['POST'])
+@require_role('supervisor')
+def api_toggle_pillar():
+    body = request.get_json(force=True)
+    layer = body.get('layer')
+    enabled = body.get('enabled')
+    if not layer or enabled is None:
+        return jsonify({'error': 'layer and enabled required'}), 400
+    valid_layers = ['AI & Automation', 'Operating Model', 'Location Strategy']
+    if layer not in valid_layers:
+        return jsonify({'error': f'Invalid layer: {layer}'}), 400
+
+    user = get_current_user()
+    role = user.get('role', 'supervisor') if user else 'supervisor'
+    user_id = user.get('id') if user else None
+
+    # F-05 fix: Acquire lock BEFORE mutating STATE
+    with STATE_LOCK:
+        # Toggle all initiatives in this layer
+        toggled = 0
+        for init in STATE['initiatives']:
+            if init.get('layer') == layer:
+                init['enabled'] = bool(enabled)
+                STATE['overrides'][f"init_enabled_{init['id']}"] = bool(enabled)
+                toggled += 1
+
+        # Store pillar toggle state with role tag for GDS visibility
+        STATE['overrides'][f"pillar_toggle_{layer}"] = {
+            'enabled': bool(enabled),
+            'set_by_role': role,
+            'set_by_name': user.get('display_name', '') if user else '',
+        }
+
+        # Persist to DB
+        # F-20 note: Spec F.3 says pillar toggles are session-level (reset on logout).
+        # Deliberate override: we persist to DB for better UX across sessions.
+        # This is intentionally stronger than spec — documented deviation.
+        save_overrides(STATE['overrides'], user_id)
+        _recompute_downstream_unlocked()
+
+    return jsonify({
+        'status': 'ok',
+        'layer': layer,
+        'enabled': bool(enabled),
+        'toggled': toggled,
+        'enabledCount': sum(1 for i in STATE['initiatives'] if i.get('enabled')),
+        'pillarScenarios': {
+            'ranges': STATE.get('pillarScenarios', {}).get('ranges') if STATE.get('pillarScenarios') else None,
+            'pillarSummary': STATE.get('pillarScenarios', {}).get('pillarSummary') if STATE.get('pillarScenarios') else None,
+        },
+        'waterfall': STATE['waterfall'],
+    })
+
+
+# V7: Get pillar toggle overrides (for GDS to see what EY US changed)
+@app.route('/api/pillar/overrides')
+def api_pillar_overrides():
+    if not STATE['loaded']:
+        return jsonify({'error': 'Not loaded'}), 503
+    pillar_overrides = {}
+    for key, val in STATE['overrides'].items():
+        if key.startswith('pillar_toggle_') and isinstance(val, dict):
+            layer = key.replace('pillar_toggle_', '')
+            pillar_overrides[layer] = val
+    return jsonify({'overrides': pillar_overrides})
+
+
+# V7: Reset pillar toggles to engine defaults
+@app.route('/api/pillar/reset', methods=['POST'])
+@require_role('admin')
+def api_reset_pillar_toggles():
+    # F-05 fix: Acquire lock for all STATE mutations
+    with STATE_LOCK:
+        # Remove all pillar toggle overrides
+        keys_to_remove = [k for k in STATE['overrides'] if k.startswith('pillar_toggle_')]
+        for k in keys_to_remove:
+            del STATE['overrides'][k]
+        # Re-score initiatives from scratch (resets enables to engine defaults)
+        from engines.waterfall import score_initiatives
+        STATE['initiatives'] = score_initiatives(STATE['data'], STATE['diagnostic'], STATE['readiness'])
+        _apply_all_overrides()  # Re-apply non-pillar overrides
+        save_overrides(STATE['overrides'])
+        _recompute_downstream_unlocked()
+    return jsonify({
+        'status': 'ok',
+        'enabledCount': sum(1 for i in STATE['initiatives'] if i.get('enabled')),
+    })
+
 
 @app.route('/api/override', methods=['POST'])
 @require_role('supervisor')
@@ -651,9 +953,11 @@ def api_override():
     body = request.get_json(force=True)
     key = body.get('key'); value = body.get('value')
     if not key: return jsonify({'error':'key required'}), 400
-    STATE['overrides'][key] = value
-    if key in STATE['data']['params']: STATE['data']['params'][key] = value
-    _recompute_all_from_diagnostic()
+    # F-05 fix: Acquire lock BEFORE mutating STATE
+    with STATE_LOCK:
+        STATE['overrides'][key] = value
+        if key in STATE['data']['params']: STATE['data']['params'][key] = value
+        _recompute_all_from_diagnostic_unlocked()
     return jsonify({'status':'ok','data':_build_demo_object(),
                     'initiatives':STATE['initiatives'],'waterfall':STATE['waterfall']})
 
@@ -672,10 +976,12 @@ def api_subintent_override():
             fields[f] = body[f]
     if not fields:
         return jsonify({'error': 'no override fields provided'}), 400
-    if okey not in STATE['overrides']:
-        STATE['overrides'][okey] = {}
-    STATE['overrides'][okey].update(fields)
-    _recompute_all_from_diagnostic()
+    # F-05 fix: Acquire lock BEFORE mutating STATE
+    with STATE_LOCK:
+        if okey not in STATE['overrides']:
+            STATE['overrides'][okey] = {}
+        STATE['overrides'][okey].update(fields)
+        _recompute_all_from_diagnostic_unlocked()
     return jsonify({
         'status': 'ok',
         'data': _build_demo_object(),
@@ -690,16 +996,18 @@ def api_maturity_override():
     dimension = body.get('dimension'); score = body.get('score')
     if not dimension or score is None: return jsonify({'error':'dimension and score required'}), 400
     score = max(1.0, min(5.0, float(score)))
-    STATE['overrides'][f"maturity_{dimension}"] = score
-    mat = STATE['maturity']; dims = mat.get('dimensions', {})
-    if dimension in dims:
-        dims[dimension]['score'] = score; dims[dimension]['level'] = min(5, max(1, round(score)))
-    if dims:
-        from engines.maturity import DIMENSIONS, MATURITY_LEVELS
-        overall = sum(dims[k]['score'] * dims[k].get('weight', 0.20) for k in dims if isinstance(dims[k], dict))
-        mat['overall'] = round(overall, 2)
-        mat['overallLevel'] = min(5, max(1, round(overall)))
-        mat['levelInfo'] = MATURITY_LEVELS.get(mat['overallLevel'], {})
+    # F-05 fix: Acquire lock BEFORE mutating STATE
+    with STATE_LOCK:
+        STATE['overrides'][f"maturity_{dimension}"] = score
+        mat = STATE['maturity']; dims = mat.get('dimensions', {})
+        if dimension in dims:
+            dims[dimension]['score'] = score; dims[dimension]['level'] = min(5, max(1, round(score)))
+        if dims:
+            from engines.maturity import DIMENSIONS, MATURITY_LEVELS
+            overall = sum(dims[k]['score'] * dims[k].get('weight', 0.20) for k in dims if isinstance(dims[k], dict))
+            mat['overall'] = round(overall, 2)
+            mat['overallLevel'] = min(5, max(1, round(overall)))
+            mat['levelInfo'] = MATURITY_LEVELS.get(mat['overallLevel'], {})
     return jsonify({'status':'ok','maturity': mat})
 
 @app.route('/api/benchmarks/override', methods=['POST'])
@@ -709,16 +1017,16 @@ def api_benchmark_override():
     body = request.get_json(force=True)
     overrides = body.get('benchmarks', {})
     if not overrides: return jsonify({'error': 'benchmarks object required'}), 400
-    # Store each benchmark override
-    for metric, value in overrides.items():
-        STATE['overrides'][f"benchmark_{metric}"] = value
-        # Apply to live benchmarks
-        if metric in STATE['data'].get('benchmarks', {}):
-            if isinstance(STATE['data']['benchmarks'][metric], dict):
-                STATE['data']['benchmarks'][metric]['global'] = value
-            else:
-                STATE['data']['benchmarks'][metric] = value
-    _recompute_all_from_diagnostic()
+    # F-05 fix: Acquire lock BEFORE mutating STATE
+    with STATE_LOCK:
+        for metric, value in overrides.items():
+            STATE['overrides'][f"benchmark_{metric}"] = value
+            if metric in STATE['data'].get('benchmarks', {}):
+                if isinstance(STATE['data']['benchmarks'][metric], dict):
+                    STATE['data']['benchmarks'][metric]['global'] = value
+                else:
+                    STATE['data']['benchmarks'][metric] = value
+        _recompute_all_from_diagnostic_unlocked()
     return jsonify({'status': 'ok', 'message': f'{len(overrides)} benchmark(s) saved',
                     'data': _build_demo_object(), 'waterfall': STATE['waterfall']})
 
@@ -757,17 +1065,19 @@ def api_investment():
 @require_role('supervisor')
 def api_batch_initiatives():
     body = request.get_json(force=True)
-    for upd in body.get('updates', []):
-        iid = upd.get('id')
-        for init in STATE['initiatives']:
-            if init['id'] == iid:
-                if 'enabled' in upd:
-                    init['enabled'] = bool(upd['enabled']); STATE['overrides'][f"init_enabled_{iid}"] = bool(upd['enabled'])
-                for rk in ('rampYear1','rampYear2','rampYear3'):
-                    if rk in upd: init[rk] = float(upd[rk]); STATE['overrides'][f"init_{rk}_{iid}"] = float(upd[rk])
-                if 'priority' in upd: init['priority'] = upd['priority']
-                break
-    _recompute_downstream()
+    # F-05 fix: Acquire lock BEFORE mutating STATE
+    with STATE_LOCK:
+        for upd in body.get('updates', []):
+            iid = upd.get('id')
+            for init in STATE['initiatives']:
+                if init['id'] == iid:
+                    if 'enabled' in upd:
+                        init['enabled'] = bool(upd['enabled']); STATE['overrides'][f"init_enabled_{iid}"] = bool(upd['enabled'])
+                    for rk in ('rampYear1','rampYear2','rampYear3'):
+                        if rk in upd: init[rk] = float(upd[rk]); STATE['overrides'][f"init_{rk}_{iid}"] = float(upd[rk])
+                    if 'priority' in upd: init['priority'] = upd['priority']
+                    break
+        _recompute_downstream_unlocked()
     return jsonify({'status':'ok','initiatives':STATE['initiatives'],'waterfall':STATE['waterfall']})
 
 @app.route('/api/export')
@@ -1025,12 +1335,12 @@ def api_export():
         fd, export_path = tempfile.mkstemp(suffix='.xlsx')
         os.close(fd)
         wb.save(export_path)
-        return send_file(export_path, as_attachment=True, download_name='ContactIQ_Export.xlsx')
+        return send_file(export_path, as_attachment=True, download_name=f"ContactIQ_{params.get('clientName', 'Client')}_Export.xlsx")
     except ImportError as e:
         return jsonify({'error': f'Export dependency missing: {e}. Install with: pip install openpyxl'}), 500
     except Exception as e:
         traceback.print_exc()
-        return jsonify({'error':str(e)}), 500
+        return jsonify({'error':'Internal server error'}), 500
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1069,7 +1379,7 @@ def api_waterfall_by_layer():
         })
     except Exception as e:
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1082,33 +1392,92 @@ def _pdf_safe(text):
 
 @app.route('/api/export/pdf')
 def api_export_pdf():
-    """Generate PDF report of current analysis."""
+    """V7.1: Role-aware PDF report — content matches page access per role/mode."""
     try:
         from fpdf import FPDF
-        
+
         data = STATE['data']; wf = STATE['waterfall']; diag = STATE['diagnostic']
         params = data['params']
-        
+
+        # Get current user role and mode
+        # F-21 note: Per spec F.2.8, mode is read ONCE at the START of PDF generation
+        # and used for the entire document. No mid-generation mode check.
+        # If mode later moves to DB-backed with concurrent writes, snapshot this value.
+        user = get_current_user()
+        role = user.get('role', 'admin') if user else 'admin'
+        mode = get_project_mode()
+
+        # Section visibility per Appendix E
+        def section_allowed(section):
+            matrix = {
+                'financial_overview': {
+                    'admin': True,
+                    'supervisor': True,
+                    'analyst': mode == 'delivery',
+                },
+                'initiatives': {
+                    'admin': True,
+                    'supervisor': mode == 'delivery',
+                    'analyst': False,
+                },
+                'pools': {
+                    'admin': True,
+                    'supervisor': False,
+                    'analyst': False,
+                },
+                'risk': {
+                    'admin': True,
+                    'supervisor': mode == 'delivery',
+                    'analyst': mode == 'delivery',
+                },
+                'maturity': {
+                    'admin': True,
+                    'supervisor': True,
+                    'analyst': False,
+                },
+                'channel_detail': {
+                    'admin': True,
+                    'supervisor': True,
+                    'analyst': False,
+                },
+                'diagnostic_detail': {
+                    'admin': True,
+                    'supervisor': True,
+                    'analyst': False,
+                },
+                'channel_migration': {
+                    'admin': True,
+                    'supervisor': False,
+                    'analyst': False,
+                },
+                'operating_model': {
+                    'admin': True,
+                    'supervisor': True,
+                    'analyst': False,
+                },
+            }
+            return matrix.get(section, {}).get(role, False)
+
         # CR-12: Wrap FPDF to auto-sanitize all text for Latin-1 Helvetica
         class SafeFPDF(FPDF):
             def cell(self, w=0, h=0, text='', *args, **kwargs):
                 return super().cell(w, h, _pdf_safe(text), *args, **kwargs)
             def multi_cell(self, w, h=0, text='', *args, **kwargs):
                 return super().multi_cell(w, h, _pdf_safe(text), *args, **kwargs)
-        
+
         pdf = SafeFPDF()
         pdf.set_auto_page_break(auto=True, margin=20)
-        
+
         # ── Cover Page ──
         pdf.add_page()
-        pdf.set_fill_color(46, 46, 56)  # EY dark
+        pdf.set_fill_color(46, 46, 56)
         pdf.rect(0, 0, 210, 297, 'F')
-        pdf.set_text_color(255, 230, 0)  # EY yellow
+        pdf.set_text_color(255, 230, 0)
         pdf.set_font('Helvetica', 'B', 32)
         pdf.set_y(80)
         pdf.cell(0, 15, 'Contact Centre', ln=True, align='C')
-        pdf.cell(0, 15, 'Transformation', ln=True, align='C')
-        pdf.cell(0, 15, 'Business Case', ln=True, align='C')
+        pdf.cell(0, 15, 'Opportunity', ln=True, align='C')
+        pdf.cell(0, 15, 'Assessment', ln=True, align='C')
         pdf.set_font('Helvetica', '', 14)
         pdf.set_text_color(255, 255, 255)
         pdf.ln(20)
@@ -1116,8 +1485,14 @@ def api_export_pdf():
         pdf.cell(0, 10, params.get('industry', 'Industry'), ln=True, align='C')
         pdf.set_font('Helvetica', '', 10)
         pdf.ln(10)
-        pdf.cell(0, 8, 'Generated by ContactIQ — Intelligent Contact Center Optimization Platform', ln=True, align='C')
-        
+        pdf.cell(0, 8, 'Generated by ContactIQ — EY Contact Centre Opportunity Assessment', ln=True, align='C')
+        # Role/mode watermark
+        role_label = {'admin':'EY GDS','supervisor':'EY US','analyst':'Client'}.get(role, role)
+        pdf.set_font('Helvetica', '', 9)
+        pdf.set_text_color(180, 180, 180)
+        pdf.ln(30)
+        pdf.cell(0, 8, f'Report prepared for: {role_label} | Mode: {mode.capitalize()}', ln=True, align='C')
+
         # ── Executive Summary ──
         pdf.add_page()
         pdf.set_text_color(46, 46, 56)
@@ -1127,294 +1502,316 @@ def api_export_pdf():
         pdf.set_line_width(1)
         pdf.line(10, pdf.get_y(), 80, pdf.get_y())
         pdf.ln(8)
-        
-        # Hero metrics
-        metrics = [
-            ('Total 3-Year Savings', f"${wf.get('totalSaving', 0):,.0f}"),
-            ('Net Present Value', f"${wf.get('totalNPV', 0):,.0f}"),
-            ('Return on Investment', f"{wf.get('roi', 0):.0f}%"),
-            ('Payback Period', f"{wf.get('payback', 0):.1f} years"),
-            ('Internal Rate of Return', f"{wf.get('irr', 0):.1f}%"),
-            ('Total Investment', f"${wf.get('totalInvestment', 0):,.0f}"),
-        ]
-        pdf.set_font('Helvetica', '', 11)
-        for label, value in metrics:
-            pdf.set_font('Helvetica', 'B', 11)
-            pdf.cell(90, 8, label, border='B')
+
+        if section_allowed('financial_overview'):
+            metrics = [
+                ('Total Savings', f"${wf.get('totalSaving', 0):,.0f}"),
+                ('Net Present Value', f"${wf.get('totalNPV', 0):,.0f}"),
+                ('Internal Rate of Return', f"{wf.get('irr', 0):.1f}%"),
+                ('Payback Period', f"{wf.get('payback', 0):.1f} years"),
+                ('Total Investment', f"${wf.get('totalInvestment', 0):,.0f}"),
+            ]
             pdf.set_font('Helvetica', '', 11)
-            pdf.cell(0, 8, value, border='B', ln=True)
-        
-        # ── Yearly Projections ──
-        pdf.ln(8)
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.cell(0, 10, 'Yearly Projections', ln=True)
-        pdf.set_font('Helvetica', 'B', 9)
-        headers = ['Year', 'Annual Saving', 'Cumulative', 'NPV']
-        col_w = [30, 45, 45, 45]
-        pdf.set_fill_color(46, 46, 56)
-        pdf.set_text_color(255, 255, 255)
-        for i, h in enumerate(headers):
-            pdf.cell(col_w[i], 8, h, border=1, fill=True, align='C')
-        pdf.ln()
-        pdf.set_text_color(46, 46, 56)
-        pdf.set_font('Helvetica', '', 9)
-        for y in wf.get('yearly', []):
-            pdf.cell(col_w[0], 7, str(y.get('year', '')), border=1, align='C')
-            pdf.cell(col_w[1], 7, f"${y.get('annualSaving', 0):,.0f}", border=1, align='C')
-            pdf.cell(col_w[2], 7, f"${y.get('cumSaving', 0):,.0f}", border=1, align='C')
-            pdf.cell(col_w[3], 7, f"${y.get('npv', 0):,.0f}", border=1, align='C')
-            pdf.ln()
-        
-        # ── Layer Breakdown ──
-        pdf.ln(8)
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.cell(0, 10, 'Impact by Layer', ln=True)
-        pdf.set_font('Helvetica', 'B', 9)
-        lh = ['Layer', 'Annual Saving']
-        lw = [100, 80]
-        pdf.set_fill_color(46, 46, 56)
-        pdf.set_text_color(255, 255, 255)
-        for i, h in enumerate(lh):
-            pdf.cell(lw[i], 8, h, border=1, fill=True, align='C')
-        pdf.ln()
-        pdf.set_text_color(46, 46, 56)
-        pdf.set_font('Helvetica', '', 9)
-        for layer, fte in wf.get('layerFTE', {}).items():
-            saving = wf.get('layerSaving', {}).get(layer, 0)
-            pdf.cell(lw[0], 7, layer, border=1)
-            pdf.cell(lw[1], 7, f"${saving:,.0f}", border=1, align='C')
-            pdf.ln()
-        
-        # ── Top Initiatives ──
-        pdf.add_page()
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.cell(0, 10, 'Top Initiatives by Impact', ln=True)
-        
-        enabled = [i for i in STATE['initiatives'] if i.get('enabled') and i.get('_annualSaving', 0) > 0]
-        enabled.sort(key=lambda x: x.get('_annualSaving', 0), reverse=True)
-        
-        pdf.set_font('Helvetica', 'B', 8)
-        ih = ['#', 'Initiative', 'Layer', 'Lever', 'Annual Saving']
-        iw = [8, 65, 35, 40, 40]
-        pdf.set_fill_color(46, 46, 56)
-        pdf.set_text_color(255, 255, 255)
-        for i, h in enumerate(ih):
-            pdf.cell(iw[i], 7, h, border=1, fill=True, align='C')
-        pdf.ln()
-        pdf.set_text_color(46, 46, 56)
-        pdf.set_font('Helvetica', '', 8)
-        for idx, init in enumerate(enabled[:20], 1):
-            pdf.cell(iw[0], 6, str(idx), border=1, align='C')
-            name = init['name'][:32] + '..' if len(init['name']) > 34 else init['name']
-            pdf.cell(iw[1], 6, name, border=1)
-            pdf.cell(iw[2], 6, init.get('layer', '')[:18], border=1, align='C')
-            pdf.cell(iw[3], 6, init.get('lever', '').replace('_', ' ')[:20], border=1, align='C')
-            pdf.cell(iw[4], 6, f"${init.get('_annualSaving', 0):,.0f}", border=1, align='C')
-            pdf.ln()
-        
-        # ── Pool Utilization ──
-        pdf.ln(8)
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.cell(0, 10, 'Opportunity Pool Utilization', ln=True)
-        pools = wf.get('poolUtilization', wf.get('poolSummary', {}))
-        if pools:
+            for label, value in metrics:
+                pdf.set_font('Helvetica', 'B', 11)
+                pdf.cell(90, 8, label, border='B')
+                pdf.set_font('Helvetica', '', 11)
+                pdf.cell(0, 8, value, border='B', ln=True)
+            pdf.ln(6)
+
+        # Pillar summary (all roles see this)
+        ps = STATE.get('pillarScenarios')
+        if ps:
+            pdf.set_font('Helvetica', 'B', 14)
+            pdf.cell(0, 10, 'Opportunity by Pillar', ln=True)
+            pdf.set_font('Helvetica', '', 10)
+            for key, label in [('ai','AI & Automation'),('om','Operating Model'),('location','Location Strategy')]:
+                p = ps['pillarSummary'].get(key, {})
+                ann = p.get('annualSaving', 0)
+                fte = p.get('totalReduction', 0)
+                fte_str = f", ~{fte:.0f} FTE reduction" if fte > 0 else " (cost savings only)"
+                pdf.cell(0, 7, f"  {label}: ${ann:,.0f}/yr{fte_str}", ln=True)
+            ranges = ps.get('ranges', {})
+            fr = ranges.get('fteRange', {})
+            sr = ranges.get('savingsRange', {})
+            pdf.ln(3)
+            pdf.set_font('Helvetica', 'B', 10)
+            pdf.cell(0, 7, f"FTE Range: {fr.get('low',0):.0f} - {fr.get('high',0):.0f}  |  Savings Range: ${sr.get('low',0):,.0f} - ${sr.get('high',0):,.0f}", ln=True)
+            pdf.ln(4)
+
+        # Yearly projections (financial_overview gated)
+        if section_allowed('financial_overview'):
+            pdf.set_font('Helvetica', 'B', 14)
+            pdf.cell(0, 10, 'Yearly Projections', ln=True)
             pdf.set_font('Helvetica', 'B', 9)
-            ph = ['Pool', 'Ceiling', 'Consumed', 'Remaining', 'Utilization']
-            pw = [45, 35, 35, 35, 35]
+            headers = ['Year', 'Annual Saving', 'Cumulative', 'NPV']
+            col_w = [30, 45, 45, 45]
             pdf.set_fill_color(46, 46, 56)
             pdf.set_text_color(255, 255, 255)
-            for i, h in enumerate(ph):
-                pdf.cell(pw[i], 8, h, border=1, fill=True, align='C')
+            for i, h in enumerate(headers):
+                pdf.cell(col_w[i], 8, h, border=1, fill=True, align='C')
             pdf.ln()
             pdf.set_text_color(46, 46, 56)
             pdf.set_font('Helvetica', '', 9)
-            pool_items = pools.items() if isinstance(pools, dict) else enumerate(pools)
-            for key, pool in pool_items:
-                if isinstance(pool, dict):
-                    ceil_val = pool.get('ceiling_fte', pool.get('ceiling', 0))
-                    cons_val = pool.get('consumed_fte', pool.get('consumed', 0))
-                    rem_val = pool.get('remaining_fte', pool.get('remaining', ceil_val - cons_val))
-                    util_pct = pool.get('utilization_pct', round(cons_val / max(ceil_val, 1) * 100, 1))
-                    pdf.cell(pw[0], 7, str(key).replace('_', ' ').title(), border=1)
-                    pdf.cell(pw[1], 7, f"{ceil_val:,.1f}", border=1, align='C')
-                    pdf.cell(pw[2], 7, f"{cons_val:,.1f}", border=1, align='C')
-                    pdf.cell(pw[3], 7, f"{rem_val:,.1f}", border=1, align='C')
-                    pdf.cell(pw[4], 7, f"{util_pct:.1f}%", border=1, align='C')
-                    pdf.ln()
-        
-        # Footer
-        pdf.ln(10)
+            for y in wf.get('yearly', []):
+                pdf.cell(col_w[0], 7, str(y.get('year', '')), border=1, align='C')
+                pdf.cell(col_w[1], 7, f"${y.get('annualSaving', 0):,.0f}", border=1, align='C')
+                pdf.cell(col_w[2], 7, f"${y.get('cumSaving', 0):,.0f}", border=1, align='C')
+                pdf.cell(col_w[3], 7, f"${y.get('npv', 0):,.0f}", border=1, align='C')
+                pdf.ln()
 
-        # ── Risk Assessment ──
-        pdf.add_page()
-        pdf.set_font('Helvetica', 'B', 18)
-        pdf.set_text_color(46, 46, 56)
-        pdf.cell(0, 12, 'Risk Assessment', ln=True)
-        pdf.set_draw_color(255, 230, 0)
-        pdf.set_line_width(1)
-        pdf.line(10, pdf.get_y(), 80, pdf.get_y())
-        pdf.ln(8)
-        risk_data = STATE.get('risk', {})
-        risk_summary = risk_data.get('summary', {})
-        overall_risk = risk_summary.get('avgRisk', risk_summary.get('overallScore', 0))
-        if overall_risk == 0 and risk_data.get('initiatives'):
-            # Compute from initiatives if summary is empty
-            risk_inits_list = risk_data.get('initiatives', [])
-            if risk_inits_list:
-                overall_risk = sum(r.get('overallRisk', 0) for r in risk_inits_list) / len(risk_inits_list)
-        risk_level = 'Low' if overall_risk < 2 else ('Medium' if overall_risk < 3.5 else 'High')
-        pdf.set_font('Helvetica', 'B', 12)
-        pdf.cell(0, 8, f'Overall Risk Score: {overall_risk:.1f}/5 ({risk_level})', ln=True)
-        pdf.ln(4)
-        risk_dims = risk_data.get('dimensions', {})
-        if risk_dims:
+        # Layer Breakdown
+        if section_allowed('financial_overview'):
+            pdf.ln(8)
+            pdf.set_font('Helvetica', 'B', 14)
+            pdf.cell(0, 10, 'Impact by Layer', ln=True)
             pdf.set_font('Helvetica', 'B', 9)
-            rh = ['Dimension', 'Score', 'Level', 'Mitigation']
-            rw = [45, 25, 25, 95]
+            lh = ['Layer', 'Annual Saving']
+            lw = [100, 80]
             pdf.set_fill_color(46, 46, 56)
             pdf.set_text_color(255, 255, 255)
-            for i, h in enumerate(rh):
-                pdf.cell(rw[i], 8, h, border=1, fill=True, align='C')
+            for i, h in enumerate(lh):
+                pdf.cell(lw[i], 8, h, border=1, fill=True, align='C')
+            pdf.ln()
+            pdf.set_text_color(46, 46, 56)
+            pdf.set_font('Helvetica', '', 9)
+            for layer, fte in wf.get('layerFTE', {}).items():
+                saving = wf.get('layerSaving', {}).get(layer, 0)
+                pdf.cell(lw[0], 7, layer, border=1)
+                pdf.cell(lw[1], 7, f"${saving:,.0f}", border=1, align='C')
+                pdf.ln()
+
+        # ── Top Initiatives ──
+        if section_allowed('initiatives'):
+            pdf.add_page()
+            pdf.set_font('Helvetica', 'B', 14)
+            pdf.cell(0, 10, 'Top Initiatives by Impact', ln=True)
+            enabled = [i for i in STATE['initiatives'] if i.get('enabled') and i.get('_annualSaving', 0) > 0]
+            enabled.sort(key=lambda x: x.get('_annualSaving', 0), reverse=True)
+            pdf.set_font('Helvetica', 'B', 8)
+            ih = ['#', 'Initiative', 'Layer', 'Lever', 'Annual Saving']
+            iw = [8, 65, 35, 40, 40]
+            pdf.set_fill_color(46, 46, 56)
+            pdf.set_text_color(255, 255, 255)
+            for i, h in enumerate(ih):
+                pdf.cell(iw[i], 7, h, border=1, fill=True, align='C')
             pdf.ln()
             pdf.set_text_color(46, 46, 56)
             pdf.set_font('Helvetica', '', 8)
-            for dim_name, dim_data in risk_dims.items():
-                if isinstance(dim_data, dict):
-                    s = dim_data.get('score', 0)
-                    lvl = 'Low' if s < 2 else ('Medium' if s < 3.5 else 'High')
-                    mit = dim_data.get('mitigation', dim_data.get('recommendation', ''))[:60]
-                    pdf.cell(rw[0], 7, str(dim_name).replace('_', ' ').title(), border=1)
-                    pdf.cell(rw[1], 7, f'{s:.1f}', border=1, align='C')
-                    pdf.cell(rw[2], 7, lvl, border=1, align='C')
-                    pdf.cell(rw[3], 7, mit, border=1)
-                    pdf.ln()
+            for idx, init in enumerate(enabled[:20], 1):
+                pdf.cell(iw[0], 6, str(idx), border=1, align='C')
+                name = init['name'][:32] + '..' if len(init['name']) > 34 else init['name']
+                pdf.cell(iw[1], 6, name, border=1)
+                pdf.cell(iw[2], 6, init.get('layer', '')[:18], border=1, align='C')
+                pdf.cell(iw[3], 6, init.get('lever', '').replace('_', ' ')[:20], border=1, align='C')
+                pdf.cell(iw[4], 6, f"${init.get('_annualSaving', 0):,.0f}", border=1, align='C')
+                pdf.ln()
+
+        # ── Pool Utilization ──
+        if section_allowed('pools'):
+            pdf.ln(8)
+            pdf.set_font('Helvetica', 'B', 14)
+            pdf.cell(0, 10, 'Opportunity Pool Utilization', ln=True)
+            pools = wf.get('poolUtilization', wf.get('poolSummary', {}))
+            if pools:
+                pdf.set_font('Helvetica', 'B', 9)
+                ph = ['Pool', 'Ceiling', 'Consumed', 'Remaining', 'Utilization']
+                pw = [45, 35, 35, 35, 35]
+                pdf.set_fill_color(46, 46, 56)
+                pdf.set_text_color(255, 255, 255)
+                for i, h in enumerate(ph):
+                    pdf.cell(pw[i], 8, h, border=1, fill=True, align='C')
+                pdf.ln()
+                pdf.set_text_color(46, 46, 56)
+                pdf.set_font('Helvetica', '', 9)
+                pool_items = pools.items() if isinstance(pools, dict) else enumerate(pools)
+                for key, pool in pool_items:
+                    if isinstance(pool, dict):
+                        ceil_val = pool.get('ceiling_fte', pool.get('ceiling', 0))
+                        cons_val = pool.get('consumed_fte', pool.get('consumed', 0))
+                        rem_val = pool.get('remaining_fte', pool.get('remaining', ceil_val - cons_val))
+                        util_pct = pool.get('utilization_pct', round(cons_val / max(ceil_val, 1) * 100, 1))
+                        pdf.cell(pw[0], 7, str(key).replace('_', ' ').title(), border=1)
+                        pdf.cell(pw[1], 7, f"{ceil_val:,.1f}", border=1, align='C')
+                        pdf.cell(pw[2], 7, f"{cons_val:,.1f}", border=1, align='C')
+                        pdf.cell(pw[3], 7, f"{rem_val:,.1f}", border=1, align='C')
+                        pdf.cell(pw[4], 7, f"{util_pct:.1f}%", border=1, align='C')
+                        pdf.ln()
+
+        # ── Risk Assessment ──
+        if section_allowed('risk'):
+            pdf.add_page()
+            pdf.set_font('Helvetica', 'B', 18)
+            pdf.set_text_color(46, 46, 56)
+            pdf.cell(0, 12, 'Risk Assessment', ln=True)
+            pdf.set_draw_color(255, 230, 0)
+            pdf.set_line_width(1)
+            pdf.line(10, pdf.get_y(), 80, pdf.get_y())
+            pdf.ln(8)
+            risk_data = STATE.get('risk', {})
+            risk_summary = risk_data.get('summary', {})
+            overall_risk = risk_summary.get('avgRisk', risk_summary.get('overallScore', 0))
+            if overall_risk == 0 and risk_data.get('initiatives'):
+                risk_inits_list = risk_data.get('initiatives', [])
+                if risk_inits_list:
+                    overall_risk = sum(r.get('overallRisk', 0) for r in risk_inits_list) / len(risk_inits_list)
+            risk_level = 'Low' if overall_risk < 2 else ('Medium' if overall_risk < 3.5 else 'High')
+            pdf.set_font('Helvetica', 'B', 12)
+            pdf.cell(0, 8, f'Overall Risk Score: {overall_risk:.1f}/5 ({risk_level})', ln=True)
+            pdf.ln(4)
+            risk_dims = risk_data.get('dimensions', {})
+            if risk_dims:
+                pdf.set_font('Helvetica', 'B', 9)
+                rh = ['Dimension', 'Score', 'Level', 'Mitigation']
+                rw = [45, 25, 25, 95]
+                pdf.set_fill_color(46, 46, 56)
+                pdf.set_text_color(255, 255, 255)
+                for i, h in enumerate(rh):
+                    pdf.cell(rw[i], 8, h, border=1, fill=True, align='C')
+                pdf.ln()
+                pdf.set_text_color(46, 46, 56)
+                pdf.set_font('Helvetica', '', 8)
+                for dim_name, dim_data in risk_dims.items():
+                    if isinstance(dim_data, dict):
+                        s = dim_data.get('score', 0)
+                        lvl = 'Low' if s < 2 else ('Medium' if s < 3.5 else 'High')
+                        mit = dim_data.get('mitigation', dim_data.get('recommendation', ''))[:60]
+                        pdf.cell(rw[0], 7, str(dim_name).replace('_', ' ').title(), border=1)
+                        pdf.cell(rw[1], 7, f'{s:.1f}', border=1, align='C')
+                        pdf.cell(rw[2], 7, lvl, border=1, align='C')
+                        pdf.cell(rw[3], 7, mit, border=1)
+                        pdf.ln()
 
         # ── Maturity Assessment ──
-        pdf.ln(10)
-        pdf.set_font('Helvetica', 'B', 18)
-        pdf.cell(0, 12, 'Maturity Assessment', ln=True)
-        pdf.set_draw_color(255, 230, 0)
-        pdf.line(10, pdf.get_y(), 80, pdf.get_y())
-        pdf.ln(8)
-        mat = STATE.get('maturity', {})
-        mat_overall = mat.get('overall', 0)
-        mat_level = mat.get('overallLevel', 0)
-        level_info = mat.get('levelInfo', {})
-        pdf.set_font('Helvetica', 'B', 12)
-        pdf.cell(0, 8, f'Overall Maturity: {mat_overall:.1f}/5 (Level {mat_level}: {level_info.get("name", "")})', ln=True)
-        pdf.ln(4)
-        mat_dims = mat.get('dimensions', {})
-        if mat_dims:
-            pdf.set_font('Helvetica', 'B', 9)
-            mh = ['Dimension', 'Score', 'Level', 'Weight']
-            mw = [55, 25, 25, 25]
-            pdf.set_fill_color(46, 46, 56)
-            pdf.set_text_color(255, 255, 255)
-            for i, h in enumerate(mh):
-                pdf.cell(mw[i], 8, h, border=1, fill=True, align='C')
-            pdf.ln()
-            pdf.set_text_color(46, 46, 56)
-            pdf.set_font('Helvetica', '', 9)
-            for dim, dd in mat_dims.items():
-                if isinstance(dd, dict):
-                    pdf.cell(mw[0], 7, str(dim).replace('_', ' ').title(), border=1)
-                    pdf.cell(mw[1], 7, f'{dd.get("score", 0):.1f}', border=1, align='C')
-                    pdf.cell(mw[2], 7, str(dd.get('level', '')), border=1, align='C')
-                    pdf.cell(mw[3], 7, f'{dd.get("weight", 0.2):.0%}', border=1, align='C')
-                    pdf.ln()
+        if section_allowed('maturity'):
+            pdf.ln(10)
+            pdf.set_font('Helvetica', 'B', 18)
+            pdf.cell(0, 12, 'Maturity Assessment', ln=True)
+            pdf.set_draw_color(255, 230, 0)
+            pdf.line(10, pdf.get_y(), 80, pdf.get_y())
+            pdf.ln(8)
+            mat = STATE.get('maturity', {})
+            mat_overall = mat.get('overall', 0)
+            mat_level = mat.get('overallLevel', 0)
+            level_info = mat.get('levelInfo', {})
+            pdf.set_font('Helvetica', 'B', 12)
+            pdf.cell(0, 8, f'Overall Maturity: {mat_overall:.1f}/5 (Level {mat_level}: {level_info.get("name", "")})', ln=True)
+            pdf.ln(4)
+            mat_dims = mat.get('dimensions', {})
+            if mat_dims:
+                pdf.set_font('Helvetica', 'B', 9)
+                mh = ['Dimension', 'Score', 'Level', 'Weight']
+                mw = [55, 25, 25, 25]
+                pdf.set_fill_color(46, 46, 56)
+                pdf.set_text_color(255, 255, 255)
+                for i, h in enumerate(mh):
+                    pdf.cell(mw[i], 8, h, border=1, fill=True, align='C')
+                pdf.ln()
+                pdf.set_text_color(46, 46, 56)
+                pdf.set_font('Helvetica', '', 9)
+                for dim, dd in mat_dims.items():
+                    if isinstance(dd, dict):
+                        pdf.cell(mw[0], 7, str(dim).replace('_', ' ').title(), border=1)
+                        pdf.cell(mw[1], 7, f'{dd.get("score", 0):.1f}', border=1, align='C')
+                        pdf.cell(mw[2], 7, str(dd.get('level', '')), border=1, align='C')
+                        pdf.cell(mw[3], 7, f'{dd.get("weight", 0.2):.0%}', border=1, align='C')
+                        pdf.ln()
 
         # ── Channel Mix Summary ──
-        pdf.add_page()
-        pdf.set_font('Helvetica', 'B', 18)
-        pdf.cell(0, 12, 'Channel Strategy', ln=True)
-        pdf.set_draw_color(255, 230, 0)
-        pdf.line(10, pdf.get_y(), 80, pdf.get_y())
-        pdf.ln(8)
-        cs = STATE.get('channelStrategy', {})
-        channel_mix = _build_channel_mix(data.get('queues', []))
-        if channel_mix:
-            pdf.set_font('Helvetica', 'B', 9)
-            ch_headers = ['Channel', 'Volume', 'Share %', 'Avg CSAT', 'Avg AHT', 'Avg CPC']
-            ch_widths = [35, 30, 25, 25, 30, 30]
-            pdf.set_fill_color(46, 46, 56)
-            pdf.set_text_color(255, 255, 255)
-            for i, h in enumerate(ch_headers):
-                pdf.cell(ch_widths[i], 8, h, border=1, fill=True, align='C')
-            pdf.ln()
-            pdf.set_text_color(46, 46, 56)
-            pdf.set_font('Helvetica', '', 9)
-            for ch in channel_mix:
-                pdf.cell(ch_widths[0], 7, ch.get('channel', ''), border=1)
-                pdf.cell(ch_widths[1], 7, f"{ch.get('volume', 0):,}", border=1, align='C')
-                pdf.cell(ch_widths[2], 7, f"{ch.get('pct', 0):.1f}%", border=1, align='C')
-                pdf.cell(ch_widths[3], 7, f"{ch.get('avgCSAT', 0):.2f}", border=1, align='C')
-                pdf.cell(ch_widths[4], 7, f"{ch.get('avgAHT_min', ch.get('avgAHT', 0)):.0f}s", border=1, align='C')
-                pdf.cell(ch_widths[5], 7, f"${ch.get('avgCPC', 0):.2f}", border=1, align='C')
+        if section_allowed('channel_detail'):
+            pdf.add_page()
+            pdf.set_font('Helvetica', 'B', 18)
+            pdf.cell(0, 12, 'Channel Strategy', ln=True)
+            pdf.set_draw_color(255, 230, 0)
+            pdf.line(10, pdf.get_y(), 80, pdf.get_y())
+            pdf.ln(8)
+            channel_mix = _build_channel_mix(data.get('queues', []))
+            if channel_mix:
+                pdf.set_font('Helvetica', 'B', 9)
+                ch_headers = ['Channel', 'Volume', 'Share %', 'Avg CSAT', 'Avg AHT', 'Avg CPC']
+                ch_widths = [35, 30, 25, 25, 30, 30]
+                pdf.set_fill_color(46, 46, 56)
+                pdf.set_text_color(255, 255, 255)
+                for i, h in enumerate(ch_headers):
+                    pdf.cell(ch_widths[i], 8, h, border=1, fill=True, align='C')
                 pdf.ln()
+                pdf.set_text_color(46, 46, 56)
+                pdf.set_font('Helvetica', '', 9)
+                for ch in channel_mix:
+                    pdf.cell(ch_widths[0], 7, ch.get('channel', ''), border=1)
+                    pdf.cell(ch_widths[1], 7, f"{ch.get('volume', 0):,}", border=1, align='C')
+                    pdf.cell(ch_widths[2], 7, f"{ch.get('pct', 0):.1f}%", border=1, align='C')
+                    pdf.cell(ch_widths[3], 7, f"{ch.get('avgCSAT', 0):.2f}", border=1, align='C')
+                    pdf.cell(ch_widths[4], 7, f"{ch.get('avgAHT_min', ch.get('avgAHT', 0)):.0f}s", border=1, align='C')
+                    pdf.cell(ch_widths[5], 7, f"${ch.get('avgCPC', 0):.2f}", border=1, align='C')
+                    pdf.ln()
 
         # ── Diagnostic Highlights ──
-        pdf.ln(10)
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.cell(0, 10, 'Diagnostic Highlights', ln=True)
-        pdf.set_font('Helvetica', '', 9)
-        diag_text_items = [
-            f"Total monthly volume: {data.get('totalVolume', 0):,} contacts across {len(data.get('queues', []))} queues",
-            f"Business units: {', '.join(data.get('bus', []))}",
-            f"Active channels: {', '.join(data.get('channels', []))}",
-            f"Enabled initiatives: {sum(1 for i in STATE['initiatives'] if i.get('enabled'))} of {len(STATE['initiatives'])}",
-        ]
-        for item in diag_text_items:
-            pdf.cell(0, 6, item, ln=True)
-
-        # ── A-11 fix: Channel Migration Summary ──
-        migrations = STATE.get('channelStrategy', {}).get('migrations', [])
-        if migrations:
+        if section_allowed('diagnostic_detail'):
             pdf.ln(10)
             pdf.set_font('Helvetica', 'B', 14)
-            pdf.set_text_color(46, 46, 56)
-            pdf.cell(0, 10, 'Channel Migration Summary', ln=True)
-            pdf.set_font('Helvetica', 'B', 9)
-            mig_widths = [50, 50, 30, 50]
-            for h, w in zip(['From', 'To', 'Volume', 'Intent'], mig_widths):
-                pdf.cell(w, 7, h, border=1, align='C')
-            pdf.ln()
+            pdf.cell(0, 10, 'Diagnostic Highlights', ln=True)
             pdf.set_font('Helvetica', '', 9)
-            for m in migrations[:15]:
-                pdf.cell(mig_widths[0], 7, str(m.get('from', '')), border=1)
-                pdf.cell(mig_widths[1], 7, str(m.get('to', '')), border=1)
-                pdf.cell(mig_widths[2], 7, f"{m.get('volume', 0):,}", border=1, align='C')
-                pdf.cell(mig_widths[3], 7, str(m.get('intent', ''))[:20], border=1)
+            diag_text_items = [
+                f"Total monthly volume: {data.get('totalVolume', 0):,} contacts across {len(data.get('queues', []))} queues",
+                f"Business units: {', '.join(data.get('bus', []))}",
+                f"Active channels: {', '.join(data.get('channels', []))}",
+                f"Enabled initiatives: {sum(1 for i in STATE['initiatives'] if i.get('enabled'))} of {len(STATE['initiatives'])}",
+            ]
+            for item in diag_text_items:
+                pdf.cell(0, 6, item, ln=True)
+
+        # ── Channel Migration Summary ──
+        if section_allowed('channel_migration'):
+            migrations = STATE.get('channelStrategy', {}).get('migrations', [])
+            if migrations:
+                pdf.ln(10)
+                pdf.set_font('Helvetica', 'B', 14)
+                pdf.set_text_color(46, 46, 56)
+                pdf.cell(0, 10, 'Channel Migration Summary', ln=True)
+                pdf.set_font('Helvetica', 'B', 9)
+                mig_widths = [50, 50, 30, 50]
+                for h, w in zip(['From', 'To', 'Volume', 'Intent'], mig_widths):
+                    pdf.cell(w, 7, h, border=1, align='C')
                 pdf.ln()
+                pdf.set_font('Helvetica', '', 9)
+                for m in migrations[:15]:
+                    pdf.cell(mig_widths[0], 7, str(m.get('from', '')), border=1)
+                    pdf.cell(mig_widths[1], 7, str(m.get('to', '')), border=1)
+                    pdf.cell(mig_widths[2], 7, f"{m.get('volume', 0):,}", border=1, align='C')
+                    pdf.cell(mig_widths[3], 7, str(m.get('intent', ''))[:20], border=1)
+                    pdf.ln()
 
-        # ── A-11 fix: Operating Model Target ──
-        om = STATE['overrides'].get('operating_model', {})
-        if om:
-            pdf.ln(10)
-            pdf.set_font('Helvetica', 'B', 14)
-            pdf.set_text_color(46, 46, 56)
-            pdf.cell(0, 10, 'Target Operating Model', ln=True)
-            pdf.set_font('Helvetica', '', 9)
-            pdf.cell(0, 6, f"Onshore: {om.get('onshore', '?')}%  |  Nearshore: {om.get('nearshore', '?')}%  |  Offshore: {om.get('offshore', '?')}%", ln=True)
-            tiers = om.get('tiers', [])
-            for t in tiers:
-                pdf.cell(0, 6, f"  {t.get('name', '?')} — {t.get('pct', '?')}% volume share", ln=True)
+        # ── Operating Model Target ──
+        if section_allowed('operating_model'):
+            om = STATE['overrides'].get('operating_model', {})
+            if om:
+                pdf.ln(10)
+                pdf.set_font('Helvetica', 'B', 14)
+                pdf.set_text_color(46, 46, 56)
+                pdf.cell(0, 10, 'Target Operating Model', ln=True)
+                pdf.set_font('Helvetica', '', 9)
+                pdf.cell(0, 6, f"Onshore: {om.get('onshore', '?')}%  |  Nearshore: {om.get('nearshore', '?')}%  |  Offshore: {om.get('offshore', '?')}%", ln=True)
+                tiers = om.get('tiers', [])
+                for t in tiers:
+                    pdf.cell(0, 6, f"  {t.get('name', '?')} — {t.get('pct', '?')}% volume share", ln=True)
 
         # ── Disclaimer ──
         pdf.ln(6)
         pdf.set_font('Helvetica', 'I', 8)
         pdf.set_text_color(128, 128, 128)
-        pdf.cell(0, 6, 'This report was generated by ContactIQ — Intelligent Contact Center Optimization Platform. Cap methodology: ContactIQ industry benchmarks.', ln=True, align='C')
-        pdf.cell(0, 6, 'Secondary lever impacts weighted at 50%. Pool-based netting prevents double-counting.', ln=True, align='C')
+        pdf.cell(0, 6, 'Generated by ContactIQ — EY Contact Centre Opportunity Assessment', ln=True, align='C')
+        pdf.cell(0, 6, f'Report scope: {role_label} | {mode.capitalize()} mode', ln=True, align='C')
         
         fd, export_path = tempfile.mkstemp(suffix='.pdf')
         os.close(fd)
         pdf.output(export_path)
-        return send_file(export_path, as_attachment=True, download_name='ContactIQ_Report.pdf')
+        return send_file(export_path, as_attachment=True, download_name=f"ContactIQ_{params.get('clientName', 'Client')}_Assessment.pdf")
     except ImportError as e:
         return jsonify({'error': f'PDF export dependency missing: {e}. Install with: pip install fpdf2'}), 500
     except Exception as e:
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 # ══════════════════════════════════════════════════════════════

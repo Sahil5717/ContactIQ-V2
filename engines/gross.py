@@ -245,31 +245,49 @@ def _gross_repeat(init, queues, affected_fte, cost, net_hours, impact, adoption,
     """
     Repeat reduction: repeat contacts eliminated × AHT → FTE
     
-    V6 fix: Raw CCaaS exports often cover 1-3 months, making repeat detection
-    unreliable (customer rarely contacts twice in one month). If weighted avg
-    repeat rate < 2%, fall back to industry default (1 - avgFCR) as proxy.
+    CR-FIX-REPEAT: Confidence-blended repeat rate instead of binary fallback.
+    Uses queue-level confidence to blend observed and FCR-derived rates.
     """
-    # V6: Check if repeat data is implausibly low (data artifact from short sample)
+    from engines.constants import REPEAT_FLOOR
     total_vol = sum(q['volume'] for q in queues)
-    if total_vol > 0:
-        weighted_repeat = sum(q.get('repeat', 0) * q['volume'] for q in queues) / total_vol
-    else:
-        weighted_repeat = 0
     
-    REPEAT_FLOOR = 0.02  # Below this, data is unreliable
-    use_fallback = weighted_repeat < REPEAT_FLOOR
-    
-    if use_fallback:
-        # Derive from FCR: repeat ≈ (1 - FCR) × 0.6 — not all non-FCR contacts are repeats
-        weighted_fcr = sum(q.get('fcr', 0.75) * q['volume'] for q in queues) / max(total_vol, 1)
-        fallback_repeat = max(0.05, (1 - weighted_fcr) * 0.60)
+    # Compute FCR-derived fallback rate
+    weighted_fcr = sum(q.get('fcr', 0.75) * q['volume'] for q in queues) / max(total_vol, 1)
+    fallback_repeat = max(0.05, (1 - weighted_fcr) * 0.60)
     
     total_eliminated = 0
+    repeat_basis_used = 'observed'
+    
     for q in queues:
-        repeat_rate = fallback_repeat if use_fallback else q.get('repeat', 0)
-        eliminable = q['volume'] * repeat_rate * impact * adoption
-        # Cap at 70% of actual repeats
-        eliminable = min(eliminable, q['volume'] * repeat_rate * 0.70)
+        observed_repeat = q.get('repeat', 0)
+        source = q.get('_repeat_source', 'ccaas')
+        
+        # Determine confidence for this queue's repeat rate
+        if source == 'crm' and observed_repeat >= REPEAT_FLOOR:
+            confidence = 1.0  # CRM-backed, above floor
+        elif observed_repeat >= REPEAT_FLOOR:
+            confidence = 0.6  # CCaaS-derived, above floor but less trusted
+        elif observed_repeat > 0:
+            confidence = 0.3  # Some signal but below reliability floor
+        else:
+            confidence = 0.0  # No signal
+
+        # Blend based on confidence
+        if confidence >= 0.8:
+            effective_repeat = observed_repeat
+        elif confidence >= 0.4:
+            effective_repeat = confidence * observed_repeat + (1 - confidence) * fallback_repeat
+            repeat_basis_used = 'blended'
+        else:
+            effective_repeat = fallback_repeat
+            repeat_basis_used = 'fcr_derived'
+        
+        # Store confidence on queue for evidence cards
+        q['_repeatConfidence'] = round(confidence, 2)
+        q['_repeatBasis'] = 'crm' if confidence >= 0.8 else ('blended' if confidence >= 0.4 else 'fcr_derived')
+        
+        eliminable = q['volume'] * effective_repeat * impact * adoption
+        eliminable = min(eliminable, q['volume'] * effective_repeat * 0.70)
         total_eliminated += eliminable
     
     avg_aht_sec = sum(q['aht'] * 60 * q['volume'] for q in queues) / max(sum(q['volume'] for q in queues), 1)
@@ -282,9 +300,10 @@ def _gross_repeat(init, queues, affected_fte, cost, net_hours, impact, adoption,
         'gross_seconds': 0,
         'gross_saving': round(gross_fte * cost),
         'mechanism': f"Repeat: {total_eliminated:,.0f} contacts eliminated → {hours_saved:,.0f}hrs → {gross_fte:.1f} FTE"
-                     + (f" (using FCR-derived {fallback_repeat:.0%} rate — raw data too sparse)" if use_fallback else ""),
+                     + (f" (basis: {repeat_basis_used})" if repeat_basis_used != 'observed' else ""),
         'mechanism_detail': [],
         'eligible_volume': sum(q['volume'] for q in queues),
+        '_repeatBasis': repeat_basis_used,
     }
 
 

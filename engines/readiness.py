@@ -188,10 +188,14 @@ def compute_readiness(data, diagnostic, maturity=None):
     benchmark_cost = benchmarks.get('costPerFTE', 50000)
     location_score = avg_cost_per_fte / max(benchmark_cost, 1)
 
-    # Benchmark values (all in seconds)
-    benchmark_aht = benchmarks.get('aht', 340)   # 340 seconds = ~5.7 min
-    benchmark_acw = benchmarks.get('acw', 85)     # 85 seconds
-    benchmark_escalation = benchmarks.get('escalation', 0.10)
+    # CR-FIX-BENCH: Use resolve_benchmark for consistent benchmark access
+    from engines.data_loader import resolve_benchmark
+    _bm_aht, _, _ = resolve_benchmark(benchmarks, 'AHT')
+    _bm_acw_raw, _, _ = resolve_benchmark(benchmarks, 'ACW')
+    _bm_esc, _, _ = resolve_benchmark(benchmarks, 'Escalation')
+    benchmark_aht = (_bm_aht or 5.7) * 60   # benchmark is in minutes, convert to seconds
+    benchmark_acw = (_bm_acw_raw or 1.4) * 60 if _bm_acw_raw else 85  # fallback 85 sec
+    benchmark_escalation = _bm_esc or 0.10
     csat_target = params.get('csatTarget', 4.2)
     fcr_target = params.get('fcrTarget', 0.82)
 
