@@ -140,13 +140,22 @@ def init_db():
             )
 
         # Create default accounts if no users exist
-        # Role mapping: admin=GDS, supervisor=EY US, analyst=Client
+        # Role mapping: admin=GDS, supervisor=EY US, analyst=Analyst, client=Client
         count = db.execute("SELECT COUNT(*) as c FROM users").fetchone()['c']
         if count == 0:
             create_user(db, 'admin', 'admin123', 'admin', 'EY GDS Admin')
             create_user(db, 'supervisor', 'super123', 'supervisor', 'EY US Consultant')
             create_user(db, 'analyst', 'analyst123', 'analyst', 'Project Analyst')
             create_user(db, 'client', 'client123', 'client', 'Client Viewer')
+        else:
+            # V8 migration: ensure analyst and client users exist in older databases
+            for uname, pwd, role, display in [
+                ('analyst', 'analyst123', 'analyst', 'Project Analyst'),
+                ('client', 'client123', 'client', 'Client Viewer'),
+            ]:
+                existing = db.execute("SELECT id FROM users WHERE username = ?", (uname,)).fetchone()
+                if not existing:
+                    create_user(db, uname, pwd, role, display)
             # F-17 fix: Do NOT log credentials to stdout — visible in Railway deployment logs
 
 

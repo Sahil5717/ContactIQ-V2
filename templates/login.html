@@ -209,16 +209,20 @@
       <label style="display:block;font-size:12px;font-weight:600;color:#2E2E38;margin-bottom:6px;">I am signing in as</label>
       <div id="roleSelector" style="display:flex;gap:8px;">
         <button type="button" class="role-sel-btn" data-role="gds" onclick="selectLoginRole(this)"
-          style="flex:1;padding:10px 8px;border:1.5px solid #E0E0E6;border-radius:8px;background:#F6F6FA;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:#747480;transition:all 0.2s;text-align:center;">
-          <div style="font-size:16px;margin-bottom:2px;">🔧</div>EY GDS
+          style="flex:1;padding:10px 8px;border:1.5px solid #E0E0E6;border-radius:8px;background:#F6F6FA;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;color:#747480;transition:all 0.2s;text-align:center;">
+          <div style="font-size:14px;margin-bottom:2px;">🔧</div>Admin
         </button>
         <button type="button" class="role-sel-btn active" data-role="eyus" onclick="selectLoginRole(this)"
-          style="flex:1;padding:10px 8px;border:1.5px solid #1A73E8;border-radius:8px;background:#EBF3FF;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:#1A73E8;transition:all 0.2s;text-align:center;">
-          <div style="font-size:16px;margin-bottom:2px;">📊</div>EY US
+          style="flex:1;padding:10px 8px;border:1.5px solid #1A73E8;border-radius:8px;background:#EBF3FF;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;color:#1A73E8;transition:all 0.2s;text-align:center;">
+          <div style="font-size:14px;margin-bottom:2px;">📊</div>Consultant
+        </button>
+        <button type="button" class="role-sel-btn" data-role="analyst" onclick="selectLoginRole(this)"
+          style="flex:1;padding:10px 8px;border:1.5px solid #E0E0E6;border-radius:8px;background:#F6F6FA;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;color:#747480;transition:all 0.2s;text-align:center;">
+          <div style="font-size:14px;margin-bottom:2px;">🔍</div>Analyst
         </button>
         <button type="button" class="role-sel-btn" data-role="client" onclick="selectLoginRole(this)"
-          style="flex:1;padding:10px 8px;border:1.5px solid #E0E0E6;border-radius:8px;background:#F6F6FA;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:#747480;transition:all 0.2s;text-align:center;">
-          <div style="font-size:16px;margin-bottom:2px;">🏢</div>Client
+          style="flex:1;padding:10px 8px;border:1.5px solid #E0E0E6;border-radius:8px;background:#F6F6FA;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;color:#747480;transition:all 0.2s;text-align:center;">
+          <div style="font-size:14px;margin-bottom:2px;">🏢</div>Client
         </button>
       </div>
     </div>
@@ -239,8 +243,9 @@
     <div class="demo-hint">
       <strong>Demo Access</strong><br>
       <strong>admin / admin123</strong> — EY GDS (full admin)<br>
-      <strong>supervisor / super123</strong> — EY US (consultant view)<br>
-      <strong>analyst / analyst123</strong> — Client (opportunity view)
+      <strong>supervisor / super123</strong> — EY US (consultant)<br>
+      <strong>analyst / analyst123</strong> — Project Analyst<br>
+      <strong>client / client123</strong> — Client Viewer (read-only)
     </div>
 
     <div class="login-footer">

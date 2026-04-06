@@ -64,10 +64,10 @@ def get_current_user():
     return getattr(g, 'user', None)
 
 
-ROLE_HIERARCHY = {'admin': 3, 'supervisor': 2, 'analyst': 1}
+ROLE_HIERARCHY = {'admin': 3, 'supervisor': 2, 'analyst': 1, 'client': 0}
 
 def require_role(min_role):
-    """Decorator to require a minimum role level. admin > supervisor > analyst."""
+    """Decorator to require a minimum role level. admin > supervisor > analyst > client."""
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):

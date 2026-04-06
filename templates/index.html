@@ -983,6 +983,7 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
     <button class="btn btn-outline btn-sm" onclick="handleExport()">⤓ Export Excel</button>
     <button class="btn btn-outline btn-sm" onclick="showAuditTrail()" title="View override change history">📋 Audit Trail</button>
     <span id="topbarIndustry" style="font-size:12px; color:var(--ey-text-light);">Loading...</span>
+    <span id="topbarVersion" style="font-size:10px;color:var(--ey-text-light);opacity:0.5;margin-left:8px;"></span>
   </div>
 </header>
 
@@ -2436,6 +2437,48 @@ function renderPage1_GDS() {
         return '<span style="font-size:10px;padding:3px 8px;border-radius:12px;background:'+(colors[v.confidence]||'#F5F5F5;color:#666')+';font-weight:600;" title="'+v.note+'">'+
           (icons[v.confidence]||'?')+' '+k.toUpperCase()+'</span>';
       }).join('')}
+    </div>` : ''}
+    <!-- CR-FIX: Calculation basis display -->
+    ${DEMO.calculationBasis ? `
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+      ${Object.entries(DEMO.calculationBasis || {}).map(([k,v]) => {
+        const isActual = v.selected.includes('actual') || v.selected === 'source' || v.selected === 'role_cost';
+        return '<span style="font-size:9px;padding:2px 6px;border-radius:8px;background:'+(isActual?'#E8F5E9':'#FFF3E0')+';color:'+(isActual?'#2E7D32':'#E65100')+';font-weight:600;">'+k+': '+v.selected+'</span>';
+      }).join('')}
+    </div>` : ''}
+    <!-- CR-FIX: Validation issues warning -->
+    ${(DEMO.validationIssues && DEMO.validationIssues.length > 0) ? `
+    <div style="background:#FFEBEE;border:1px solid #EF9A9A;border-radius:8px;padding:8px 14px;margin-bottom:8px;font-size:11px;color:#C62828;">
+      ⚠️ <strong>${DEMO.validationIssues.length} data quality issues detected</strong> — 
+      ${DEMO.validationIssues.slice(0,3).map(i => i.queue+': '+i.field+'='+i.value).join('; ')}${DEMO.validationIssues.length > 3 ? '...' : ''}
+    </div>` : ''}
+    <!-- CR-FIX: Insights summary -->
+    ${(DEMO.insights && DEMO.insights.totalPatterns > 0) ? `
+    <div style="background:#E3F2FD;border:1px solid #90CAF9;border-radius:8px;padding:10px 14px;margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:700;color:#1565C0;margin-bottom:4px;">🔍 ${DEMO.insights.totalPatterns} Diagnostic Insight${DEMO.insights.totalPatterns > 1 ? 's' : ''} Detected</div>
+      ${(DEMO.insights.insights || []).slice(0,3).map(ins =>
+        '<div style="font-size:11px;margin-top:4px;display:flex;gap:6px;align-items:flex-start;">' +
+          '<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:'+(ins.confidence==='high'?'#4CAF50':ins.confidence==='medium'?'#FF9800':'#9E9E9E')+';color:white;font-weight:600;">'+ins.confidence+'</span>' +
+          '<span>'+ins.headline+'</span></div>'
+      ).join('')}
+    </div>` : ''}
+    <!-- CR-FIX: Scenario comparison summary -->
+    ${(DEMO.scenarioComparison && DEMO.scenarioComparison.length > 0) ? `
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(DEMO.scenarioComparison.length,4)},1fr);gap:8px;margin-bottom:12px;">
+      ${DEMO.scenarioComparison.map(sc =>
+        '<div style="padding:8px 12px;border-radius:8px;background:var(--ey-light-gray);border:1px solid var(--ey-mid-gray);text-align:center;">' +
+          '<div style="font-size:10px;font-weight:700;color:var(--ey-text-light);text-transform:uppercase;letter-spacing:0.5px;">'+sc.name+'</div>' +
+          '<div style="font-size:16px;font-weight:800;color:'+(sc.roi > 0 ? 'var(--ey-green)' : 'var(--ey-red)')+';">'+fmt(sc.saving,'$m')+'</div>' +
+          '<div style="font-size:10px;color:var(--ey-text-light);">'+sc.fte+' FTE · '+sc.roi+'% ROI</div></div>'
+      ).join('')}
+    </div>` : ''}
+    <!-- CR-FIX: Transcript summary -->
+    ${(DEMO.transcriptAnalysis && DEMO.transcriptAnalysis.summary && DEMO.transcriptAnalysis.summary.totalInteractions > 0) ? `
+    <div style="display:flex;gap:12px;margin-bottom:12px;font-size:10px;">
+      <span style="padding:3px 8px;border-radius:8px;background:#F3E5F5;color:#7B1FA2;font-weight:600;">📞 ${DEMO.transcriptAnalysis.voice?.totalInteractions||0} voice analyzed</span>
+      <span style="padding:3px 8px;border-radius:8px;background:#E8F5E9;color:#2E7D32;font-weight:600;">💬 ${DEMO.transcriptAnalysis.chat?.totalConversations||0} chats</span>
+      <span style="padding:3px 8px;border-radius:8px;background:#E3F2FD;color:#1565C0;font-weight:600;">📧 ${DEMO.transcriptAnalysis.email?.totalThreads||0} emails</span>
+      <span style="padding:3px 8px;border-radius:8px;background:${DEMO.transcriptAnalysis.summary.sentimentLabel==='Positive'?'#E8F5E9':'#FFF3E0'};color:${DEMO.transcriptAnalysis.summary.sentimentLabel==='Positive'?'#2E7D32':'#E65100'};font-weight:600;">Sentiment: ${DEMO.transcriptAnalysis.summary.sentimentLabel}</span>
     </div>` : ''}
 
     <!-- CR-001: (2) Financial Overview — MOVED TO TOP -->
@@ -7119,6 +7162,25 @@ function openInitEditor(idx) {
         </div>
         <div style="font-size:9px;color:var(--ey-text-light);margin-top:2px;">Raw csatImpact: +${(init.csatImpact||0).toFixed(2)} pts × ${((init.adoption||0.8)*100).toFixed(0)}% adoption → diminishing returns applied</div>
       </div>` : ''}
+      ${init._savingBand ? `
+      <div style="margin-top:8px;padding:8px;background:rgba(255,152,0,0.06);border-radius:6px;border-left:3px solid var(--ey-amber);">
+        <div style="font-size:10px;font-weight:700;color:var(--ey-amber);margin-bottom:4px;">📊 Confidence Band (±${(init._savingBand.uncertainty*100).toFixed(0)}%)</div>
+        <div style="display:flex;gap:16px;font-size:11px;">
+          <div><strong>Low:</strong> ${fmt(init._savingBand.low,'$k')}/yr</div>
+          <div><strong>Base:</strong> ${fmt(init._savingBand.base,'$k')}/yr</div>
+          <div><strong>High:</strong> ${fmt(init._savingBand.high,'$k')}/yr</div>
+        </div>
+        ${init._fteBand ? '<div style="font-size:9px;color:var(--ey-text-light);margin-top:2px;">FTE: '+init._fteBand.low+'–'+init._fteBand.base+'–'+init._fteBand.high+'</div>' : ''}
+      </div>` : ''}
+      ${(init._interactions && init._interactions.length > 0) ? `
+      <div style="margin-top:8px;padding:8px;background:rgba(244,67,54,0.04);border-radius:6px;border-left:3px solid var(--ey-red);">
+        <div style="font-size:10px;font-weight:700;color:var(--ey-red);margin-bottom:4px;">⚡ ${init._interactions.length} Pool Interaction${init._interactions.length > 1 ? 's' : ''}</div>
+        ${init._interactions.slice(0,3).map(ix =>
+          '<div style="font-size:9px;margin-top:2px;display:flex;gap:4px;">' +
+            '<span style="padding:0 4px;border-radius:3px;background:'+(ix.severity==='high'?'#FFCDD2':'#FFF9C4')+';font-weight:600;">'+ix.severity+'</span> ' +
+            '<span>'+ix.explanation+'</span></div>'
+        ).join('')}
+      </div>` : ''}
       ${init._evidence ? `
       <div style="margin-top:8px;padding:10px;background:rgba(26,115,232,0.06);border-radius:6px;border-left:3px solid var(--ey-blue);">
         <div style="font-size:10px;font-weight:700;color:var(--ey-blue);margin-bottom:6px;">📋 Evidence Card</div>
@@ -11780,6 +11842,9 @@ function markExistingInit(initId, checked) {
    ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
   applyNavAccessMatrix();
+  // CR-FIX: Set version label
+  const verEl = document.getElementById('topbarVersion');
+  if (verEl) verEl.textContent = 'v' + (DEMO?.modelVersion || '8.0');
   renderPage(1);
 });
 {% endraw %}
