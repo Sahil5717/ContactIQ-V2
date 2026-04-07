@@ -28,7 +28,7 @@ def _emotional_risk_from_complexity(complexity, intent_name=''):
     if any(kw in name_lower for kw in ['complaint', 'dispute', 'cancel', 'fraud', 'bereavement',
                                          'hardship', 'escalat', 'threat', 'legal']):
         return 0.85
-    if any(kw in name_lower for kw in ['refund', 'billing', 'overcharge', 'disconnect',
+    if any(kw in name_lower for kw in ['refund', 'overcharge', 'disconnect',
                                          'terminate', 'close account']):
         return 0.60
     # Complexity-based fallback
@@ -44,25 +44,26 @@ def _auth_required_from_complexity(complexity, intent_name=''):
     if any(kw in name_lower for kw in ['faq', 'general', 'product info', 'hours', 'location',
                                          'status check', 'tracking', 'pricing']):
         return 0.10
-    # Known high-auth intents
-    if any(kw in name_lower for kw in ['account change', 'password', 'transaction', 'transfer',
-                                         'payment', 'address change', 'personal detail']):
-        return 0.90
+    # High-auth: actions that change account state or move money
+    if any(kw in name_lower for kw in ['account change', 'password', 'transfer funds',
+                                         'address change', 'personal detail', 'close account']):
+        return 0.85
+    # Moderate-auth: billing/payment — auth needed but digital auth (OTP, app login) is routine
+    if any(kw in name_lower for kw in ['payment', 'billing', 'transaction', 'refund']):
+        return 0.45
     # Complexity-based fallback
     if complexity <= 0.25: return 0.20
-    if complexity <= 0.50: return 0.50
-    return 0.75
+    if complexity <= 0.50: return 0.45
+    return 0.65
 
 def _containment_feasibility(repeatability, emotional_risk, auth_required, complexity):
     """
     Containment feasibility = how likely a virtual agent can fully resolve this intent.
     High repeatability + low emotion + low auth = high containment.
+    Auth is weighted in the base formula — no separate halving penalty.
     """
-    # Weighted formula: repeatability matters most, auth is a hard blocker
+    # Weighted formula: repeatability matters most
     base = (repeatability * 0.40) + ((1 - emotional_risk) * 0.25) + ((1 - auth_required) * 0.25) + ((1 - complexity) * 0.10)
-    # Auth is a hard penalty — if auth_required > 0.8, halve the feasibility
-    if auth_required > 0.80:
-        base *= 0.50
     return round(min(1.0, max(0.0, base)), 3)
 
 
@@ -214,11 +215,9 @@ def enrich_intents(queues, params=None):
         eq['containment_feasibility'] = containment
         
         # Deflection eligibility: % of this intent's volume addressable for deflection
-        # V6 fix: eligible = repeatable AND not auth-blocked. Containment is applied
-        # separately in gross.py as min(impact, containment) to avoid double-counting.
-        eq['deflection_eligible_pct'] = round(
-            repeatability * (1 - auth_required * 0.30), 3
-        )
+        # V9 fix: Auth penalty removed from eligibility — handled solely in containment_feasibility.
+        # Eligible = repeatable contacts (auth is a containment constraint, not an eligibility one).
+        eq['deflection_eligible_pct'] = round(repeatability, 3)
         
         # ── AHT decomposition ──
         aht_decomp = _decompose_aht(aht, acw, complexity)

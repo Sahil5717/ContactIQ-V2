@@ -92,8 +92,8 @@ INITIATIVE_LIBRARY = [
 # 80% common issues resolved by AI by 2029; 30-40% cost reduction achievable)
 # Architecture: 3 cap layers only — Pool Ceiling (data-driven) → Single Init Cap → Per-Role Max
 # Per-lever initiative caps REMOVED — redundant with pool netting, was double-counting conservatism
-ABSOLUTE_SINGLE_INIT_CAP = 0.30  # 40-50% achievable; 30% per single initiative is conservative
-PER_ROLE_MAX_REDUCTION = 0.50    # Industry benchmark: 40-50% fewer agents; 50% is the defensible ceiling
+ABSOLUTE_SINGLE_INIT_CAP = 0.25  # V9: Tightened from 0.30 — no single init > 25% of affected FTE
+PER_ROLE_MAX_REDUCTION = 0.35    # V9: 35% — defensible first-wave transformation ceiling
 
 # CR-015v2: Lever saturation caps retained as safety backstop (pool netting is primary)
 # These are now only used as absolute ceilings if pool data is unavailable
@@ -755,11 +755,15 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
     # This ensures pools and gross use identical volume scaling (CR-021 dedup fix)
     annualization = pool_result.get('annualization_factor', 1.0) if pool_result else 1.0
     
+    # V9: Apply same volume normalization as pools when source data coverage is low
+    vol_scale_factor = params.get('volumeScalingFactor', 1.0)
+    pool_volume_multiplier = max(1.0, vol_scale_factor) if vol_scale_factor > 5.0 else 1.0
+    
     # Create annualized queue copies for gross impact computation
     annual_queues = []
     for q in enriched_queues:
         aq = dict(q)
-        aq['volume'] = round(q['volume'] * annualization)
+        aq['volume'] = round(q['volume'] * annualization * pool_volume_multiplier)
         annual_queues.append(aq)
     
     # ── Step 3: Sort initiatives ──
@@ -887,6 +891,19 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         except Exception:
             net_fte = raw_fte
             pool_capped = False
+        
+        # ── V9 4b2: Floor logic for validated opportunities ──
+        # When data confidence is high, preserve at least 40% of gross to prevent
+        # pool netting from crushing well-evidenced opportunities to near-zero.
+        metric_sources = data.get('metricSources', {})
+        high_conf_count = sum(1 for v in metric_sources.values() if v.get('confidence') in ('actual', 'actual_transformed'))
+        data_confidence_high = high_conf_count >= 5
+        if data_confidence_high and raw_fte > 0 and net_fte < raw_fte * 0.40:
+            floor_fte = raw_fte * 0.40
+            net_fte = floor_fte
+            init['_floorApplied'] = True
+        else:
+            init['_floorApplied'] = False
         
         # ── 4c: Apply safety caps (3-layer: pool ceiling already applied, now absolute + per-role) ──
         # Per-lever initiative caps REMOVED in CR-014v2 — redundant with pool netting
@@ -1306,6 +1323,28 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
     # `gross_fte_reduction` is the full potential if all ramps complete at 100%
     # Cards should use `total_red` (post-ramp) to stay consistent with waterfall
     
+    # ── V9: Cap bridge decomposition (shows where value was lost) ──
+    simple_addressable = 0
+    physics_gross = 0
+    for i in enabled:
+        aff_fte = sum(r['headcount'] for r in roles if r['role'] in i.get('roles', []))
+        simple_addressable += aff_fte * i.get('impact', 0) * i.get('adoption', 0.8)
+        physics_gross += i.get('_grossFTE', 0)
+    
+    cap_bridge = {
+        'simpleAddressable': round(simple_addressable),
+        'physicsGross': round(physics_gross, 1),
+        'dataAdjustment': round(simple_addressable - physics_gross),
+        'capAndPoolNetting': round(physics_gross - gross_fte_reduction, 1),
+        'netFTE': round(gross_fte_reduction, 1),
+        'year1FTE': total_red,
+        'explanation': f'Of {round(simple_addressable)} FTE addressable opportunity, '
+                       f'{round(simple_addressable - physics_gross)} is adjusted by data-driven analysis '
+                       f'(containment, complexity, lever physics), '
+                       f'{round(physics_gross - gross_fte_reduction, 1)} by pool/cap netting, '
+                       f'leaving {round(gross_fte_reduction, 1)} net FTE ({total_red} post-ramp Year {horizon}).',
+    }
+    
     # ── Safe contribution % ──
     tot_isav = sum(i.get('_annualSaving', 0) for i in enabled if i.get('_annualSaving', 0) > 0)
     for i in enabled:
@@ -1693,6 +1732,7 @@ def run_waterfall(data, initiatives, _skip_sensitivity=False, _skip_scenarios=Fa
         'yearly': yearly, 'totalNPV': round(total_npv), 'totalSaving': round(total_saving),
         'totalReduction': total_red,
         'grossFTEReduction': gross_fte_reduction,
+        'capBridge': cap_bridge,
         'techInvestment': round(tech_inv), 'annualMaintenance': round(ann_maint),
         'changeMgmt': round(cm), 'training': round(tr), 'contingency': round(ct),
         'totalInvestment': round(total_inv),

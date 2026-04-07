@@ -138,11 +138,34 @@ def _get_mitigations(impl, cx, ops):
 # ── Dependency Map ──
 # Which initiatives depend on others being implemented first
 DEPENDENCY_MAP = {
-    'AI05': ['AI01'],         # Predictive routing needs IVR containment data
-    'AI06': ['AI02'],         # Agent assist needs chatbot platform
-    'AI08': ['AI01', 'AI02'], # Unified AI platform needs IVR + chatbot
-    'OM04': ['OM01'],         # Skill-based routing needs FCR improvement
-    'OM06': ['OM05'],         # WFM optimization needs shrinkage reduction
+    # AI dependencies
+    'AI01': ['CC01'],                 # Virtual Agent needs CCaaS platform for NLU
+    'AI02': ['AI08'],                 # Agent Assist needs Knowledge Base for context
+    'AI03': ['CC01'],                 # IVR Upgrade needs CCaaS platform
+    'AI05': ['AI22'],                 # Predictive Routing needs Customer 360 data
+    'AI06': ['AI21'],                 # Sentiment Analysis needs Speech Analytics
+    'AI09': ['AI01'],                 # WhatsApp Bot reuses Virtual Agent NLU engine
+    'AI10': ['AI04'],                 # Social Auto-Response shares Email Auto-Response logic
+    'AI14': ['AI03'],                 # Visual IVR needs IVR Upgrade first
+    'AI15': ['AI06'],                 # Complaint Triage needs Sentiment Analysis
+    'AI16': ['AI22'],                 # Churn Detection needs Customer 360 data
+    'AI17': ['CC01'],                 # Auto Summarisation needs CCaaS integration
+    'AI18': ['AI08'],                 # Self-Service App needs Knowledge Base
+    'AI20': ['AI21'],                 # AI Training needs Speech Analytics data
+    'AI22': ['CC01'],                 # Customer 360 needs CCaaS integration
+    'AI25': ['AI08'],                 # Smart FAQ needs Knowledge Base AI Search
+    'AI27': ['AI22', 'AI02'],         # Next-Best-Action needs Customer 360 + Agent Assist
+    # CCaaS dependencies
+    'CC02': ['CC01'],                 # Omnichannel Routing needs CCaaS Platform
+    'CC03': ['CC01'],                 # CCaaS Analytics needs CCaaS Platform
+    # Operating Model dependencies
+    'OP02': ['OP01'],                 # Cross-skilling needs Tiered Service Model
+    'OP03': ['CC02'],                 # Queue Consolidation needs Omnichannel Routing
+    'OP07': ['AI08'],                 # FCR Improvement needs Knowledge Base
+    'OP08': ['OP01'],                 # Escalation Redesign needs Tiered Service Model
+    'OP09': ['AI08'],                 # Knowledge Management Overhaul needs AI Knowledge Base
+    # Location dependencies
+    'LS02': ['LS01'],                 # Offshore Expansion benefits from Nearshore Hub experience
 }
 
 

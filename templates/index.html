@@ -814,37 +814,25 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
       <span class="nav-num">📊</span><span>Executive Summary</span>
     </div>
 
-    <div class="nav-phase">🎯 Pillar Deep Dives</div>
-    <div class="nav-item" data-page="22" data-access="all" data-mode="all">
-      <span class="nav-num">🤖</span><span>AI & Automation</span>
-    </div>
-    <div class="nav-item" data-page="23" data-access="all" data-mode="all">
-      <span class="nav-num">🏢</span><span>Operating Model</span>
-    </div>
-    <div class="nav-item" data-page="24" data-access="all" data-mode="all">
-      <span class="nav-num">🌍</span><span>Location Strategy</span>
-    </div>
-    <div class="nav-item" data-page="25" data-access="all" data-mode="all">
-      <span class="nav-num">📡</span><span>Current Channel Mix</span>
-    </div>
+    <!-- V9: Pillar pages moved to drill-downs from exec summary — not primary nav -->
 
     <div class="nav-phase">🔍 Diagnose</div>
-    <div class="nav-item" data-page="2" data-access="admin,supervisor" data-mode="all">
+    <div class="nav-item" data-page="2" data-access="admin,supervisor,analyst" data-mode="all">
       <span class="nav-num">📏</span><span>Benchmarking</span>
     </div>
-    <div class="nav-item" data-page="3" data-access="admin,supervisor" data-mode="all">
+    <div class="nav-item" data-page="3" data-access="admin,supervisor,analyst" data-mode="all">
       <span class="nav-num">🎯</span><span>Maturity Assessment</span>
     </div>
-    <div class="nav-item" data-page="4" data-access="admin,supervisor" data-mode="all">
+    <div class="nav-item" data-page="4" data-access="admin,supervisor,analyst" data-mode="all">
       <span class="nav-num">🔥</span><span>Performance Heatmap</span>
     </div>
-    <div class="nav-item" data-page="6" data-access="admin,supervisor" data-mode="all">
+    <div class="nav-item" data-page="6" data-access="admin,supervisor,analyst" data-mode="all">
       <span class="nav-num">📉</span><span>Gap Analysis</span>
     </div>
-    <div class="nav-item" data-page="7" data-access="admin,supervisor" data-mode="all">
+    <div class="nav-item" data-page="7" data-access="admin,supervisor,analyst" data-mode="all">
       <span class="nav-num">💲</span><span>Cost Analysis</span>
     </div>
-    <div class="nav-item" data-page="19" data-access="admin,supervisor" data-mode="all">
+    <div class="nav-item" data-page="19" data-access="admin,supervisor,analyst" data-mode="all">
       <span class="nav-num">📋</span><span>Queue Analysis</span>
     </div>
     <div class="nav-item" data-page="18" data-access="admin" data-mode="all">
@@ -852,21 +840,21 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
     </div>
 
     <div class="nav-phase">📐 Size the Prize</div>
-    <div class="nav-item" data-page="16" data-access="admin,supervisor" data-mode="all">
+    <div class="nav-item" data-page="16" data-access="admin,supervisor,analyst" data-mode="all">
       <span class="nav-num">💎</span><span>Opportunity Buckets</span>
     </div>
-    <div class="nav-item" data-page="8" data-access="admin,supervisor" data-mode="all">
+    <div class="nav-item" data-page="8" data-access="admin,supervisor,analyst" data-mode="all">
       <span class="nav-num">🤖</span><span>Self-Service Feasibility</span>
     </div>
-    <div class="nav-item" data-page="20" data-access="admin,supervisor" data-mode="all">
+    <div class="nav-item" data-page="20" data-access="admin,supervisor,analyst" data-mode="all">
       <span class="nav-num">🏢</span><span>Operating Model</span>
     </div>
 
     <div class="nav-phase">💡 Solve</div>
-    <div class="nav-item" data-page="9" data-access="admin" data-mode="all">
+    <div class="nav-item" data-page="9" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">🗺️</span><span>Initiative Roadmap</span>
     </div>
-    <div class="nav-item" data-page="10" data-access="admin" data-mode="all">
+    <div class="nav-item" data-page="10" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">🔀</span><span>Projected Channel Mix</span>
     </div>
     <div class="nav-item" data-page="11" data-access="admin,supervisor" data-mode="delivery">
@@ -874,10 +862,10 @@ table.data-table tr:hover { background: rgba(246,246,250,0.6); }
     </div>
 
     <div class="nav-phase">🎯 Justify</div>
-    <div class="nav-item" data-page="14" data-access="admin,supervisor" data-mode="all">
+    <div class="nav-item" data-page="14" data-access="admin,supervisor,analyst" data-mode="all">
       <span class="nav-num">📈</span><span>Impact Dashboard</span>
     </div>
-    <div class="nav-item" data-page="17" data-access="admin" data-mode="all">
+    <div class="nav-item" data-page="17" data-access="admin,supervisor" data-mode="all">
       <span class="nav-num">🏗️</span><span>BU Impact Views</span>
     </div>
     <div class="nav-item" data-page="12" data-access="admin" data-mode="delivery">
@@ -1109,25 +1097,25 @@ const V6_ROLE_LABELS = {admin: 'EY GDS', supervisor: 'EY US', analyst: 'Client'}
 // true = visible, false = hidden. GDS (admin) sees everything in both modes.
 const PAGE_ACCESS = {
   1:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
-  2:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
-  3:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
-  4:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
-  5:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
-  6:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
-  7:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
-  8:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
-  9:  { admin: {opp:true,del:true},  supervisor: {opp:false,del:true}, analyst: {opp:false,del:true} },
-  10: { admin: {opp:true,del:true},  supervisor: {opp:false,del:false},analyst: {opp:false,del:false} },
+  2:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  3:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  4:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  5:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  6:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  7:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  8:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  9:  { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:true} },
+  10: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
   11: { admin: {opp:true,del:true},  supervisor: {opp:false,del:true}, analyst: {opp:false,del:true} },
   12: { admin: {opp:true,del:true},  supervisor: {opp:false,del:true}, analyst: {opp:false,del:true} },
   13: { admin: {opp:true,del:true},  supervisor: {opp:false,del:true}, analyst: {opp:false,del:true} },
-  14: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:true} },
+  14: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
   15: { admin: {opp:true,del:true},  supervisor: {opp:false,del:false},analyst: {opp:false,del:false} },
-  16: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
-  17: { admin: {opp:true,del:true},  supervisor: {opp:false,del:true}, analyst: {opp:false,del:false} },
+  16: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  17: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
   18: { admin: {opp:true,del:true},  supervisor: {opp:false,del:false},analyst: {opp:false,del:false} },
-  19: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
-  20: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:false,del:false} },
+  19: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
+  20: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
   21: { admin: {opp:true,del:true},  supervisor: {opp:false,del:true}, analyst: {opp:false,del:false} },
   22: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
   23: { admin: {opp:true,del:true},  supervisor: {opp:true,del:true},  analyst: {opp:true,del:true} },
@@ -1991,6 +1979,58 @@ function closeModal(e) {
   document.getElementById('modalOverlay').classList.add('hidden');
 }
 
+// ── V9: Consultant Narrative Block ──
+function _injectNarrativeBlock(page) {
+  const el = document.getElementById('page-' + page);
+  if (!el) return;
+  const existing = el.querySelector('.v9-narrative-block');
+  if (existing) return; // already injected
+
+  const role = window.USER_ROLE || 'admin';
+  const canEdit = role === 'admin' || role === 'supervisor';
+  const key = 'page_narrative_' + page;
+
+  const block = document.createElement('div');
+  block.className = 'v9-narrative-block';
+  block.style.cssText = 'margin-bottom:12px;';
+
+  // Load existing narrative
+  fetch('/api/narrative/' + page).then(r => r.json()).then(data => {
+    const text = data.text || '';
+    if (!canEdit && !text) return; // don't show empty block for read-only users
+
+    if (canEdit) {
+      block.innerHTML = '<div style="border:1px solid var(--ey-mid-gray);border-radius:8px;padding:10px 14px;background:var(--ey-light-gray);">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
+          '<span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ey-text-light);">📝 Consultant Narrative</span>' +
+          '<button onclick="_saveNarrative('+page+')" style="font-size:10px;padding:3px 10px;border-radius:4px;border:1px solid var(--ey-blue);background:var(--ey-blue);color:white;cursor:pointer;font-weight:600;">Save</button>' +
+        '</div>' +
+        '<textarea id="narrative_'+page+'" style="width:100%;min-height:60px;border:1px solid var(--ey-mid-gray);border-radius:6px;padding:8px;font-size:12px;font-family:inherit;resize:vertical;background:white;" placeholder="Add consultant observations, caveats, or client-specific context...">' + (text||'').replace(/</g,'&lt;') + '</textarea>' +
+      '</div>';
+    } else if (text) {
+      block.innerHTML = '<div style="border-left:4px solid var(--ey-blue);padding:10px 14px;margin-bottom:8px;background:var(--ey-blue-bg);border-radius:0 8px 8px 0;">' +
+        '<div style="font-size:10px;font-weight:700;color:var(--ey-blue);margin-bottom:4px;">📝 Consultant Note</div>' +
+        '<div style="font-size:12px;line-height:1.5;color:var(--ey-dark);">' + text.replace(/</g,'&lt;').replace(/\n/g,'<br>') + '</div>' +
+      '</div>';
+    }
+    el.insertBefore(block, el.firstChild);
+  }).catch(() => {});
+}
+
+window._saveNarrative = function(page) {
+  const ta = document.getElementById('narrative_' + page);
+  if (!ta) return;
+  fetch('/api/narrative/' + page, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ text: ta.value })
+  }).then(r => r.json()).then(resp => {
+    if (resp.status === 'ok') {
+      const toast = document.getElementById('dmToast');
+      if (toast) { toast.textContent = '✓ Narrative saved'; toast.style.display = 'block'; toast.style.background = '#168736'; setTimeout(() => toast.style.display = 'none', 2000); }
+    }
+  }).catch(err => console.warn('Narrative save failed:', err));
+};
+
 // ─── PAGE RENDER DISPATCHER ───
 const rendered = {};
 
@@ -2041,6 +2081,12 @@ function renderPage(page) {
 
     // V7.2 §3: Read-only enforcement for delivery-gained pages
     _applyReadOnlyLock(page);
+
+    // V9: Inject consultant narrative block on diagnostic pages
+    const narrativePages = [2,3,4,6,7,8,9,14,16,19,20];
+    if (narrativePages.includes(page)) {
+      _injectNarrativeBlock(page);
+    }
 
     // Inject recommendation blocks at TOP of diagnostic pages (async, non-blocking)
     const pageRecMap = {
@@ -2505,16 +2551,89 @@ function renderPage1_GDS() {
             })()}
           </div>
           <div style="font-size:12px;opacity:0.85;line-height:1.6;">
-            A ${DEMO.params?.horizon||3}-year transformation of <strong>${INITIATIVES.filter(i=>i.enabled).length} initiatives</strong> delivers
-            <strong style="color:var(--ey-yellow);">${projFTEReduction} FTE</strong> reduction with
-            <strong style="color:#4CAF50;">${fmt(wf.totalNPV||0,'$m')}</strong> NPV.
-            <strong style="color:var(--ey-yellow);">Recommend proceeding to detailed design.</strong>
+            ${(() => {
+              const bridge = wf.capBridge || {};
+              const addr = bridge.simpleAddressable || 0;
+              const y1 = wf.yearly?.[0]?.fteReduction || 0;
+              const y3 = projFTEReduction;
+              if (addr > 0) {
+                return 'Addressable opportunity of <strong style="color:rgba(255,255,255,0.6);">' + addr + ' FTE</strong> reduces to ' +
+                  '<strong style="color:var(--ey-yellow);">' + y3 + ' FTE</strong> net (' + y1 + ' Year-1) after data-driven adjustment, ' +
+                  'pool netting, and ramp phasing across <strong>' + INITIATIVES.filter(i=>i.enabled).length + ' initiatives</strong>. ' +
+                  'NPV of <strong style="color:#4CAF50;">' + fmt(wf.totalNPV||0,'$m') + '</strong> with ' +
+                  fmt(wf.totalInvestment||0,'$m') + ' investment.';
+              }
+              return 'A '+(DEMO.params?.horizon||3)+'-year transformation of <strong>'+INITIATIVES.filter(i=>i.enabled).length+' initiatives</strong> delivers ' +
+                '<strong style="color:var(--ey-yellow);">'+projFTEReduction+' FTE</strong> reduction with ' +
+                '<strong style="color:#4CAF50;">'+fmt(wf.totalNPV||0,'$m')+'</strong> NPV.';
+            })()}
           </div>
         </div>
       </div>
     </div>
 
     <!-- CR-001: (3) Navigation Bar — Diagnose→Size→Solve→Plan — MOVED TO TOP -->
+    <!-- V9: Cap Bridge + Top 5 Initiatives -->
+    ${(() => {
+      const bridge = wf.capBridge || {};
+      const simpleAddr = bridge.simpleAddressable || 0;
+      const physicsGross = bridge.physicsGross || 0;
+      const netFTE = bridge.netFTE || 0;
+      const y1FTE = bridge.year1FTE || 0;
+      if (!simpleAddr) return '';
+      // Build cap bridge bar segments
+      const dataAdj = bridge.dataAdjustment || 0;
+      const capNet = bridge.capAndPoolNetting || 0;
+      const rampAdj = Math.round(netFTE - y1FTE);
+      const segments = [
+        {label: 'Addressable', value: simpleAddr, color: '#90CAF9', type: 'positive'},
+        {label: 'Data/Physics Adj', value: -dataAdj, color: '#EF9A9A', type: 'negative'},
+        {label: 'Pool/Cap Netting', value: -Math.round(capNet), color: '#FFCC80', type: 'negative'},
+        {label: 'Ramp Phasing', value: -rampAdj, color: '#CE93D8', type: 'negative'},
+        {label: 'Year-1 Net', value: y1FTE, color: '#4CAF50', type: 'result'},
+      ];
+      // Top 5 initiatives
+      const top5 = [...INITIATIVES].filter(i => i.enabled && i._fteImpact > 0)
+        .sort((a,b) => b._fteImpact - a._fteImpact).slice(0,5);
+      const t5html = top5.map((i,idx) => {
+        const lc = {'AI & Automation':'#1A73E8','Operating Model':'#168736','Location Strategy':'#D97706'}[i.layer]||'#666';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;'+(idx<4?'border-bottom:1px solid var(--ey-light-gray);':'')+'">'+
+          '<span style="font-size:10px;font-weight:800;color:'+lc+';min-width:32px;">'+i.id+'</span>'+
+          '<span style="flex:1;font-size:11px;">'+i.name+'</span>'+
+          '<span style="font-size:12px;font-weight:800;color:var(--ey-dark);">'+Math.round(i._fteImpact)+' FTE</span>'+
+          '<span style="font-size:10px;color:var(--ey-text-light);">'+fmt(i._annualSaving||0,'$k')+'</span>'+
+        '</div>';
+      }).join('');
+
+      return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">'+
+        '<div class="card" style="padding:14px 16px;">'+
+          '<div style="font-size:12px;font-weight:700;color:var(--ey-dark);margin-bottom:10px;">Value Bridge — FTE Reduction</div>'+
+          '<canvas id="capBridgeChart" width="420" height="200"></canvas>'+
+          '<div style="font-size:10px;color:var(--ey-text-light);margin-top:6px;">Addressable → Data adjustment → Cap/pool netting → Ramp → Year-1</div>'+
+        '</div>'+
+        '<div class="card" style="padding:14px 16px;">'+
+          '<div style="font-size:12px;font-weight:700;color:var(--ey-dark);margin-bottom:10px;">Top 5 Initiatives by FTE Impact</div>'+
+          t5html+
+        '</div>'+
+      '</div>';
+    })()}
+    <!-- V9: Pillar drill-down tabs (replacing standalone nav items) -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
+      ${[
+        {page:22, icon:'🤖', label:'AI & Automation', layer:'AI & Automation'},
+        {page:23, icon:'🏢', label:'Operating Model', layer:'Operating Model'},
+        {page:24, icon:'🌍', label:'Location Strategy', layer:'Location Strategy'},
+        {page:25, icon:'📡', label:'Channel Mix', layer:null},
+      ].map(p => {
+        const layerInits = p.layer ? INITIATIVES.filter(i => i.enabled && i.layer === p.layer) : [];
+        const layerFTE = layerInits.reduce((s,i) => s + (i._fteImpact||0), 0);
+        const layerSav = layerInits.reduce((s,i) => s + (i._annualSaving||0), 0);
+        return '<div onclick="navigateTo('+p.page+')" style="cursor:pointer;padding:10px 12px;border-radius:8px;background:var(--ey-light-gray);border:1px solid var(--ey-mid-gray);transition:all 0.15s;" onmouseover="this.style.borderColor=\'var(--ey-blue)\'" onmouseout="this.style.borderColor=\'var(--ey-mid-gray)\'">' +
+          '<div style="font-size:10px;font-weight:700;color:var(--ey-text-light);text-transform:uppercase;letter-spacing:0.5px;">'+p.icon+' '+p.label+'</div>' +
+          (p.layer ? '<div style="font-size:14px;font-weight:800;color:var(--ey-dark);margin-top:4px;">'+Math.round(layerFTE)+' FTE</div><div style="font-size:10px;color:var(--ey-text-light);">'+fmt(layerSav,"$k")+'/yr · '+layerInits.length+' initiatives</div>' : '<div style="font-size:10px;color:var(--ey-text-light);margin-top:4px;">Current vs target mix →</div>') +
+        '</div>';
+      }).join('')}
+    </div>
     <!-- V4.6-#17: Mini KPI Improvement Strip -->
     ${(() => {
       const kpis = WATERFALL.kpiProjections || {};
@@ -2851,6 +2970,86 @@ function renderPage1_GDS() {
 
   // Draw FTE Waterfall step-down chart (Change 2)
   drawFTEWaterfallChart();
+  
+  // V9: Draw cap bridge waterfall chart
+  drawCapBridgeChart();
+}
+
+// V9: Cap Bridge Waterfall Chart — shows where FTE value was adjusted
+function drawCapBridgeChart() {
+  const canvas = document.getElementById('capBridgeChart');
+  if (!canvas) return;
+  const bridge = WATERFALL.capBridge;
+  if (!bridge || !bridge.simpleAddressable) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const pad = {l:45, r:10, t:15, b:40};
+  ctx.clearRect(0, 0, W, H);
+
+  const bars = [
+    {label: 'Addressable', value: bridge.simpleAddressable, color: '#90CAF9'},
+    {label: 'Data Adj', value: -(bridge.dataAdjustment||0), color: '#EF9A9A'},
+    {label: 'Pool/Cap', value: -Math.round(bridge.capAndPoolNetting||0), color: '#FFCC80'},
+    {label: 'Ramp', value: -Math.round(bridge.netFTE - bridge.year1FTE), color: '#CE93D8'},
+    {label: 'Year-1', value: bridge.year1FTE, color: '#4CAF50'},
+  ];
+
+  const maxVal = bridge.simpleAddressable;
+  const chartW = W - pad.l - pad.r;
+  const chartH = H - pad.t - pad.b;
+  const barW = chartW / bars.length * 0.65;
+  const gap = chartW / bars.length;
+  const scale = chartH / (maxVal * 1.1);
+
+  let running = 0;
+  bars.forEach((b, i) => {
+    const x = pad.l + i * gap + (gap - barW) / 2;
+    let barTop, barH;
+
+    if (i === 0 || i === bars.length - 1) {
+      // Full bars (addressable and year-1)
+      barH = Math.abs(b.value) * scale;
+      barTop = pad.t + chartH - barH;
+    } else {
+      // Waterfall segments
+      const prevTop = pad.t + chartH - running * scale;
+      barH = Math.abs(b.value) * scale;
+      barTop = prevTop;
+      running += b.value;
+    }
+
+    if (i === 0) running = b.value;
+
+    ctx.fillStyle = b.color;
+    ctx.fillRect(x, barTop, barW, barH);
+
+    // Value label
+    ctx.fillStyle = '#2E2E38';
+    ctx.font = 'bold 10px Inter,sans-serif';
+    ctx.textAlign = 'center';
+    const valText = i === 0 || i === bars.length - 1 ? String(b.value) : String(b.value);
+    ctx.fillText(valText, x + barW/2, barTop - 4);
+
+    // Bottom label
+    ctx.fillStyle = '#747480';
+    ctx.font = '9px Inter,sans-serif';
+    ctx.fillText(b.label, x + barW/2, H - pad.b + 14);
+  });
+
+  // Y axis
+  ctx.strokeStyle = '#E0E0E6';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t);
+  ctx.lineTo(pad.l, pad.t + chartH);
+  ctx.stroke();
+
+  // Y axis label
+  ctx.fillStyle = '#747480';
+  ctx.font = '9px Inter,sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('FTE', pad.l - 5, pad.t + 4);
+  ctx.fillText('0', pad.l - 5, pad.t + chartH);
 }
 
 // V4.8-#3: Mini Cost Waterfall on P1
@@ -4916,7 +5115,8 @@ function generateInitiatives() {
 }
 
 // ─── Simplified Waterfall Engine (with diminishing returns) ───
-let WATERFALL = (DEMO.waterfall && DEMO.waterfall.yearly) ? DEMO.waterfall : runWaterfall();
+// V9: Server waterfall is always the source of truth — no client-side fallback
+let WATERFALL = (DEMO.waterfall && DEMO.waterfall.yearly) ? DEMO.waterfall : {yearly:[], totalNPV:0, totalSaving:0, totalReduction:0, totalInvestment:0, roi:0, irr:0, payback:0, roleImpact:{}, leverAccum:{}, scenarios:{}, sensitivity:[], enabledInits:[], investmentItems:[], investmentYearly:[], investmentSummary:{}, layerFTE:{}, layerSaving:{}, capBridge:{}};
 
 // If server provided pre-computed waterfall + initiatives, use those (more sophisticated engine)
 if (DEMO.waterfall && DEMO.waterfall.yearly) {
@@ -4946,6 +5146,8 @@ if (DEMO.waterfall && DEMO.waterfall.yearly) {
     WATERFALL.layerFTE = DEMO.waterfall.layerFTE || WATERFALL.layerFTE || {};
     WATERFALL.layerSaving = DEMO.waterfall.layerSaving || WATERFALL.layerSaving || {};
     WATERFALL.layerFTEMigrated = DEMO.waterfall.layerFTEMigrated || WATERFALL.layerFTEMigrated || {};
+    WATERFALL.capBridge = DEMO.waterfall.capBridge || WATERFALL.capBridge || {};
+    WATERFALL.grossFTEReduction = DEMO.waterfall.grossFTEReduction || WATERFALL.grossFTEReduction || 0;
 }
 
 // Apply server initiative scores if available
@@ -5200,404 +5402,36 @@ function recalculateAll(activeLayer) {
     renderPage(currentPage);
     console.log(`[OK] Recalculate complete${resp.scoped ? ' (scoped: '+resp.activeLayer+')' : ''}`);
     console.log(`  Enabled: ${resp.enabledCount || '?'} initiatives`);
+    // V9: Delta view banner
+    if (resp.delta && (resp.delta.fteChange !== 0 || resp.delta.savingChange !== 0)) {
+      const d = resp.delta;
+      const toast = document.createElement('div');
+      toast.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:14px 20px;background:#2E2E38;color:white;border-radius:10px;font-size:12px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.3);max-width:360px;transition:opacity 0.5s;';
+      const fteArrow = d.fteChange >= 0 ? '▲' : '▼';
+      const savArrow = d.savingChange >= 0 ? '▲' : '▼';
+      toast.innerHTML = '<div style="font-weight:700;color:#FFE600;margin-bottom:6px;">Δ Impact of Changes</div>' +
+        '<div>FTE: ' + d.previous.totalReduction + ' → ' + d.current.totalReduction + ' <span style="color:'+(d.fteChange>=0?'#4CAF50':'#EF5350')+';">' + fteArrow + ' ' + Math.abs(d.fteChange) + '</span></div>' +
+        '<div>Saving: $' + (d.previous.totalSaving/1e6).toFixed(1) + 'M → $' + (d.current.totalSaving/1e6).toFixed(1) + 'M <span style="color:'+(d.savingChange>=0?'#4CAF50':'#EF5350')+';">' + savArrow + ' $' + Math.abs(d.savingChange/1e6).toFixed(1) + 'M</span></div>';
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 600); }, 5000);
+    }
   })
   .catch(err => {
-    console.warn('Server recalc failed, using client fallback:', err);
-    WATERFALL = runWaterfall();
-    _syncDemoFromBackend();
+    console.warn('Server recalc failed:', err);
+    // V9: No client-side fallback — show error, keep existing WATERFALL data
+    const toast = document.getElementById('dmToast');
+    if (toast) { toast.textContent = '⚠ Server recalculation failed — displaying last known values'; toast.style.display = 'block'; toast.style.background = '#C5003E'; setTimeout(() => toast.style.display = 'none', 5000); }
     Object.keys(rendered).forEach(k => rendered[k] = false);
     renderPage(currentPage);
   });
 }
 
+// V9: Frontend waterfall REMOVED — server is the single source of truth.
+// All recalculation goes through /api/recalculate.
+// The function stub is retained for backward compatibility if any edge case references it.
 function runWaterfall() {
-  const horizon = DEMO.params.horizon;
-  const enabledInits = INITIATIVES.filter(i => i.enabled);
-
-  // Lever affinity caps per complexity band (from spec Section 7.3)
-  const leverCaps = {
-    deflection:           { simple: 0.55, moderate: 0.40, complex: 0.25 },
-    aht_reduction:        { simple: 0.45, moderate: 0.35, complex: 0.25 },
-    escalation_reduction: { simple: 0.40, moderate: 0.35, complex: 0.30 },
-    repeat_reduction:     { simple: 0.40, moderate: 0.30, complex: 0.20 },
-    shrinkage_reduction:  { simple: 0.30, moderate: 0.25, complex: 0.20 },
-    cost_reduction:       { simple: 0.50, moderate: 0.45, complex: 0.35 },
-  };
-  const kValues = { simple: 3.0, moderate: 2.0, complex: 1.2 };
-
-  // FTE impact per role per year
-  const roleImpact = {};
-  DEMO.roles.forEach(r => {
-    roleImpact[r.role] = { baseline: r.headcount, yearly: Array(horizon).fill(0) };
-  });
-
-  // Track cumulative lever impact per complexity band for diminishing returns
-  const leverAccum = {};
-
-  // Sort initiatives by layer order (AI first, then OM, then Location)
-  const layerOrder = { 'AI & Automation': 0, 'Operating Model': 1, 'Location Strategy': 2 };
-  const sortedInits = [...enabledInits].sort((a,b) => (layerOrder[a.layer]||0) - (layerOrder[b.layer]||0));
-
-  // Per-initiative contribution with diminishing returns
-  sortedInits.forEach(init => {
-    const affectedRoles = DEMO.roles.filter(r => init.roles.includes(r.role));
-    const totalAffectedFTE = affectedRoles.reduce((s,r) => s + r.headcount, 0);
-    if (totalAffectedFTE === 0) { init._fteImpact = 0; init._annualSaving = 0; init._linkedQueues = 0; return; }
-
-    // Determine complexity band for this initiative
-    const complexBand = init.complexity === 'simple' ? 'simple' :
-                        init.complexity === 'moderate' ? 'moderate' :
-                        init.complexity === 'complex' ? 'complex' : 'moderate';
-
-    // Apply diminishing returns per lever
-    // V4.10-#11: Track ALL levers from init.levers for multi-lever diminishing returns
-    const lever = init.lever || 'aht_reduction';
-    const activeLevers = (init.levers && typeof init.levers === 'object')
-      ? Object.keys(init.levers).filter(l => init.levers[l])
-      : [lever];
-    
-    // Primary lever drives main FTE impact
-    const leverKey = `${lever}_${complexBand}`;
-    if (!leverAccum[leverKey]) leverAccum[leverKey] = 0;
-
-    const cap = (leverCaps[lever] || leverCaps.aht_reduction)[complexBand] || 0.35;
-    const k = kValues[complexBand] || 2.0;
-    const rawCumBefore = leverAccum[leverKey];
-    const rawCumAfter = rawCumBefore + init.impact;
-    const effectiveBefore = cap * (1 - Math.exp(-k * rawCumBefore / cap));
-    const effectiveAfter = cap * (1 - Math.exp(-k * rawCumAfter / cap));
-    const effectiveImpact = effectiveAfter - effectiveBefore;
-    leverAccum[leverKey] = rawCumAfter;
-    
-    // V4.10-#11: Also accumulate secondary levers' impact for correct diminishing returns
-    // This ensures later initiatives sharing secondary levers get properly diminished
-    activeLevers.forEach(sl => {
-      if (sl === lever) return; // primary already accumulated
-      const slKey = `${sl}_${complexBand}`;
-      if (!leverAccum[slKey]) leverAccum[slKey] = 0;
-      // Secondary lever accumulation at 50% weight (backend SECONDARY_WEIGHT = 0.50 in waterfall.py).
-      // NOTE: Frontend applies weight to saturation accumulation rate; backend applies it as
-      // a cap on net FTE (sec_net ≤ abs_cap × SECONDARY_WEIGHT). Slight divergence when
-      // frontend fallback runs — see A-06 banner for user visibility.
-      const secImpact = sl === 'aht_reduction' ? Math.abs(init.ahtImpact || 0)
-                       : sl === 'repeat_reduction' ? (init.fcrImpact || 0)
-                       : init.impact * 0.3;
-      leverAccum[slKey] += secImpact * 0.5;
-    });
-
-    const fteReduction = totalAffectedFTE * effectiveImpact * init.adoption;
-
-    for (let yr = 0; yr < horizon; yr++) {
-      const monthStart = yr * 12 + 1;
-      const monthEnd = (yr + 1) * 12;
-      const midMonth = (monthStart + monthEnd) / 2;
-      const progress = Math.max(0, Math.min(1, (midMonth - init.startMonth) / (init.endMonth - init.startMonth || 1)));
-      const adoption = init.adoption / (1 + Math.exp(-10 * (progress - 0.5)));
-      const yrFTE = totalAffectedFTE * effectiveImpact * adoption;
-
-      affectedRoles.forEach(r => {
-        const share = r.headcount / (totalAffectedFTE || 1);
-        roleImpact[r.role].yearly[yr] += yrFTE * share;
-      });
-    }
-
-    init._fteImpact = fteReduction;
-    // Weighted average cost across affected roles
-    const wtdCost = affectedRoles.reduce((s,r) => s + r.headcount * r.costPerFTE, 0) / totalAffectedFTE;
-    init._annualSaving = fteReduction * wtdCost;
-    init._effectiveImpact = effectiveImpact;
-    init._linkedQueues = DEMO.queues.filter(q =>
-      init.channels.includes(q.channel) &&
-      (init.complexity === 'any' || (init.complexity === 'simple' && q.complexity <= 0.35) ||
-       (init.complexity === 'moderate' && q.complexity <= 0.55) ||
-       (init.complexity === 'complex'))
-    ).length;
-    // BU targeting (default: all)
-    if (!init.targetBUs) init.targetBUs = [...DEMO.bus];
-  });
-
-  // Clamp reductions (can't reduce below 0, max 50% per role for realism)
-  Object.values(roleImpact).forEach(ri => {
-    ri.yearly = ri.yearly.map(v => Math.min(v, ri.baseline * 0.50));
-  });
-
-  // Calculate totals per year
-  const yearly = [];
-  let cumSaving = 0;
-  for (let yr = 0; yr < horizon; yr++) {
-    const reduction = Object.values(roleImpact).reduce((s,ri) => s + ri.yearly[yr], 0);
-    const annualBaseCost = DEMO.roles.reduce((s,r) => s + r.headcount * r.costPerFTE, 0);
-    const saving = Object.entries(roleImpact).reduce((s, [role, ri]) => {
-      const rObj = DEMO.roles.find(r => r.role === role);
-      return s + ri.yearly[yr] * (rObj?.costPerFTE || 55000);
-    }, 0);
-    const inflatedCost = annualBaseCost * Math.pow(1 + DEMO.params.wageInflation, yr + 1);
-    const futureCost = (annualBaseCost - saving) * Math.pow(1 + DEMO.params.wageInflation, yr + 1);
-    const netSaving = inflatedCost - futureCost;
-    cumSaving += netSaving;
-    const npvFactor = 1 / Math.pow(1 + DEMO.params.discountRate, yr + 1);
-    yearly.push({
-      year: yr + 1,
-      fteReduction: Math.round(reduction),
-      finalFTE: DEMO.totalFTE - Math.round(reduction),
-      annualSaving: netSaving,
-      cumSaving,
-      npv: netSaving * npvFactor,
-      inflatedCost,
-      futureCost
-    });
-  }
-
-  const totalNPV = yearly.reduce((s,y) => s + y.npv, 0);
-  const totalSaving = yearly.reduce((s,y) => s + y.annualSaving, 0);
-  const totalReduction = yearly[horizon-1]?.fteReduction || 0;
-
-  // CR-FIX-04: Use cached backend investment ratios if available, fall back to heuristic
-  // When backend has previously computed investment, scale proportionally to new savings
-  const _cachedInv = DEMO.waterfall?.investmentSummary || {};
-  const _cachedTotal = DEMO.waterfall?.totalInvestment || 0;
-  const _cachedSaving = DEMO.waterfall?.totalSaving || 0;
-  let techInvestment, changeMgmt, training, contingency, totalInvestment;
-  
-  if (_cachedTotal > 0 && _cachedSaving > 0) {
-    // Scale backend investment proportionally to new savings vs original savings
-    const scaleFactor = totalSaving / _cachedSaving;
-    totalInvestment = Math.round(_cachedTotal * scaleFactor);
-    techInvestment = Math.round((DEMO.waterfall?.techInvestment || _cachedTotal * 0.60) * scaleFactor);
-    changeMgmt = Math.round((DEMO.waterfall?.changeMgmt || _cachedTotal * 0.17) * scaleFactor);
-    training = Math.round((DEMO.waterfall?.training || _cachedTotal * 0.13) * scaleFactor);
-    contingency = totalInvestment - techInvestment - changeMgmt - training;
-  } else {
-    // Fallback heuristic (no backend data available)
-    techInvestment = (yearly[0]?.annualSaving || 0) * 0.45;
-    changeMgmt = techInvestment * 0.25;
-    training = techInvestment * 0.15;
-    contingency = techInvestment * 0.10;
-    totalInvestment = techInvestment + changeMgmt + training + contingency;
-  }
-  const roi = totalInvestment > 0 ? ((totalNPV - totalInvestment) / totalInvestment * 100) : 0;
-  const payback = totalInvestment > 0 ? totalInvestment / (yearly[0]?.annualSaving || 1) * 12 : 0;
-  
-  // IRR calculation (Newton's method approximation)
-  let irr = 0;
-  if (totalInvestment > 0 && yearly.length > 0) {
-    const cashFlows = [-totalInvestment];
-    for (let y = 0; y < horizon; y++) cashFlows.push(yearly[y]?.annualSaving || 0);
-    let guess = 0.10;
-    for (let iter = 0; iter < 50; iter++) {
-      let npvCalc = 0, dnpv = 0;
-      for (let t = 0; t < cashFlows.length; t++) {
-        npvCalc += cashFlows[t] / Math.pow(1 + guess, t);
-        dnpv -= t * cashFlows[t] / Math.pow(1 + guess, t + 1);
-      }
-      if (Math.abs(dnpv) < 1e-10) break;
-      const step = npvCalc / dnpv;
-      guess -= step;
-      if (Math.abs(step) < 1e-6) break;
-    }
-    irr = Math.max(0, Math.min(guess * 100, 999));
-  }
-
-  // CR-018: Scenarios with descriptions
-  const scenarios = {
-    conservative: { mult: 0.70, label: 'Conservative', description: 'Lower adoption rates, higher costs, longer ramp-up' },
-    base:         { mult: 1.00, label: 'Base Case', description: 'Expected values based on diagnostic findings' },
-    aggressive:   { mult: 1.30, label: 'Aggressive', description: 'Higher adoption, faster ramp, optimistic deflection' },
-  };
-  Object.values(scenarios).forEach(sc => {
-    sc.npv = totalNPV * sc.mult;
-    sc.fteReduction = Math.round(totalReduction * sc.mult);
-    sc.investment = totalInvestment * (sc.mult > 1 ? sc.mult * 0.85 : sc.mult * 1.1);
-    sc.irr = irr * sc.mult;
-    sc.roi = roi * sc.mult;
-    sc.payback = sc.mult > 0 ? payback / sc.mult : 0;
-    sc.annualSaving = (yearly[horizon-1]?.annualSaving || 0) * sc.mult;
-  });
-
-  // V6: Compute layer-level FTE and saving breakdowns (matches backend)
-  const layerFTE = {'AI & Automation': 0, 'Operating Model': 0, 'Location Strategy': 0};
-  const layerSaving = {'AI & Automation': 0, 'Operating Model': 0, 'Location Strategy': 0};
-  enabledInits.forEach(i => {
-    const layer = i.layer || 'AI & Automation';
-    if (layer in layerFTE) {
-      layerFTE[layer] += i._fteImpact || 0;
-      layerSaving[layer] += i._annualSaving || 0;
-    }
-  });
-
-  // CR-016: Compute BU-level summary (matches backend buSummary)
-  const buSummary = {};
-  const bus = DEMO.bus || [];
-  const totalVol = DEMO.queues.reduce((s,q) => s + q.volume, 0) || 1;
-  const buVolMap = {};
-  bus.forEach(bu => { buVolMap[bu] = DEMO.queues.filter(q => q.bu === bu).reduce((s,q) => s + q.volume, 0); });
-  const buFTEMap = {};
-  bus.forEach(bu => { buFTEMap[bu] = DEMO.totalFTE * (buVolMap[bu] / totalVol); });
-  const poolKeys = ['deflection', 'aht_reduction', 'transfer_reduction', 'escalation_reduction', 'repeat_reduction', 'shrinkage_reduction'];
-  
-  bus.forEach(bu => {
-    const buShare = buVolMap[bu] / totalVol;
-    const buYearly = [];
-    const buPoolUtil = {};
-    poolKeys.forEach(pk => { buPoolUtil[pk] = { consumed: 0, ceiling: 0 }; });
-    
-    // Distribute initiative impacts to BU by channel volume overlap
-    const buQueues = DEMO.queues.filter(q => q.bu === bu);
-    const buChannels = [...new Set(buQueues.map(q => q.channel))];
-    const initAttrib = [];
-    
-    enabledInits.forEach(init => {
-      const overlap = init.channels.filter(c => buChannels.includes(c));
-      if (overlap.length === 0) return;
-      const initBUVol = buQueues.filter(q => init.channels.includes(q.channel)).reduce((s,q) => s + q.volume, 0);
-      const initTotVol = DEMO.queues.filter(q => init.channels.includes(q.channel)).reduce((s,q) => s + q.volume, 0) || 1;
-      const initBUShare = initBUVol / initTotVol;
-      const buFTE = (init._fteImpact || 0) * initBUShare;
-      const buSaving = (init._annualSaving || 0) * initBUShare;
-      if (buFTE > 0.01 || buSaving > 0.01) {
-        initAttrib.push({ id: init.id, name: init.name, layer: init.layer, fte: Math.round(buFTE * 10) / 10, saving: Math.round(buSaving) });
-      }
-      const lever = init.lever || '';
-      if (lever in buPoolUtil) buPoolUtil[lever].consumed += buFTE;
-      // V4.10-#11: Also track secondary levers
-      const secLevers = (init.levers && typeof init.levers === 'object')
-        ? Object.keys(init.levers).filter(l => init.levers[l] && l !== lever)
-        : [];
-      secLevers.forEach(sl => { if (sl in buPoolUtil) buPoolUtil[sl].consumed += buFTE * 0.5; });
-    });
-    
-    // Build yearly projections by BU share of yearly totals
-    for (let yr = 0; yr < horizon; yr++) {
-      buYearly.push({
-        year: yr + 1,
-        fteReduction: Math.round((yearly[yr]?.fteReduction || 0) * buShare * 10) / 10,
-        annualSaving: Math.round((yearly[yr]?.annualSaving || 0) * buShare),
-      });
-    }
-    
-    // Set pool ceilings from global pools (proportional to BU share)
-    const globalPool = DEMO.waterfall?.poolUtilization || {};
-    poolKeys.forEach(pk => {
-      const gp = globalPool[pk] || {};
-      buPoolUtil[pk].ceiling = Math.round((gp.ceiling_fte || 0) * buShare * 10) / 10;
-    });
-    
-    initAttrib.sort((a,b) => b.fte - a.fte);
-    buSummary[bu] = {
-      baselineFTE: Math.round(buFTEMap[bu] * 10) / 10,
-      weightedCost: Math.round(DEMO.roles.reduce((s,r) => s + r.headcount * r.costPerFTE, 0) / DEMO.totalFTE),
-      yearly: buYearly,
-      totalFTEReduction: buYearly.length > 0 ? buYearly[buYearly.length - 1].fteReduction : 0,
-      totalSaving: buYearly.reduce((s,y) => s + y.annualSaving, 0),
-      initiativeAttrib: initAttrib,
-      poolUtilization: buPoolUtil,
-    };
-  });
-
-  // ── P3-fix: Compute missing fields for frontend parity with backend ──
-
-  // Pool utilization approximation from lever accumulator
-  const poolUtilization = {};
-  const leverPoolMap = {
-    deflection: 'deflection', aht_reduction: 'aht_reduction',
-    escalation_reduction: 'escalation_reduction', transfer_reduction: 'transfer_reduction',
-    repeat_reduction: 'repeat_reduction', cost_reduction: 'location',
-    shrinkage_reduction: 'shrinkage_reduction'
-  };
-  Object.keys(leverPoolMap).forEach(lever => {
-    const poolKey = leverPoolMap[lever];
-    // Sum FTE consumed across all complexity bands for this lever
-    let consumed = 0;
-    ['simple','moderate','complex'].forEach(band => {
-      const key = `${lever}_${band}`;
-      if (leverAccum[key]) consumed += leverAccum[key] * DEMO.totalFTE * 0.3; // rough approximation
-    });
-    // Ceiling estimate from initiative library caps
-    const ceiling = DEMO.totalFTE * 0.25; // conservative default
-    poolUtilization[poolKey] = {
-      ceiling_fte: Math.round(ceiling * 10) / 10,
-      consumed_fte: Math.round(Math.min(consumed, ceiling) * 10) / 10,
-      remaining_fte: Math.round(Math.max(0, ceiling - consumed) * 10) / 10,
-      utilization_pct: Math.round(Math.min(consumed / Math.max(ceiling, 0.1), 1) * 100),
-    };
-  });
-
-  const poolSummary = {
-    total_pool_fte: Object.values(poolUtilization).reduce((s, p) => s + p.ceiling_fte, 0),
-    total_consumed_fte: Object.values(poolUtilization).reduce((s, p) => s + p.consumed_fte, 0),
-    total_remaining_fte: Object.values(poolUtilization).reduce((s, p) => s + p.remaining_fte, 0),
-  };
-
-  // CSAT summary from initiative csatImpact fields
-  const csatImpactTotal = enabledInits.reduce((s, i) => s + (i.csatImpact || 0) * (i.adoption || 0.8), 0);
-  const currentCSAT = DEMO.avgCSAT || 3.5;
-  const csatSummary = {
-    currentCSAT: currentCSAT,
-    projectedCSAT: Math.min(5, currentCSAT + csatImpactTotal),
-    csatLift: Math.round(csatImpactTotal * 100) / 100,
-    initiatives: enabledInits.filter(i => (i.csatImpact || 0) > 0).length,
-  };
-
-  // Investment items breakdown
-  const investmentItems = [
-    { category: 'Technology', amount: Math.round(techInvestment), pct: 45 },
-    { category: 'Change Management', amount: Math.round(changeMgmt), pct: Math.round(changeMgmt / Math.max(totalInvestment, 1) * 100) },
-    { category: 'Training & Capability', amount: Math.round(training), pct: Math.round(training / Math.max(totalInvestment, 1) * 100) },
-    { category: 'Contingency', amount: Math.round(contingency), pct: Math.round(contingency / Math.max(totalInvestment, 1) * 100) },
-  ];
-
-  // Investment yearly — front-load Year 1 (70%), Year 2 (20%), Year 3 (10%)
-  const invPhasing = [0.70, 0.20, 0.10];
-  const investmentYearly = [];
-  for (let yr = 0; yr < horizon; yr++) {
-    const pct = invPhasing[yr] || 0;
-    investmentYearly.push({
-      year: yr + 1,
-      investment: Math.round(totalInvestment * pct),
-      pct: Math.round(pct * 100),
-      netBenefit: Math.round((yearly[yr]?.annualSaving || 0) - totalInvestment * pct),
-    });
-  }
-
-  const investmentSummary = {
-    totalInvestment: Math.round(totalInvestment),
-    techInvestment: Math.round(techInvestment),
-    annualMaintenance: Math.round(techInvestment * 0.15),
-    paybackMonths: Math.round(payback),
-  };
-
-  // Sensitivity — ±20% on 4 key variables
-  const sensitivity = [];
-  if (totalNPV > 0) {
-    const vars = [
-      { name: 'Adoption Rate', field: 'adoption' },
-      { name: 'Wage Inflation', field: 'wageInflation' },
-      { name: 'Discount Rate', field: 'discountRate' },
-      { name: 'FTE Volume', field: 'totalFTE' },
-    ];
-    vars.forEach(v => {
-      sensitivity.push({
-        variable: v.name,
-        low_npv: Math.round(totalNPV * 0.80),
-        base_npv: Math.round(totalNPV),
-        high_npv: Math.round(totalNPV * 1.20),
-        low_pct: -20,
-        high_pct: 20,
-      });
-    });
-  }
-
-  const auditTrail = []; // Only available from backend pool-based engine
-
-  return {
-    roleImpact, yearly, totalNPV, totalSaving, totalReduction,
-    techInvestment, changeMgmt, training, contingency, totalInvestment,
-    roi, payback, irr, scenarios, enabledInits, leverAccum,
-    layerFTE, layerSaving, buSummary,
-    poolUtilization, poolSummary, csatSummary,
-    investmentItems, investmentYearly, investmentSummary,
-    sensitivity, auditTrail
-  };
+  console.warn('runWaterfall() called — this is deprecated. Server waterfall is the source of truth.');
+  return WATERFALL;
 }
 
 
@@ -8370,30 +8204,40 @@ function renderPage11() {
     { label: 'Strategic (12-24m)', inits: inits.filter(i => i.endMonth > 18) },
   ];
 
-  // v12-#28/#50: Inline edit handler — now triggers waterfall recalculation
+  // v12-#28/#50: Inline edit handler — V9: uses server-side recalculation
   window._ganttEdit = function(initId, field, val) {
     const init = INITIATIVES.find(i => i.id === initId);
     if (!init) return;
     val = parseInt(val);
     if (isNaN(val) || val < 1) return;
-    const oldStart = init.startMonth, oldRamp = init.ramp;
     if (field === 'start') { init.startMonth = val; init.endMonth = val + init.ramp; }
     else if (field === 'dur') { init.ramp = val; init.endMonth = init.startMonth + val; }
-    // v12-#50: Re-run waterfall engine so financial overview numbers update
-    const oldNPV = WATERFALL.totalNPV || 0;
-    const oldReduction = WATERFALL.totalReduction || 0;
-    WATERFALL = Object.assign(WATERFALL, runWaterfall());
-    const deltaNPV = (WATERFALL.totalNPV || 0) - oldNPV;
-    const deltaFTE = (WATERFALL.totalReduction || 0) - oldReduction;
-    renderPage11();
-    // Show recalculation toast
-    const toast = document.createElement('div');
-    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:12px 20px;background:#2E2E38;color:#FFE600;border-radius:8px;font-size:12px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:opacity 0.5s;';
-    const arrow = deltaNPV >= 0 ? '▲' : '▼';
-    const fteArrow = deltaFTE >= 0 ? '▲' : '▼';
-    toast.innerHTML = '⚡ Waterfall recalculated — NPV ' + arrow + ' $' + Math.abs(deltaNPV/1000).toFixed(0) + 'K | FTE ' + fteArrow + ' ' + Math.abs(deltaFTE).toFixed(0);
-    document.body.appendChild(toast);
-    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 600); }, 3000);
+    // V9: Send update to server and recalculate
+    const fields = { startMonth: init.startMonth, ramp: init.ramp, endMonth: init.endMonth };
+    fetch('/api/initiative/update', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ id: initId, fields })
+    }).then(r => r.json()).then(resp => {
+      if (resp.waterfall && resp.waterfall.yearly) {
+        const oldNPV = WATERFALL.totalNPV || 0;
+        const oldReduction = WATERFALL.totalReduction || 0;
+        Object.assign(WATERFALL, resp.waterfall);
+        if (resp.initiatives) { INITIATIVES.length = 0; resp.initiatives.forEach(i => INITIATIVES.push(i)); }
+        const deltaNPV = (WATERFALL.totalNPV || 0) - oldNPV;
+        const deltaFTE = (WATERFALL.totalReduction || 0) - oldReduction;
+        renderPage11();
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:12px 20px;background:#2E2E38;color:#FFE600;border-radius:8px;font-size:12px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:opacity 0.5s;';
+        const arrow = deltaNPV >= 0 ? '▲' : '▼';
+        const fteArrow = deltaFTE >= 0 ? '▲' : '▼';
+        toast.innerHTML = '⚡ Server recalculated — NPV ' + arrow + ' $' + Math.abs(deltaNPV/1000).toFixed(0) + 'K | FTE ' + fteArrow + ' ' + Math.abs(deltaFTE).toFixed(0);
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 600); }, 3000);
+      }
+    }).catch(err => {
+      console.warn('Gantt update failed:', err);
+      renderPage11();
+    });
   };
 
   el.innerHTML = `

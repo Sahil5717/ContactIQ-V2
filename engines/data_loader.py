@@ -118,8 +118,10 @@ CHANNEL_SYNONYMS = {
     'EMAIL': 'Email', 'Email': 'Email', 'E-mail': 'Email',
     'IVR': 'IVR', 'Automated Phone': 'IVR', 'Interactive Voice': 'IVR',
     'APP': 'App/Self-Service', 'Mobile App': 'App/Self-Service', 'Self-Service': 'App/Self-Service',
+    'DIGITAL': 'App/Self-Service', 'Digital': 'App/Self-Service', 'Web Portal': 'App/Self-Service', 'Online': 'App/Self-Service',
     'SOCIAL': 'Social Media', 'Social': 'Social Media', 'Facebook': 'Social Media', 'Twitter': 'Social Media',
     'SMS': 'SMS/WhatsApp', 'WhatsApp': 'SMS/WhatsApp', 'Text': 'SMS/WhatsApp', 'Messaging': 'SMS/WhatsApp',
+    'MESSAGE': 'SMS/WhatsApp', 'Message': 'SMS/WhatsApp', 'MSG': 'SMS/WhatsApp',
     'RETAIL': 'Retail/Walk-in', 'Walk-In': 'Retail/Walk-in', 'Store Visit': 'Retail/Walk-in', 'In-Store': 'Retail/Walk-in',
 }
 
@@ -578,6 +580,9 @@ def run_etl():
         target_occupancy = params.get('targetOccupancy', 0.75)
         implied_monthly = (total_fte_raw * net_prod_hrs * target_occupancy) / (avg_aht_hrs * 12)
         vol_scale = max(1.0, implied_monthly / raw_vol)
+
+    # V9: Make scaling factor available to pool engine for auto-normalization
+    params['volumeScalingFactor'] = round(vol_scale, 1)
 
     # Store BOTH bases on every queue — volume stays as source (never overwritten)
     for q in queues:

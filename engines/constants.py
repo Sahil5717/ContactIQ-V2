@@ -15,8 +15,8 @@ AHT_SANITY_CEILING_MIN = 120      # max plausible AHT in minutes
 # ═══════════════════════════════════════════════════════════════
 # POOL / CAP CONSTANTS
 # ═══════════════════════════════════════════════════════════════
-ABSOLUTE_SINGLE_INIT_CAP = 0.30
-PER_ROLE_MAX_REDUCTION = 0.50
+ABSOLUTE_SINGLE_INIT_CAP = 0.25
+PER_ROLE_MAX_REDUCTION = 0.35
 SECONDARY_WEIGHT = 0.50
 REPEAT_FLOOR = 0.02
 

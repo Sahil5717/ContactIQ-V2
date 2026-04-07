@@ -3,3 +3,4 @@ openpyxl>=3.1.0
 markupsafe>=2.1.0
 gunicorn>=21.2.0
 fpdf2
+bcrypt>=4.0.0

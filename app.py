@@ -56,6 +56,42 @@ STATE_LOCK = threading.Lock()
 init_db()
 init_auth(app)
 
+# ── V9: Security Headers ──
+@app.after_request
+def _set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    if request.is_secure:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
+# ── V9: Session cookie security ──
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+# ── V9: Login rate limiting ──
+_login_attempts = {}  # ip -> (count, first_attempt_time)
+_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_WINDOW_SEC = 900  # 15 minutes
+
+def _check_rate_limit(ip):
+    """Check if IP is rate limited. Returns (allowed, retry_after_sec)."""
+    import time
+    now = time.time()
+    if ip in _login_attempts:
+        count, first_time = _login_attempts[ip]
+        if now - first_time > _LOGIN_WINDOW_SEC:
+            _login_attempts[ip] = (1, now)
+            return True, 0
+        if count >= _LOGIN_MAX_ATTEMPTS:
+            return False, int(_LOGIN_WINDOW_SEC - (now - first_time))
+        _login_attempts[ip] = (count + 1, first_time)
+        return True, 0
+    _login_attempts[ip] = (1, now)
+    return True, 0
+
 # A-02 fix: Session check for all API data routes
 @app.before_request
 def _check_api_auth():
@@ -236,6 +272,16 @@ def _recompute_all_from_diagnostic_unlocked():
 def _recompute_downstream_unlocked():
     """Internal helper — called from within STATE_LOCK, no re-acquire."""
     data = STATE['data']
+    # V9: Snapshot previous state for delta view
+    prev_wf = STATE.get('waterfall') or {}
+    prev_snapshot = {
+        'totalReduction': prev_wf.get('totalReduction', 0),
+        'totalSaving': prev_wf.get('totalSaving', 0),
+        'totalNPV': prev_wf.get('totalNPV', 0),
+        'totalInvestment': prev_wf.get('totalInvestment', 0),
+        'enabledCount': len([i for i in STATE.get('initiatives', []) if i.get('enabled')]),
+    }
+    
     STATE['waterfall'] = run_waterfall(data, STATE['initiatives'])
     try:
         STATE['pillarScenarios'] = compute_pillar_scenarios(data, STATE['initiatives'])
@@ -243,6 +289,23 @@ def _recompute_downstream_unlocked():
         pass
     STATE['risk'] = run_risk(STATE['initiatives'], data)
     STATE['workforce'] = run_workforce(data, STATE['waterfall'], STATE['initiatives'])
+    
+    # V9: Compute delta
+    new_wf = STATE['waterfall']
+    STATE['lastDelta'] = {
+        'fteChange': new_wf.get('totalReduction', 0) - prev_snapshot['totalReduction'],
+        'savingChange': new_wf.get('totalSaving', 0) - prev_snapshot['totalSaving'],
+        'npvChange': new_wf.get('totalNPV', 0) - prev_snapshot['totalNPV'],
+        'investmentChange': new_wf.get('totalInvestment', 0) - prev_snapshot['totalInvestment'],
+        'previous': prev_snapshot,
+        'current': {
+            'totalReduction': new_wf.get('totalReduction', 0),
+            'totalSaving': new_wf.get('totalSaving', 0),
+            'totalNPV': new_wf.get('totalNPV', 0),
+            'totalInvestment': new_wf.get('totalInvestment', 0),
+            'enabledCount': len([i for i in STATE['initiatives'] if i.get('enabled')]),
+        },
+    }
 
 
 def _apply_all_overrides():
@@ -445,6 +508,11 @@ def login_page():
 
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
+    # V9: Rate limiting
+    ip = request.remote_addr or '0.0.0.0'
+    allowed, retry_after = _check_rate_limit(ip)
+    if not allowed:
+        return jsonify({'error': f'Too many login attempts. Try again in {retry_after} seconds.'}), 429
     body = request.get_json(force=True)
     username = body.get('username', '').strip()
     password = body.get('password', '')
@@ -486,7 +554,7 @@ def api_data_status():
 
 
 @app.route('/api/data-management/upload', methods=['POST'])
-@require_role('admin')
+@require_role('analyst')
 def api_upload_file():
     category = request.form.get('category')
     if not category or category not in FILE_REGISTRY:
@@ -504,7 +572,7 @@ def api_upload_file():
 
 
 @app.route('/api/data-management/clear', methods=['POST'])
-@require_role('admin')
+@require_role('supervisor')
 def api_clear_upload():
     body = request.get_json(force=True)
     category = body.get('category')
@@ -687,17 +755,38 @@ def api_data():
     if not STATE['loaded']:
         return jsonify({'error': 'Data not loaded', 'reason': STATE.get('_load_error', 'Unknown')}), 503
     bu = request.args.get('bu')
+    demo = _build_demo_object()
     if bu and bu != 'all':
-        demo = copy.deepcopy(_build_demo_object())
+        demo = copy.deepcopy(demo)
         if 'queues' in demo:
             demo['queues'] = [q for q in demo['queues'] if q.get('bu') == bu]
-        # Recompute totals from filtered queues
         filtered_q = demo.get('queues', [])
         if filtered_q:
             demo['totalVolumeAnnual'] = sum(q.get('volume', 0) for q in filtered_q)
             demo['totalVolume'] = demo['totalVolumeAnnual']
-        return jsonify(demo)
-    return jsonify(_build_demo_object())
+    
+    # V9: Client-role content filtering — strip internal-only fields
+    user = get_current_user()
+    if user and user.get('role') == 'client':
+        demo = copy.deepcopy(demo) if bu is None else demo
+        # Strip model internals
+        for key in ['auditTrail', 'poolUtilization', 'poolSummary', 'metricSources',
+                     'calculationBasis', 'validationIssues', 'subIntentAnalysis']:
+            demo.pop(key, None)
+        # Strip initiative internal fields
+        internal_fields = ['_mechanism', '_grossFTE', '_grossSaving', '_poolConsumed',
+                          '_poolCapped', '_capApplied', '_floorApplied', 'matchScore',
+                          'relevanceScore', 'relevanceReasons', 'consultantNote']
+        for init in demo.get('initiatives', []):
+            for f in internal_fields:
+                init.pop(f, None)
+        # Only show approved initiatives if any have approvalStatus set
+        inits = demo.get('initiatives', [])
+        has_approval = any(i.get('approvalStatus') for i in inits)
+        if has_approval:
+            demo['initiatives'] = [i for i in inits if i.get('approvalStatus') == 'approved' or i.get('enabled')]
+    
+    return jsonify(demo)
 
 @app.route('/api/diagnostic')
 def api_diagnostic():
@@ -816,7 +905,8 @@ def api_recalculate():
         return jsonify({'status':'ok','scoped':False,'data':_build_demo_object(),
                         'initiatives':STATE['initiatives'],'waterfall':STATE['waterfall'],
                         'risk':STATE['risk'],'workforce':STATE['workforce'],
-                        'enabledCount':sum(1 for i in STATE['initiatives'] if i.get('enabled'))})
+                        'enabledCount':sum(1 for i in STATE['initiatives'] if i.get('enabled')),
+                        'delta':STATE.get('lastDelta',{})})
     except Exception as e:
         traceback.print_exc()
         return jsonify({'status':'error','message':'Internal server error'}), 500
@@ -1054,6 +1144,30 @@ def api_operating_model_load():
     """A-05 fix: Load persisted target operating model."""
     om = STATE['overrides'].get('operating_model', {})
     return jsonify({'operatingModel': om})
+
+
+# ── V9: Per-page consultant narrative ──
+@app.route('/api/narrative/<int:page>', methods=['GET'])
+def api_get_narrative(page):
+    key = f'page_narrative_{page}'
+    text = STATE['overrides'].get(key, '')
+    return jsonify({'page': page, 'text': text})
+
+@app.route('/api/narrative/<int:page>', methods=['POST'])
+@require_role('supervisor')
+def api_set_narrative(page):
+    body = request.get_json(force=True)
+    text = body.get('text', '').strip()
+    key = f'page_narrative_{page}'
+    with STATE_LOCK:
+        STATE['overrides'][key] = text
+        save_overrides(STATE['overrides'], user_id=get_current_user().get('id') if get_current_user() else None, reason=f'Narrative update for page {page}')
+    return jsonify({'status': 'ok', 'page': page})
+
+@app.route('/api/narratives', methods=['GET'])
+def api_get_all_narratives():
+    narratives = {k: v for k, v in STATE['overrides'].items() if k.startswith('page_narrative_')}
+    return jsonify({'narratives': narratives})
 
 @app.route('/api/investment')
 def api_investment():

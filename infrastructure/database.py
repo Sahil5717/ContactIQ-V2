@@ -162,15 +162,29 @@ def init_db():
 # ── User Management ──────────────────────────────────────────
 
 def _hash_password(password, salt=None):
-    """Hash password with salt using SHA-256."""
-    if salt is None:
-        salt = secrets.token_hex(16)
-    hashed = hashlib.sha256((salt + password).encode()).hexdigest()
-    return hashed, salt
+    """Hash password using bcrypt. Salt param ignored (bcrypt manages its own)."""
+    import bcrypt
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    return hashed, 'bcrypt'
+
+
+def _verify_bcrypt(password, stored_hash):
+    """Verify password against bcrypt hash."""
+    import bcrypt
+    try:
+        return bcrypt.checkpw(password.encode(), stored_hash.encode())
+    except (ValueError, TypeError):
+        return False
+
+
+def _verify_legacy_sha256(password, stored_hash, salt):
+    """Verify password against legacy SHA-256 hash (for migration)."""
+    legacy = hashlib.sha256((salt + password).encode()).hexdigest()
+    return legacy == stored_hash
 
 
 def create_user(db, username, password, role='supervisor', display_name=None):
-    """Create a new user. Returns user id."""
+    """Create a new user with bcrypt hash. Returns user id."""
     hashed, salt = _hash_password(password)
     db.execute(
         "INSERT INTO users (username, password_hash, salt, role, display_name) VALUES (?, ?, ?, ?, ?)",
@@ -180,16 +194,29 @@ def create_user(db, username, password, role='supervisor', display_name=None):
 
 
 def verify_user(username, password):
-    """Verify credentials. Returns user dict or None."""
+    """Verify credentials. Supports bcrypt and legacy SHA-256 with auto-migration."""
     with get_db() as db:
         user = db.execute(
             "SELECT * FROM users WHERE username = ? AND is_active = 1", (username,)
         ).fetchone()
         if not user:
             return None
-        hashed, _ = _hash_password(password, user['salt'])
-        if hashed != user['password_hash']:
-            return None
+        stored_hash = user['password_hash']
+        salt = user['salt']
+        
+        # Try bcrypt first (new format)
+        if salt == 'bcrypt' or stored_hash.startswith('$2'):
+            if not _verify_bcrypt(password, stored_hash):
+                return None
+        else:
+            # Legacy SHA-256 verification
+            if not _verify_legacy_sha256(password, stored_hash, salt):
+                return None
+            # Auto-migrate to bcrypt on successful legacy login
+            new_hash, new_salt = _hash_password(password)
+            db.execute("UPDATE users SET password_hash = ?, salt = ? WHERE id = ?",
+                       (new_hash, new_salt, user['id']))
+        
         db.execute("UPDATE users SET last_login = datetime('now') WHERE id = ?", (user['id'],))
         return dict(user)
 

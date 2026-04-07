@@ -9,20 +9,20 @@ v12-#11: Cost recommendations rank by cost impact.
 """
 
 SIGNAL_TO_LEVER = {
-    'high_aht': ['aht_reduction', 'automation', 'process_improvement'],
-    'low_fcr': ['fcr_improvement', 'knowledge_mgmt', 'agent_assist'],
-    'low_csat': ['csat_improvement', 'quality', 'agent_assist'],
-    'high_cost': ['cost_reduction', 'automation', 'self_service'],
-    'high_repeat': ['fcr_improvement', 'process_improvement', 'knowledge_mgmt'],
-    'high_escalation': ['aht_reduction', 'agent_assist', 'training'],
-    'low_self_service': ['self_service', 'automation', 'channel_shift'],
-    'high_abandon': ['automation', 'workforce_optimization', 'channel_shift'],
-    'maturity_gap': ['process_improvement', 'automation', 'knowledge_mgmt'],
-    'channel_mismatch': ['channel_shift', 'self_service', 'automation'],
-    'friction_hotspot': ['process_improvement', 'aht_reduction', 'automation'],
-    'cost_outlier': ['cost_reduction', 'automation', 'self_service'],
-    'benchmark_gap': ['aht_reduction', 'fcr_improvement', 'automation'],
-    'workforce_imbalance': ['workforce_optimization', 'cost_reduction', 'training'],
+    'high_aht': ['aht_reduction', 'deflection'],
+    'low_fcr': ['repeat_reduction', 'aht_reduction', 'escalation_reduction'],
+    'low_csat': ['escalation_reduction', 'aht_reduction', 'repeat_reduction'],
+    'high_cost': ['cost_reduction', 'deflection', 'shrinkage_reduction'],
+    'high_repeat': ['repeat_reduction', 'aht_reduction'],
+    'high_escalation': ['escalation_reduction', 'aht_reduction'],
+    'low_self_service': ['deflection', 'aht_reduction'],
+    'high_abandon': ['deflection', 'shrinkage_reduction'],
+    'maturity_gap': ['aht_reduction', 'deflection', 'shrinkage_reduction'],
+    'channel_mismatch': ['deflection', 'cost_reduction'],
+    'friction_hotspot': ['aht_reduction', 'escalation_reduction', 'deflection'],
+    'cost_outlier': ['cost_reduction', 'deflection', 'shrinkage_reduction'],
+    'benchmark_gap': ['aht_reduction', 'repeat_reduction', 'deflection'],
+    'workforce_imbalance': ['shrinkage_reduction', 'cost_reduction'],
 }
 
 PAGE_SIGNALS = {
@@ -34,7 +34,7 @@ PAGE_SIGNALS = {
     'gap_analysis': ['benchmark_gap', 'low_fcr', 'high_aht', 'low_csat'],
     'cost_analysis': ['cost_outlier', 'high_cost', 'workforce_imbalance'],
     'opportunity_buckets': ['low_self_service', 'high_cost', 'channel_mismatch'],
-    'self_service': ['low_self_service', 'automation', 'channel_mismatch'],
+    'self_service': ['low_self_service', 'deflection', 'channel_mismatch'],
     'channel_strategy': ['channel_mismatch', 'low_self_service', 'cost_outlier'],
     'impact_dashboard': ['high_cost', 'low_csat', 'low_fcr', 'high_aht'],
     'opportunity_sizing': ['low_self_service', 'high_cost', 'channel_mismatch', 'high_aht'],
@@ -47,19 +47,19 @@ PAGE_SIGNALS = {
 def _score_for_benchmarking(init, data, diagnostic):
     score = 0; lever = init.get('lever', '')
     bm = data.get('benchmarks', {}).get('_defaults', {})
-    if data.get('avgAHT', 0) > bm.get('AHT', {}).get('_default', 6.0) and lever in ('aht_reduction', 'automation', 'process_improvement'):
+    if data.get('avgAHT', 0) > bm.get('AHT', {}).get('_default', 6.0) and lever in ('aht_reduction', 'deflection', 'aht_reduction'):
         score += 3 + abs(init.get('ahtImpact', 0)) * 10
-    if data.get('avgFCR', 0) < bm.get('FCR', {}).get('_default', 0.75) and lever in ('fcr_improvement', 'repeat_reduction', 'knowledge_mgmt'):
+    if data.get('avgFCR', 0) < bm.get('FCR', {}).get('_default', 0.75) and lever in ('repeat_reduction', 'repeat_reduction', 'aht_reduction'):
         score += 3 + init.get('fcrImpact', 0) * 10
     if data.get('avgCSAT', 0) < bm.get('CSAT', {}).get('_default', 3.8) and init.get('csatImpact', 0) > 0:
         score += 2 + init.get('csatImpact', 0) * 10
-    if data.get('avgCPC', 0) > bm.get('CPC', {}).get('_default', 5.0) and lever in ('cost_reduction', 'deflection', 'self_service'):
+    if data.get('avgCPC', 0) > bm.get('CPC', {}).get('_default', 5.0) and lever in ('cost_reduction', 'deflection', 'deflection'):
         score += 2
     return score
 
 def _score_for_cost_analysis(init, data, diagnostic):
     score = 0; lever = init.get('lever', ''); layer = init.get('layer', '')
-    if lever in ('cost_reduction', 'deflection', 'self_service'): score += 5
+    if lever in ('cost_reduction', 'deflection', 'deflection'): score += 5
     if lever == 'aht_reduction': score += 3
     if lever == 'shrinkage_reduction': score += 2
     if layer == 'Location Strategy': score += 4
@@ -78,9 +78,9 @@ def _score_for_heatmap(init, data, diagnostic):
             score += 2
             worst = min(qs.get('metrics', {}).items(), key=lambda x: x[1].get('score', 100), default=('', {'score': 100}))
             m = worst[0]
-            if m == 'aht' and lever in ('aht_reduction', 'automation'): score += 3
-            elif m == 'escalation' and lever in ('escalation_reduction', 'agent_assist'): score += 3
-            elif m == 'fcr' and lever in ('fcr_improvement', 'repeat_reduction'): score += 3
+            if m == 'aht' and lever in ('aht_reduction', 'deflection'): score += 3
+            elif m == 'escalation' and lever in ('escalation_reduction', 'aht_reduction'): score += 3
+            elif m == 'fcr' and lever in ('repeat_reduction', 'repeat_reduction'): score += 3
             elif m == 'csat' and init.get('csatImpact', 0) > 0: score += 2
             elif m == 'cpc' and lever in ('cost_reduction', 'deflection'): score += 2
     return score
@@ -89,8 +89,8 @@ def _score_for_gap_analysis(init, data, diagnostic):
     score = 0; lever = init.get('lever', '')
     for pa in diagnostic.get('problemAreas', []):
         m = pa.get('metric', '')
-        if m == 'aht' and lever in ('aht_reduction', 'automation'): score += 1
-        elif m == 'fcr' and lever in ('fcr_improvement', 'repeat_reduction'): score += 1
+        if m == 'aht' and lever in ('aht_reduction', 'deflection'): score += 1
+        elif m == 'fcr' and lever in ('repeat_reduction', 'repeat_reduction'): score += 1
         elif m == 'escalation' and lever in ('escalation_reduction',): score += 1
         elif m == 'csat' and init.get('csatImpact', 0) > 0: score += 0.5
         elif m == 'cpc' and lever in ('cost_reduction', 'deflection'): score += 0.5
@@ -100,8 +100,8 @@ def _score_for_gap_analysis(init, data, diagnostic):
 def _score_for_self_service(init, data, diagnostic):
     score = 0; lever = init.get('lever', '')
     if lever == 'deflection': score += 5
-    if lever in ('self_service', 'automation'): score += 4
-    if lever == 'channel_shift': score += 3
+    if lever in ('deflection', 'deflection'): score += 4
+    if lever == 'deflection': score += 3
     if set(init.get('channels', [])) & {'App/Self-Service', 'IVR', 'Chat', 'SMS/WhatsApp'}: score += 2
     if init.get('complexity') == 'simple': score += 2
     score += init.get('impact', 0) * 5
@@ -127,8 +127,8 @@ def _score_for_maturity(init, data, diagnostic):
     """v14: Maturity page — favour initiatives that close maturity gaps."""
     score = 0; lever = init.get('lever', ''); layer = init.get('layer', '')
     # Process improvement & knowledge management close maturity gaps
-    if lever in ('process_improvement', 'knowledge_mgmt', 'automation'): score += 4
-    if lever in ('quality', 'training', 'agent_assist'): score += 3
+    if lever in ('aht_reduction', 'aht_reduction', 'deflection'): score += 4
+    if lever in ('aht_reduction', 'aht_reduction', 'aht_reduction'): score += 3
     # AI & Automation initiatives raise tech maturity
     if layer == 'AI & Automation': score += 2
     # Operating Model initiatives raise process maturity
@@ -142,8 +142,8 @@ def _score_for_channel_strategy(init, data, diagnostic):
     """v14: Channel strategy page — favour deflection, channel shift, digital enablement."""
     score = 0; lever = init.get('lever', '')
     if lever == 'deflection': score += 5
-    if lever in ('channel_shift', 'self_service'): score += 4
-    if lever == 'automation': score += 3
+    if lever in ('deflection', 'deflection'): score += 4
+    if lever == 'deflection': score += 3
     # Bonus for initiatives targeting digital channels
     digital_chs = {'Chat', 'App/Self-Service', 'SMS/WhatsApp', 'IVR', 'Email'}
     init_chs = set(init.get('channels', []))
@@ -219,7 +219,7 @@ def _build_initiative_triggers(init, signals, data):
             triggers.append(f"−{aht_impact:.0%} AHT")
         if fte > 0:
             triggers.append(f"−{fte:.0f} FTE")
-    elif lever in ('repeat_reduction', 'fcr_improvement'):
+    elif lever in ('repeat_reduction', 'repeat_reduction'):
         fcr_impact = init.get('fcrImpact', impact_pct)
         if fcr_impact > 0:
             triggers.append(f"+{fcr_impact:.0%} FCR")
@@ -313,11 +313,11 @@ def get_initiative_linkage(page_context, data, diagnostic, initiatives, waterfal
         ]
         avg_esc = sum(q.get('escalation', 0) * q.get('volume', 0) for q in queues) / max(sum(q.get('volume', 0) for q in queues), 1)
         metrics.append(('Escalation', avg_esc, 0.12, 'lower', '%'))
-        lever_map = {'AHT': ['aht_reduction', 'automation', 'process_improvement'],
-                     'FCR': ['fcr_improvement', 'repeat_reduction', 'knowledge_mgmt'],
-                     'CSAT': ['csat_improvement', 'quality', 'agent_assist'],
-                     'CPC': ['cost_reduction', 'deflection', 'self_service'],
-                     'Escalation': ['escalation_reduction', 'agent_assist']}
+        lever_map = {'AHT': ['aht_reduction', 'deflection', 'aht_reduction'],
+                     'FCR': ['repeat_reduction', 'repeat_reduction', 'aht_reduction'],
+                     'CSAT': ['escalation_reduction', 'aht_reduction', 'aht_reduction'],
+                     'CPC': ['cost_reduction', 'deflection', 'deflection'],
+                     'Escalation': ['escalation_reduction', 'aht_reduction']}
         for name, current, benchmark, direction, fmt in metrics:
             is_below = (direction == 'higher' and current < benchmark) or (direction == 'lower' and current > benchmark)
             if is_below:
@@ -333,7 +333,7 @@ def get_initiative_linkage(page_context, data, diagnostic, initiatives, waterfal
             cpc = q.get('cpc', 0); ch = q.get('channel', 'Voice')
             bench_cpc = bm_defaults.get('CPC', {}).get(ch, bm_defaults.get('CPC', {}).get('_default', 5.0))
             if cpc > bench_cpc * 1.1:
-                matched = sorted([i for i in enabled if i.get('lever', '') in ('cost_reduction', 'deflection', 'aht_reduction', 'self_service')
+                matched = sorted([i for i in enabled if i.get('lever', '') in ('cost_reduction', 'deflection', 'aht_reduction', 'deflection')
                                   and (ch in i.get('channels', []) or not i.get('channels'))],
                                 key=lambda x: x.get('_annualSaving', 0), reverse=True)
                 linkages.append({'intent': q.get('intent', 'Unknown'), 'channel': ch, 'queue': q.get('queue', ''),
@@ -347,8 +347,8 @@ def get_initiative_linkage(page_context, data, diagnostic, initiatives, waterfal
         queue_scores = diagnostic.get('queueScores', [])
         problem_queues = sorted([qs for qs in queue_scores if qs.get('rating') in ('red', 'amber')],
                                key=lambda x: x.get('overallScore', 100))
-        lever_map = {'aht': ['aht_reduction', 'automation'], 'fcr': ['fcr_improvement', 'repeat_reduction'],
-                     'escalation': ['escalation_reduction', 'agent_assist'], 'csat': ['quality', 'agent_assist'],
+        lever_map = {'aht': ['aht_reduction', 'deflection'], 'fcr': ['repeat_reduction', 'repeat_reduction'],
+                     'escalation': ['escalation_reduction', 'aht_reduction'], 'csat': ['aht_reduction', 'aht_reduction'],
                      'cpc': ['cost_reduction', 'deflection']}
         for qs in problem_queues[:10]:
             ch = qs.get('channel', '')
@@ -457,7 +457,7 @@ def _build_headline(page_context, signals, data, waterfall):
         'heatmap': lambda: f"{len([s for s in signals if s['type']=='friction_hotspot'])} friction hotspots in high-volume queues",
         'gap_analysis': lambda: f"Performance gaps across {len(signals)} metrics with direct improvement levers",
         'cost_analysis': lambda: f"${tc:,.0f} annual cost — structural optimization opportunities exist",
-        'self_service': lambda: f"Self-service at {next((s['value'] for s in signals if s['type']=='low_self_service'), 'low')} — significant deflection potential",
+        'deflection': lambda: f"Self-service at {next((s['value'] for s in signals if s['type']=='low_self_service'), 'low')} — significant deflection potential",
         'impact_dashboard': lambda: f"${waterfall.get('totalNPV',0):,.0f} NPV with {waterfall.get('payback',0):.1f}yr payback" if waterfall else "Complete financial overview",
     }
     try: return h.get(page_context, lambda: f"{len(signals)} improvement areas identified")()

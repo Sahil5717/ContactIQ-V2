@@ -41,13 +41,24 @@ def compute_pools(enriched_queues, roles, params, cost_matrix=None):
     net_prod_hours = gross_hours_year * (1 - shrinkage)
     
     annualization = params.get('volumeAnnualizationFactor', 12)
-    total_volume = total_volume_raw * annualization
     
-    # Apply annualization to queue volumes
+    # ── V9 Fix: Volume normalization for pool ceilings ──
+    # When CCaaS data covers only a fraction of actual volume (scaling factor > 5x),
+    # pool ceilings computed on source volume are too small.
+    # Scale pool volumes to capacity-normalized level so ceilings reflect full operation.
+    vol_scale_factor = params.get('volumeScalingFactor', 1.0)
+    if vol_scale_factor <= 0:
+        vol_scale_factor = 1.0
+    # Auto-normalize when source data covers < 20% of capacity
+    pool_volume_multiplier = max(1.0, vol_scale_factor) if vol_scale_factor > 5.0 else 1.0
+    
+    total_volume = total_volume_raw * annualization * pool_volume_multiplier
+    
+    # Apply annualization and normalization to queue volumes
     ann_queues = []
     for q in enriched_queues:
         aq = dict(q)
-        aq['annual_volume'] = q['volume'] * annualization
+        aq['annual_volume'] = q['volume'] * annualization * pool_volume_multiplier
         ann_queues.append(aq)
     
     # ── P2-1: Location-weighted cost per FTE ──
